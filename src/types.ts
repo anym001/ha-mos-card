@@ -1,11 +1,10 @@
-import { ActionConfig, LovelaceCard, LovelaceCardConfig, LovelaceCardEditor } from 'custom-card-helpers';
+import { ActionConfig, LovelaceCardConfig, LovelaceCardEditor } from 'custom-card-helpers';
 
 import type { MosDeviceKind } from './devices';
 
 declare global {
   interface HTMLElementTagNameMap {
     'ha-mos-card-editor': LovelaceCardEditor;
-    'hui-error-card': LovelaceCard;
   }
 }
 

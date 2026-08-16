@@ -22,7 +22,6 @@
 
 import { createCollection } from 'home-assistant-js-websocket';
 import type { Connection, UnsubscribeFunc } from 'home-assistant-js-websocket';
-import type { HomeAssistant } from 'custom-card-helpers';
 
 /**
  * The `model_id` values the integration writes onto its container devices.
@@ -321,12 +320,4 @@ export function deviceDisplayName(device: DeviceRegistryEntry, serverName?: stri
 /** Whether a state string means "Home Assistant has no reading for this". */
 export function isUnavailableState(state: string | undefined): boolean {
   return state === undefined || state === 'unavailable' || state === 'unknown';
-}
-
-/** Resolve an entity's current state object, or undefined if it has none yet. */
-export function stateOf(hass: HomeAssistant | undefined, entityId: string | undefined) {
-  if (!hass || !entityId) {
-    return undefined;
-  }
-  return hass.states[entityId];
 }
