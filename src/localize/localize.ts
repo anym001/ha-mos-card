@@ -1,9 +1,12 @@
+import * as de from './languages/de.json';
 import * as en from './languages/en.json';
-import * as nb from './languages/nb.json';
 
+// Same two languages the MOS integration ships, so the card and the integration
+// speak with one voice. German follows the integration's own wording: Docker-
+// Container, LXC-Container, VMs, Festplatten, Speicherpools, USV.
 const languages: Record<string, Record<string, unknown>> = {
+  de: de,
   en: en,
-  nb: nb,
 };
 
 function resolveTranslation(path: string, dictionary: Record<string, unknown>): string | undefined {

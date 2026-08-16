@@ -1,0 +1,39 @@
+{
+  "common": {
+    "version": "Version",
+    "invalid_configuration": "Ungültige Konfiguration",
+    "loading": "Geräte werden geladen…",
+    "no_devices": "Keine MOS-Geräte gefunden",
+    "no_state_entity": "Keine Status-Entität",
+    "server": "MOS-Server",
+    "open_link": "Weboberfläche öffnen",
+    "toggle_power": "Starten oder stoppen"
+  },
+  "errors": {
+    "kinds_not_a_list": "'kinds' muss eine Liste sein",
+    "no_kinds": "'kinds' darf nicht leer sein",
+    "unknown_kind": "Unbekannte Geräteart"
+  },
+  "kinds": {
+    "docker_container": "Docker-Container",
+    "lxc_container": "LXC-Container",
+    "virtual_machine": "VMs",
+    "disk": "Festplatten",
+    "storage_pool": "Speicherpools",
+    "ups": "USV"
+  },
+  "editor": {
+    "title": "Titel",
+    "server": "MOS-Server",
+    "all_servers": "Alle Server",
+    "kinds": "Gerätearten",
+    "kinds_hint": "Wird über die model_id des Geräts gematcht, damit die Liste Containern folgt, die kommen und gehen.",
+    "display": "Anzeige",
+    "group_by_kind": "Nach Geräteart gruppieren",
+    "show_icon": "Symbol anzeigen",
+    "show_state": "Status anzeigen",
+    "show_link": "Link anzeigen",
+    "show_power": "Ein/Aus-Schalter anzeigen",
+    "hide_unavailable": "Nicht verfügbare Geräte ausblenden"
+  }
+}

@@ -219,8 +219,8 @@ src/
 └── localize/
     ├── localize.ts              # i18n helper
     └── languages/
-        ├── en.json              # English strings
-        └── nb.json              # Norwegian strings
+        ├── de.json              # German strings
+        └── en.json              # English strings
 dist/
 └── ha-mos-card.js               # Build output — serve this to HA
 ```
@@ -242,7 +242,14 @@ Releases are not hand-tagged. Merging to `master` opens or updates a release PR;
 tags the release, bumps `package.json` and `src/const.ts`, and attaches the built `ha-mos-card.js`
 to it, which is what HACS downloads.
 
-### Adding a new language
+### Languages
+
+The card ships German and English, the same two the MOS integration ships, and German follows the
+integration's own wording so the two read alike. A key missing from one file falls back to English
+rather than showing a raw key, which makes a partial translation safe but easy to miss — add new
+keys to both files.
+
+To add a third language:
 
 1. Copy `src/localize/languages/en.json` to `src/localize/languages/<lang>.json`.
 2. Translate the values (keep all keys identical).
