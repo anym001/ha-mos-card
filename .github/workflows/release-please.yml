@@ -1,0 +1,91 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - master
+
+# Required permissions for GITHUB_TOKEN to create releases and pull requests.
+#
+# Additionally, "Allow GitHub Actions to create and approve pull requests" must
+# be enabled in your repository under Settings > Actions > General.
+# See: https://github.com/googleapis/release-please-action?tab=readme-ov-file#workflow-permissions
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # HACS installs the card by downloading the asset named in hacs.json from the
+  # release, so a release without the built bundle attached is not installable.
+  # This runs only on the push that merges a release PR, when release-please has
+  # already tagged the commit and both version sources carry the new number.
+  publish:
+    name: Attach built card to the release
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: |
+          corepack enable
+          corepack prepare yarn@4.12.0 --activate
+          yarn install --immutable
+
+      # release-please bumps package.json and src/const.ts in the same commit.
+      # If they ever disagree, the console banner would advertise a version the
+      # release does not carry, so fail here rather than ship that.
+      - name: Verify both version sources match the tag
+        run: |
+          VERSION="${TAG_NAME#v}"
+
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          CONST_VERSION=$(sed -n "s/^export const CARD_VERSION = '\(.*\)';.*$/\1/p" src/const.ts)
+
+          [ "$PKG_VERSION" = "$VERSION" ] || {
+            echo "package.json version mismatch: expected '$VERSION', got '$PKG_VERSION'"
+            exit 1
+          }
+
+          [ "$CONST_VERSION" = "$VERSION" ] || {
+            echo "src/const.ts CARD_VERSION mismatch: expected '$VERSION', got '$CONST_VERSION'"
+            exit 1
+          }
+
+          echo "Version validation passed: $VERSION"
+        env:
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+
+      - name: Build the card
+        run: yarn build
+
+      - name: Upload release asset
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/ha-mos-card.js
+          asset_name: ha-mos-card.js
+          tag: ${{ needs.release-please.outputs.tag_name }}
+          overwrite: true

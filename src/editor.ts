@@ -2,28 +2,28 @@
 import { LitElement, html, TemplateResult, css } from 'lit';
 import { HomeAssistant, fireEvent, LovelaceCardEditor, ActionConfig } from 'custom-card-helpers';
 
-import { BoilerplateCardConfig } from './types';
+import { HaMosCardConfig } from './types';
 import { customElement, property, state } from 'lit/decorators.js';
 
-@customElement('boilerplate-card-editor')
-export class BoilerplateCardEditor extends LitElement implements LovelaceCardEditor {
+@customElement('ha-mos-card-editor')
+export class HaMosCardEditor extends LitElement implements LovelaceCardEditor {
   @property({ attribute: false }) public hass!: HomeAssistant;
 
-  @state() private _config?: BoilerplateCardConfig;
+  @state() private _config?: HaMosCardConfig;
 
   @state() private _openSection = 'entity';
 
   private _configValueTarget(
     ev: Event,
-  ): (EventTarget & { configValue?: keyof BoilerplateCardConfig; value?: string; checked?: boolean }) | null {
+  ): (EventTarget & { configValue?: keyof HaMosCardConfig; value?: string; checked?: boolean }) | null {
     return ev.target as EventTarget & {
-      configValue?: keyof BoilerplateCardConfig;
+      configValue?: keyof HaMosCardConfig;
       value?: string;
       checked?: boolean;
     };
   }
 
-  public setConfig(config: BoilerplateCardConfig): void {
+  public setConfig(config: HaMosCardConfig): void {
     // Deep clone and ensure proper action defaults
     this._config = {
       ...structuredClone(config),
@@ -286,7 +286,7 @@ export class BoilerplateCardEditor extends LitElement implements LovelaceCardEdi
       return;
     }
     const target = ev.target as any;
-    const configValue = target.configValue as keyof BoilerplateCardConfig;
+    const configValue = target.configValue as keyof HaMosCardConfig;
     if (!configValue) {
       return;
     }
@@ -317,7 +317,7 @@ export class BoilerplateCardEditor extends LitElement implements LovelaceCardEdi
 
     // Handle action updates - ensure we always have a valid action object
     if (newAction && newAction.action) {
-      updatedConfig[configValue as keyof BoilerplateCardConfig] = newAction;
+      updatedConfig[configValue as keyof HaMosCardConfig] = newAction;
     } else {
       // Set appropriate default if action is cleared/invalid
       const defaults = {
@@ -325,7 +325,7 @@ export class BoilerplateCardEditor extends LitElement implements LovelaceCardEdi
         hold_action: { action: 'none' },
         double_tap_action: { action: 'none' },
       };
-      updatedConfig[configValue as keyof BoilerplateCardConfig] = defaults[configValue as keyof typeof defaults] || {
+      updatedConfig[configValue as keyof HaMosCardConfig] = defaults[configValue as keyof typeof defaults] || {
         action: 'none',
       };
     }
@@ -402,6 +402,6 @@ export class BoilerplateCardEditor extends LitElement implements LovelaceCardEdi
 }
 
 // Explicit element registration as fallback
-if (!customElements.get('boilerplate-card-editor')) {
-  customElements.define('boilerplate-card-editor', BoilerplateCardEditor);
+if (!customElements.get('ha-mos-card-editor')) {
+  customElements.define('ha-mos-card-editor', HaMosCardEditor);
 }

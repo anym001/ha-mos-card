@@ -1,0 +1,48 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+#
+# This repository is Node-only, so every hook below is a local hook running a
+# binary from ./node_modules/.bin/. Run `yarn install` once and the hooks work;
+# there is no separate Python toolchain to bootstrap.
+#
+# Install both hook types with a plain `pre-commit install` — without this,
+# the commit-msg hook below would need an explicit --hook-type flag and would
+# silently never run for anyone who forgot it.
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: local
+    hooks:
+      # Formatting first, so the linter sees an already-formatted file.
+      - id: prettier
+        name: prettier
+        entry: bash -c 'if [[ -x "./node_modules/.bin/prettier" ]]; then ./node_modules/.bin/prettier --write "$@"; exit $?; fi; echo "⚠️  Skipping prettier (yarn install not run)"; exit 0' --
+        language: system
+        types_or: [ts, javascript, json, yaml, markdown]
+        exclude: ^yarn\.lock$
+        pass_filenames: true
+
+      - id: eslint
+        name: eslint
+        entry: bash -c 'if [[ -x "./node_modules/.bin/eslint" ]]; then ./node_modules/.bin/eslint --fix "$@"; exit $?; fi; echo "⚠️  Skipping eslint (yarn install not run)"; exit 0' --
+        language: system
+        types: [ts]
+        files: ^src/
+        pass_filenames: true
+
+      - id: tsc
+        name: tsc --noEmit
+        entry: bash -c 'if [[ -x "./node_modules/.bin/tsc" ]]; then ./node_modules/.bin/tsc --noEmit; exit $?; fi; echo "⚠️  Skipping tsc (yarn install not run)"; exit 0'
+        language: system
+        types: [ts]
+        pass_filenames: false
+
+      # Commit message linting (Conventional Commits)
+      # release-please derives the version bump and CHANGELOG from these
+      # subjects, so a malformed message produces a wrong release.
+      - id: commitlint
+        name: commitlint
+        entry: bash -c 'if [[ -x "./node_modules/.bin/commitlint" ]]; then ./node_modules/.bin/commitlint --edit "$1"; exit $?; fi; echo "⚠️  Skipping commitlint (yarn install not run)"; exit 0' --
+        language: system
+        stages: [commit-msg]
+        pass_filenames: true

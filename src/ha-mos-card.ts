@@ -15,7 +15,7 @@ import {
 } from 'custom-card-helpers'; // Community-maintained helpers: https://github.com/custom-cards/custom-card-helpers
 
 // TODO: Replace this import with your own config type once you've defined your fields in types.ts.
-import type { BoilerplateCardConfig } from './types';
+import type { HaMosCardConfig } from './types';
 
 // Local action-handler directive — provides tap / hold / double-tap gesture support.
 import { actionHandler } from './action-handler-directive';
@@ -25,7 +25,7 @@ import { localize } from './localize/localize';
 // Styled console banner so your card is easy to spot in the browser console.
 // Stays visible in production — useful for version-mismatch debugging in HA.
 console.info(
-  `%c  BOILERPLATE-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
+  `%c  HA-MOS-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
   'color: orange; font-weight: bold; background: black',
   'color: white; font-weight: bold; background: dimgray',
 );
@@ -40,19 +40,19 @@ interface WindowWithCustomCards extends Window {
 (window as unknown as WindowWithCustomCards).customCards =
   (window as unknown as WindowWithCustomCards).customCards || [];
 (window as unknown as WindowWithCustomCards).customCards.push({
-  // TODO: Change 'boilerplate-card' to match your @customElement decorator name.
-  type: 'boilerplate-card',
+  // TODO: Change 'ha-mos-card' to match your @customElement decorator name.
+  type: 'ha-mos-card',
   // TODO: Give your card a user-facing name and description.
-  name: 'Boilerplate Card',
+  name: 'MOS NAS Card',
   description: 'A template custom card for you to create something awesome',
 });
 
-// TODO: Rename 'boilerplate-card' to your card's unique tag name.
+// TODO: Rename 'ha-mos-card' to your card's unique tag name.
 // Convention: all lowercase, hyphen-separated, and prefixed to avoid clashes
 // e.g. 'my-weather-card'. Must match the `type:` in your YAML config and the
 // window.customCards entry above.
-@customElement('boilerplate-card')
-export class BoilerplateCard extends LitElement {
+@customElement('ha-mos-card')
+export class HaMosCard extends LitElement {
   // getConfigElement is called by HA when the user opens the visual editor.
   // The dynamic import keeps the editor code out of the main bundle — it is only
   // loaded when actually needed, improving initial load time.
@@ -60,7 +60,7 @@ export class BoilerplateCard extends LitElement {
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     try {
       await import('./editor');
-      const element = document.createElement('boilerplate-card-editor');
+      const element = document.createElement('ha-mos-card-editor');
       return element;
     } catch (error) {
       console.error('Failed to load editor:', error);
@@ -85,7 +85,7 @@ export class BoilerplateCard extends LitElement {
   // `config` is private internal state set via setConfig().
   // Using @state (instead of @property) means it won't be exposed as a public
   // property but will still trigger re-renders when it changes.
-  @state() private config!: BoilerplateCardConfig;
+  @state() private config!: HaMosCardConfig;
 
   // setConfig is called by HA whenever the YAML config changes (including from
   // the visual editor). It runs before the element is connected to the DOM, so
@@ -98,7 +98,7 @@ export class BoilerplateCard extends LitElement {
   //   • Never call async operations here; use connectedCallback or firstUpdated instead.
   //
   // https://lit.dev/docs/components/properties/#accessors-custom
-  public setConfig(config: BoilerplateCardConfig): void {
+  public setConfig(config: HaMosCardConfig): void {
     // TODO: Validate required fields. For example:
     //   if (!config.entity) throw new Error('You must provide an entity.');
     if (!config) {
@@ -108,7 +108,7 @@ export class BoilerplateCard extends LitElement {
     // Merge defaults with the user-supplied config.
     // TODO: Add your own defaults here for any optional config fields.
     this.config = {
-      name: 'Boilerplate',
+      name: 'MOS NAS',
       layout: 'vertical',
       display_mode: 'card',
       ...config,
@@ -210,7 +210,7 @@ export class BoilerplateCard extends LitElement {
         ${actionHandler(actionHandlerConfig)}
         .config=${this.config}
         tabindex="0"
-        .label=${`Boilerplate: ${this.config.entity}`}
+        .label=${`MOS NAS: ${this.config.entity}`}
         class="clickable-card ${styleClass} ${layoutClass}"
         style=${inlineStyle}
       >
@@ -539,8 +539,8 @@ export class BoilerplateCard extends LitElement {
   private _handleDemoServiceCall(): void {
     this._callService('persistent_notification', 'create', {
       title: 'Demo Service Call',
-      message: `This notification was created by the boilerplate card at ${new Date().toLocaleTimeString()}`,
-      notification_id: 'boilerplate_demo',
+      message: `This notification was created by the MOS NAS card at ${new Date().toLocaleTimeString()}`,
+      notification_id: 'ha_mos_card_demo',
     });
   }
 

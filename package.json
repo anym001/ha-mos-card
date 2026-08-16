@@ -1,20 +1,24 @@
 {
-  "name": "boilerplate-card",
+  "name": "ha-mos-card",
   "type": "module",
-  "version": "2.0.0",
+  "version": "0.1.0",
   "packageManager": "yarn@4.12.0",
-  "description": "Lovelace boilerplate-card",
+  "description": "Lovelace card for the MOS NAS Home Assistant integration",
   "keywords": [
     "home-assistant",
     "homeassistant",
     "hass",
-    "automation",
     "lovelace",
-    "custom-cards"
+    "custom-cards",
+    "mos",
+    "nas",
+    "docker",
+    "lxc",
+    "proxmox"
   ],
-  "module": "boilerplate-card.js",
-  "repository": "git@github.com:custom_cards/boilerplate-card.git",
-  "author": "Ian Richardson <iantrich@gmail.com>",
+  "module": "ha-mos-card.js",
+  "repository": "git@github.com:anym001/ha-mos-card.git",
+  "author": "anym001",
   "license": "MIT",
   "dependencies": {
     "@lit-labs/context": "0.4.1",
@@ -26,6 +30,8 @@
     "lit": "^3.3.2"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
     "@rollup/plugin-commonjs": "^26.0.0",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.2.0",

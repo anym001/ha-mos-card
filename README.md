@@ -1,4 +1,4 @@
-# Boilerplate Card
+# MOS NAS Card
 
 A community-driven boilerplate of best practices for Home Assistant Lovelace custom cards.
 
@@ -30,18 +30,18 @@ This project is a fully-featured starting point for building your own custom Lov
 
 1. Open HACS in your Home Assistant instance.
 2. Go to **Frontend** → **+ Explore & Download Repositories**.
-3. Search for **Boilerplate Card** and click **Download**.
+3. Search for **MOS NAS Card** and click **Download**.
 4. Refresh your browser.
 
 ### Manual
 
-1. Download `boilerplate-card.js` from the [latest release][releases].
-2. Copy it to `<config>/www/boilerplate-card.js`.
+1. Download `ha-mos-card.js` from the [latest release][releases].
+2. Copy it to `<config>/www/ha-mos-card.js`.
 3. Add a resource entry in your dashboard settings:
 
 ```yaml
 resources:
-  - url: /local/boilerplate-card.js
+  - url: /local/ha-mos-card.js
     type: module
 ```
 
@@ -52,14 +52,14 @@ resources:
 ### Minimal example
 
 ```yaml
-type: custom:boilerplate-card
+type: custom:ha-mos-card
 entity: light.living_room
 ```
 
 ### Full example
 
 ```yaml
-type: custom:boilerplate-card
+type: custom:ha-mos-card
 entity: light.living_room
 name: Living Room
 icon: mdi:ceiling-light
@@ -86,7 +86,7 @@ double_tap_action:
 
 | Name           | Type    | Required     | Description                                      | Default           |
 | -------------- | ------- | ------------ | ------------------------------------------------ | ----------------- |
-| `type`         | string  | **Required** | `custom:boilerplate-card`                        |                   |
+| `type`         | string  | **Required** | `custom:ha-mos-card`                        |                   |
 | `entity`       | string  | **Optional** | Primary HA entity ID                             | `none`            |
 | `name`         | string  | **Optional** | Card title override                              | Entity friendly name |
 | `icon`         | string  | **Optional** | MDI icon override (e.g. `mdi:lightbulb`)         | Domain default    |
@@ -169,7 +169,7 @@ The devcontainer gives you a full HA development environment in one click with n
 
 ```bash
 # 1. Clone or use the GitHub "Use this template" button
-git clone https://github.com/custom-cards/boilerplate-card.git my-card
+git clone https://github.com/anym001/ha-mos-card.git my-card
 cd my-card
 
 # 2. Install dependencies
@@ -186,11 +186,11 @@ Then add your local file as a Lovelace resource:
 
 ```yaml
 resources:
-  - url: /local/boilerplate-card.js
+  - url: /local/ha-mos-card.js
     type: module
 ```
 
-Copy or symlink `dist/boilerplate-card.js` into your HA `www/` folder, or use the devcontainer where this is handled automatically.
+Copy or symlink `dist/ha-mos-card.js` into your HA `www/` folder, or use the devcontainer where this is handled automatically.
 
 ### Available scripts
 
@@ -205,7 +205,7 @@ Copy or symlink `dist/boilerplate-card.js` into your HA `www/` folder, or use th
 
 ```
 src/
-├── boilerplate-card.ts          # Main card element — LitElement subclass
+├── ha-mos-card.ts          # Main card element — LitElement subclass
 ├── editor.ts                    # Visual editor — implements LovelaceCardEditor
 ├── types.ts                     # TypeScript interfaces for all config fields
 ├── const.ts                     # CARD_VERSION constant
@@ -216,16 +216,16 @@ src/
         ├── en.json              # English strings
         └── nb.json              # Norwegian strings
 dist/
-└── boilerplate-card.js          # Build output — serve this to HA
+└── ha-mos-card.js          # Build output — serve this to HA
 ```
 
 ### Adapting the boilerplate for your own card
 
 Search the codebase for `TODO` — every required change is marked. The key steps in order:
 
-1. **Rename the element** — change `boilerplate-card` everywhere: the `@customElement` decorator, the `customCards.push` entry, the editor tag name in `getConfigElement`, and your YAML `type:` field.
-2. **Define config fields** — add your options to `BoilerplateCardConfig` in `types.ts`.
-3. **Validate and set defaults** — update `setConfig()` in `boilerplate-card.ts`. Throw for missing required fields; spread sensible defaults for optional ones.
+1. **Rename the element** — change `ha-mos-card` everywhere: the `@customElement` decorator, the `customCards.push` entry, the editor tag name in `getConfigElement`, and your YAML `type:` field.
+2. **Define config fields** — add your options to `HaMosCardConfig` in `types.ts`.
+3. **Validate and set defaults** — update `setConfig()` in `ha-mos-card.ts`. Throw for missing required fields; spread sensible defaults for optional ones.
 4. **Update `getStubConfig`** — return a minimal valid config so the card picker renders something immediately without the editor.
 5. **Build your render** — replace `_renderContent()` and `_renderAttributes()` with your domain-specific templates.
 6. **Update the visual editor** — add your config fields to the relevant accordion section in `editor.ts`. Use `ha-selector` for type-safe inputs that match HA's UI conventions.
@@ -299,7 +299,7 @@ Clear your browser cache or do a hard reload (`Ctrl+Shift+R` / `Cmd+Shift+R`).
 Your bundler is transpiling Lit's class syntax down to ES5. Ensure `rollup.config.js` has `terser({ ecma: 2020 })` and `typescript({ compilerOptions: { target: 'ES2022' } })`.
 
 **Visual editor not opening**
-Check the browser console for import errors from the dynamic `import('./editor')` in `getConfigElement`. Also confirm the `boilerplate-card-editor` custom element tag matches what `getConfigElement` creates.
+Check the browser console for import errors from the dynamic `import('./editor')` in `getConfigElement`. Also confirm the `ha-mos-card-editor` custom element tag matches what `getConfigElement` creates.
 
 **Card stuck on skeleton / not rendering**
 `shouldUpdate` may be returning `false` before `hass` is ready. The safest implementation for a single entity is:
@@ -315,9 +315,9 @@ See the [thomasloven wiki][troubleshooting].
 
 ---
 
-[commits-shield]: https://img.shields.io/github/commit-activity/y/custom-cards/boilerplate-card.svg?style=for-the-badge
-[commits]: https://github.com/custom-cards/boilerplate-card/commits/master
-[license-shield]: https://img.shields.io/github/license/custom-cards/boilerplate-card.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/custom-cards/boilerplate-card.svg?style=for-the-badge
-[releases]: https://github.com/custom-cards/boilerplate-card/releases
+[commits-shield]: https://img.shields.io/github/commit-activity/y/anym001/ha-mos-card.svg?style=for-the-badge
+[commits]: https://github.com/anym001/ha-mos-card/commits/master
+[license-shield]: https://img.shields.io/github/license/anym001/ha-mos-card.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/anym001/ha-mos-card.svg?style=for-the-badge
+[releases]: https://github.com/anym001/ha-mos-card/releases
 [troubleshooting]: https://github.com/thomasloven/hass-config/wiki/Lovelace-Plugins
