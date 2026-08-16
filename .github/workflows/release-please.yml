@@ -3,7 +3,7 @@ name: Release Please
 on:
   push:
     branches:
-      - master
+      - main
 
 # Required permissions for GITHUB_TOKEN to create releases and pull requests.
 #

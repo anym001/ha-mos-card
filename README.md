@@ -238,7 +238,7 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/), enf
 reads those subjects to decide the next version and to write the changelog, so a malformed subject
 produces a wrong release — fix the message rather than bypassing the hook.
 
-Releases are not hand-tagged. Merging to `master` opens or updates a release PR; merging that PR
+Releases are not hand-tagged. Merging to `main` opens or updates a release PR; merging that PR
 tags the release, bumps `package.json` and `src/const.ts`, and attaches the built `ha-mos-card.js`
 to it, which is what HACS downloads.
 
@@ -285,7 +285,7 @@ See the [thomasloven wiki][troubleshooting].
 ---
 
 [commits-shield]: https://img.shields.io/github/commit-activity/y/anym001/ha-mos-card.svg?style=for-the-badge
-[commits]: https://github.com/anym001/ha-mos-card/commits/master
+[commits]: https://github.com/anym001/ha-mos-card/commits/main
 [license-shield]: https://img.shields.io/github/license/anym001/ha-mos-card.svg?style=for-the-badge
 [releases-shield]: https://img.shields.io/github/release/anym001/ha-mos-card.svg?style=for-the-badge
 [releases]: https://github.com/anym001/ha-mos-card/releases

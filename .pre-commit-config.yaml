@@ -30,6 +30,15 @@ repos:
         files: ^src/
         pass_filenames: true
 
+      # The README is not just developer docs — hacs.json sets render_readme,
+      # so it is the card's landing page inside HACS.
+      - id: markdownlint-cli2
+        name: markdownlint-cli2
+        entry: bash -c 'if [[ -x "./node_modules/.bin/markdownlint-cli2" ]]; then ./node_modules/.bin/markdownlint-cli2 --fix "$@"; exit $?; fi; echo "⚠️  Skipping markdownlint-cli2 (yarn install not run)"; exit 0' --
+        language: system
+        types: [markdown]
+        pass_filenames: true
+
       - id: tsc
         name: tsc --noEmit
         entry: bash -c 'if [[ -x "./node_modules/.bin/tsc" ]]; then ./node_modules/.bin/tsc --noEmit; exit $?; fi; echo "⚠️  Skipping tsc (yarn install not run)"; exit 0'
