@@ -2,6 +2,38 @@
   "common": {
     "version": "Versjon",
     "invalid_configuration": "Ikke gyldig konfiguration",
-    "show_warning": "Vis advarsel"
+    "loading": "Laster enheter…",
+    "no_devices": "Fant ingen MOS-enheter",
+    "no_state_entity": "Ingen tilstandsentitet",
+    "server": "MOS-server",
+    "open_link": "Åpne nettgrensesnitt",
+    "toggle_power": "Start eller stopp"
+  },
+  "errors": {
+    "kinds_not_a_list": "'kinds' må være en liste",
+    "no_kinds": "'kinds' kan ikke være tom",
+    "unknown_kind": "Ukjent enhetstype"
+  },
+  "kinds": {
+    "docker_container": "Docker-containere",
+    "lxc_container": "LXC-containere",
+    "virtual_machine": "Virtuelle maskiner",
+    "disk": "Disker",
+    "storage_pool": "Lagringspooler",
+    "ups": "UPS"
+  },
+  "editor": {
+    "title": "Tittel",
+    "server": "MOS-server",
+    "all_servers": "Alle servere",
+    "kinds": "Enhetstyper",
+    "kinds_hint": "Matches på enhetens model_id, så listen følger containere som kommer og går.",
+    "display": "Visning",
+    "group_by_kind": "Grupper etter type",
+    "show_icon": "Vis ikon",
+    "show_state": "Vis tilstand",
+    "show_link": "Vis lenke",
+    "show_power": "Vis av/på-bryter",
+    "hide_unavailable": "Skjul utilgjengelige enheter"
   }
 }

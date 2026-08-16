@@ -1,38 +1,44 @@
-import { LitElement, html, TemplateResult, css, PropertyValues, CSSResultGroup } from 'lit';
+import { LitElement, html, nothing, TemplateResult, css, CSSResultGroup, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { HassEntity } from 'home-assistant-js-websocket';
+import type { UnsubscribeFunc } from 'home-assistant-js-websocket';
 import {
-  HomeAssistant, // The main hass object — passed down from HA on every state change
-  hasConfigOrEntityChanged, // Utility: returns true only when config or the tracked entity changed
-  hasAction, // Utility: returns true when an ActionConfig is not 'none'
-  ActionHandlerEvent, // Event type fired by the action-handler directive
-  handleAction, // Utility: routes an action (toggle, more-info, navigate…) to the right HA call
-  LovelaceCardEditor, // Interface your editor element must implement
-  computeIcon, // Derives the MDI icon for an entity (falls back to domain default)
-  computeName, // Derives the friendly_name for an entity
-  computeState, // Returns the human-readable state string (respects unit_of_measurement)
-  formatTimestamp, // Converts an ISO timestamp to a human-friendly relative string
-} from 'custom-card-helpers'; // Community-maintained helpers: https://github.com/custom-cards/custom-card-helpers
+  HomeAssistant,
+  hasAction,
+  ActionHandlerEvent,
+  handleAction,
+  LovelaceCardEditor,
+  computeStateDisplay,
+} from 'custom-card-helpers';
 
-// TODO: Replace this import with your own config type once you've defined your fields in types.ts.
 import type { HaMosCardConfig } from './types';
-
-// Local action-handler directive — provides tap / hold / double-tap gesture support.
+import {
+  DeviceRegistryEntry,
+  EntityRegistryEntry,
+  KIND_INFO,
+  MOS_DEVICE_KINDS,
+  MosDeviceKind,
+  deviceDisplayName,
+  entitiesByDevice,
+  findPowerEntity,
+  findServerDevices,
+  findStateEntity,
+  isMosDeviceKind,
+  isUnavailableState,
+  selectMosDevices,
+  subscribeDeviceRegistry,
+  subscribeEntityRegistry,
+} from './devices';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
 import { localize } from './localize/localize';
 
-// Styled console banner so your card is easy to spot in the browser console.
-// Stays visible in production — useful for version-mismatch debugging in HA.
 console.info(
   `%c  HA-MOS-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
   'color: orange; font-weight: bold; background: black',
   'color: white; font-weight: bold; background: dimgray',
 );
 
-// Registering with window.customCards makes your card appear in the Lovelace
-// "Add Card" UI picker with a name and description. This array is shared by all
-// custom cards on the page, so we guard with `|| []` before pushing.
 interface WindowWithCustomCards extends Window {
   customCards: Array<{ type: string; name: string; description: string }>;
 }
@@ -40,968 +46,580 @@ interface WindowWithCustomCards extends Window {
 (window as unknown as WindowWithCustomCards).customCards =
   (window as unknown as WindowWithCustomCards).customCards || [];
 (window as unknown as WindowWithCustomCards).customCards.push({
-  // TODO: Change 'ha-mos-card' to match your @customElement decorator name.
   type: 'ha-mos-card',
-  // TODO: Give your card a user-facing name and description.
   name: 'MOS NAS Card',
-  description: 'A template custom card for you to create something awesome',
+  description: 'Containers, VMs, disks, pools and the UPS of a MOS NAS server',
 });
 
-// TODO: Rename 'ha-mos-card' to your card's unique tag name.
-// Convention: all lowercase, hyphen-separated, and prefixed to avoid clashes
-// e.g. 'my-weather-card'. Must match the `type:` in your YAML config and the
-// window.customCards entry above.
+/** One rendered line: a device plus the entities the row is built from. */
+interface DeviceRow {
+  device: DeviceRegistryEntry;
+  kind: MosDeviceKind;
+  name: string;
+  stateEntity?: EntityRegistryEntry;
+  powerEntity?: EntityRegistryEntry;
+}
+
+/** Rows of one kind, under one server. */
+interface RowGroup {
+  kind: MosDeviceKind;
+  rows: DeviceRow[];
+}
+
+/** Everything belonging to one MOS server. */
+interface ServerSection {
+  server?: DeviceRegistryEntry;
+  groups: RowGroup[];
+}
+
 @customElement('ha-mos-card')
 export class HaMosCard extends LitElement {
-  // getConfigElement is called by HA when the user opens the visual editor.
-  // The dynamic import keeps the editor code out of the main bundle — it is only
-  // loaded when actually needed, improving initial load time.
-  // TODO: If you rename your editor element in editor.ts, update the tag name below.
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
-    try {
-      await import('./editor');
-      const element = document.createElement('ha-mos-card-editor');
-      return element;
-    } catch (error) {
-      console.error('Failed to load editor:', error);
-      throw error;
-    }
+    await import('./editor');
+    return document.createElement('ha-mos-card-editor');
   }
 
-  // getStubConfig returns a minimal valid config used when the user adds your
-  // card from the picker without going through the editor first.
-  // TODO: Add your required fields here so the card doesn't throw on first render.
-  // Example: return { entity: 'light.living_room' };
   public static getStubConfig(): Record<string, unknown> {
-    return {};
+    return { kinds: [...MOS_DEVICE_KINDS] };
   }
 
-  // `hass` is set by HA on every state change anywhere in the system.
-  // `attribute: false` means it is set as a JS property, not an HTML attribute
-  // (the object is too large to serialize as an attribute).
-  // Lit will schedule a re-render whenever this property reference changes.
   @property({ attribute: false }) public hass!: HomeAssistant;
 
-  // `config` is private internal state set via setConfig().
-  // Using @state (instead of @property) means it won't be exposed as a public
-  // property but will still trigger re-renders when it changes.
   @state() private config!: HaMosCardConfig;
 
-  // setConfig is called by HA whenever the YAML config changes (including from
-  // the visual editor). It runs before the element is connected to the DOM, so
-  // you can't access `this.hass` here — it may not be set yet.
-  //
-  // Good practices:
-  //   • Throw an Error for truly invalid configs (HA will surface it as an error card).
-  //   • Spread defaults first, then the user config on top — this lets users omit
-  //     optional fields without your render() code needing null-checks everywhere.
-  //   • Never call async operations here; use connectedCallback or firstUpdated instead.
-  //
-  // https://lit.dev/docs/components/properties/#accessors-custom
+  /**
+   * The registries, mirrored locally.
+   *
+   * These are the card's source of truth for *which* devices exist; `hass`
+   * remains the source of truth for what state each one is in. Keeping them
+   * apart is what makes the card follow container churn: the registry
+   * subscriptions fire when the integration adds or removes a device, and
+   * ordinary `hass` updates handle everything else.
+   */
+  @state() private devices?: DeviceRegistryEntry[];
+
+  @state() private entities?: EntityRegistryEntry[];
+
+  private unsubscribe: UnsubscribeFunc[] = [];
+
+  private trackedCache?: {
+    devices?: DeviceRegistryEntry[];
+    entities?: EntityRegistryEntry[];
+    config: HaMosCardConfig;
+    ids: string[];
+  };
+
   public setConfig(config: HaMosCardConfig): void {
-    // TODO: Validate required fields. For example:
-    //   if (!config.entity) throw new Error('You must provide an entity.');
     if (!config) {
       throw new Error(localize('common.invalid_configuration'));
     }
 
-    // Merge defaults with the user-supplied config.
-    // TODO: Add your own defaults here for any optional config fields.
+    if (config.kinds !== undefined) {
+      if (!Array.isArray(config.kinds)) {
+        throw new Error(localize('errors.kinds_not_a_list'));
+      }
+      const unknown = config.kinds.filter((kind) => !isMosDeviceKind(kind));
+      if (unknown.length) {
+        throw new Error(`${localize('errors.unknown_kind')}: ${unknown.join(', ')}`);
+      }
+      if (!config.kinds.length) {
+        throw new Error(localize('errors.no_kinds'));
+      }
+    }
+
     this.config = {
-      name: 'MOS NAS',
-      layout: 'vertical',
-      display_mode: 'card',
+      kinds: [...MOS_DEVICE_KINDS],
+      group_by_kind: true,
+      show_icon: true,
+      show_state: true,
+      show_link: true,
+      show_power: true,
+      hide_unavailable: false,
+      tap_action: { action: 'more-info' },
       ...config,
     };
   }
 
-  // shouldUpdate is a performance gate — return false to skip rendering.
-  //
-  // `hasConfigOrEntityChanged` returns true when:
-  //   • `config` changed, OR
-  //   • the hass state for `config.entity` changed.
-  //
-  // This prevents unnecessary re-renders on every hass update (which fires for
-  // every entity state change in the entire system, not just yours).
-  //
-  // TODO: If your card tracks multiple entities, replace this with a custom check
-  // that watches all of them. Example:
-  //
-  //   if (!changedProps.has('hass')) return changedProps.has('config');
-  //   const oldHass = changedProps.get('hass') as HomeAssistant;
-  //   if (!oldHass) return true; // first hass update — always render
-  //   return ['sensor.a', 'sensor.b'].some(id => oldHass.states[id] !== this.hass.states[id]);
-  //
-  // https://lit.dev/docs/components/lifecycle/#reactive-update-cycle-performing
+  public connectedCallback(): void {
+    super.connectedCallback();
+    this.subscribeRegistries();
+  }
+
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.unsubscribeRegistries();
+  }
+
+  protected updated(changedProps: PropertyValues): void {
+    // `hass` arrives after the element is connected on a fresh dashboard load,
+    // so the subscription cannot be set up in connectedCallback alone.
+    if (changedProps.has('hass') && !this.unsubscribe.length) {
+      this.subscribeRegistries();
+    }
+  }
+
+  /**
+   * Re-render only for state changes that can actually show up on this card.
+   *
+   * `hass` is replaced on every state change anywhere in Home Assistant, which
+   * on a busy instance is many times a second. The card is interested in a
+   * small, known set of entities — the state sensor and power switch of each
+   * device it renders — so everything else is filtered out here.
+   */
   protected shouldUpdate(changedProps: PropertyValues): boolean {
     if (!this.config) {
       return false;
     }
 
-    return hasConfigOrEntityChanged(this, changedProps, false);
+    // The registry subscription is established in updated(), which only runs
+    // after a render, so the first updates have to be let through unfiltered.
+    if (!this.unsubscribe.length) {
+      return true;
+    }
+
+    if (changedProps.has('config') || changedProps.has('devices') || changedProps.has('entities')) {
+      return true;
+    }
+
+    if (!changedProps.has('hass')) {
+      return false;
+    }
+
+    const oldHass = changedProps.get('hass') as HomeAssistant | undefined;
+
+    if (!oldHass) {
+      return true;
+    }
+
+    return this.trackedEntityIds().some((entityId) => oldHass.states[entityId] !== this.hass.states[entityId]);
   }
 
-  // render() is called by Lit whenever shouldUpdate() returns true.
-  // It must be a pure function of `this.config` and `this.hass` — no side effects.
-  //
-  // Pattern used here:
-  //   1. Guard clauses first (loading / error states) — bail out early.
-  //   2. Derive everything you need from config/hass into local consts.
-  //   3. Return a single html`` template at the end.
-  //
-  // Returning `void` (or nothing) renders nothing; HA won't show an error.
-  // Use `_showWarning` / `_showError` to surface problems to the user instead.
-  //
-  // https://lit.dev/docs/components/rendering/
-  protected render(): TemplateResult | void {
-    // TODO: Add any card-specific guards here — e.g. check for a required
-    // config field before trying to use it.
-    if (this.config.show_warning) {
-      return this._showWarning(localize('common.show_warning'));
+  /**
+   * The entity ids whose state this card displays.
+   *
+   * Derived from the registries and the config alone — deliberately *not* from
+   * the rendered rows, because `hide_unavailable` drops rows based on state and
+   * a hidden row's entity still has to be watched for it to ever come back.
+   *
+   * Memoized on the identity of its three inputs, all of which are replaced
+   * wholesale rather than mutated, so a reference check is enough.
+   */
+  private trackedEntityIds(): string[] {
+    const cache = this.trackedCache;
+
+    if (cache && cache.devices === this.devices && cache.entities === this.entities && cache.config === this.config) {
+      return cache.ids;
     }
 
-    if (this.config.show_error) {
-      return this._showError(localize('common.show_error'));
+    const ids: string[] = [];
+
+    if (this.devices && this.entities) {
+      const kinds = (this.config.kinds ?? [...MOS_DEVICE_KINDS]) as MosDeviceKind[];
+      const entityIndex = entitiesByDevice(this.entities);
+
+      for (const device of selectMosDevices(this.devices, kinds, this.config.server)) {
+        const deviceEntities = entityIndex.get(device.id) ?? [];
+        const kind = device.model_id as MosDeviceKind;
+        const stateEntity = findStateEntity(deviceEntities, kind);
+        const powerEntity = findPowerEntity(deviceEntities, kind);
+
+        if (stateEntity) {
+          ids.push(stateEntity.entity_id);
+        }
+        if (powerEntity) {
+          ids.push(powerEntity.entity_id);
+        }
+      }
     }
 
-    // `hass` is set asynchronously after the element is created.
-    // Showing a skeleton avoids a flash of broken content on first load.
-    if (!this.hass) {
-      return this._renderSkeleton();
+    this.trackedCache = { devices: this.devices, entities: this.entities, config: this.config, ids };
+
+    return ids;
+  }
+
+  private subscribeRegistries(): void {
+    if (this.unsubscribe.length || !this.hass?.connection) {
+      return;
     }
 
-    if (!this.config.entity) {
-      return this._showError('No entity defined');
+    this.unsubscribe = [
+      subscribeDeviceRegistry(this.hass.connection, (devices) => {
+        this.devices = devices;
+      }),
+      subscribeEntityRegistry(this.hass.connection, (entities) => {
+        this.entities = entities;
+      }),
+    ];
+  }
+
+  private unsubscribeRegistries(): void {
+    for (const unsub of this.unsubscribe) {
+      unsub();
+    }
+    this.unsubscribe = [];
+  }
+
+  /**
+   * Card height in Lovelace's grid units, so masonry can lay the column out.
+   *
+   * One unit per row plus one for the card's own chrome, and a floor of 3 while
+   * the registry is still loading so the card does not visibly jump once the
+   * rows arrive.
+   */
+  public getCardSize(): number {
+    const sections = this.buildSections();
+    if (!sections) {
+      return 3;
     }
 
-    const stateObj = this.hass.states[this.config.entity];
+    const rows = sections.reduce(
+      (total, section) => total + section.groups.reduce((sum, group) => sum + group.rows.length, 0),
+      0,
+    );
+
+    return Math.max(3, rows + 1);
+  }
+
+  /**
+   * Turn the two registries into the sections to render.
+   *
+   * Returns undefined while the registries are still in flight, which the
+   * caller renders as a loading state rather than as "nothing found".
+   */
+  private buildSections(): ServerSection[] | undefined {
+    if (!this.devices || !this.entities || !this.config) {
+      return undefined;
+    }
+
+    const kinds = (this.config.kinds ?? [...MOS_DEVICE_KINDS]) as MosDeviceKind[];
+    const entityIndex = entitiesByDevice(this.entities);
+
+    const servers = this.config.server
+      ? this.devices.filter((device) => device.id === this.config.server)
+      : findServerDevices(this.devices);
+
+    // A configured server id that no longer resolves still deserves its
+    // devices: fall back to filtering by via_device_id alone.
+    const serverIds: Array<string | undefined> = servers.length
+      ? servers.map((server) => server.id)
+      : [this.config.server];
+
+    const sections: ServerSection[] = [];
+
+    for (const serverId of serverIds) {
+      const server = servers.find((candidate) => candidate.id === serverId);
+      const serverName = server ? server.name_by_user || server.name || undefined : undefined;
+      const devices = selectMosDevices(this.devices, kinds, serverId);
+      const groups: RowGroup[] = [];
+
+      for (const kind of kinds) {
+        const rows = devices
+          .filter((device) => device.model_id === kind)
+          .map((device) => {
+            const deviceEntities = entityIndex.get(device.id) ?? [];
+            return {
+              device,
+              kind,
+              name: deviceDisplayName(device, serverName),
+              stateEntity: findStateEntity(deviceEntities, kind),
+              powerEntity: findPowerEntity(deviceEntities, kind),
+            };
+          })
+          .filter((row) => !this.config.hide_unavailable || !isUnavailableState(this.stateValue(row)))
+          .sort((left, right) => left.name.localeCompare(right.name));
+
+        if (rows.length) {
+          groups.push({ kind, rows });
+        }
+      }
+
+      if (groups.length) {
+        sections.push({ server, groups });
+      }
+    }
+
+    return sections;
+  }
+
+  private stateValue(row: DeviceRow): string | undefined {
+    return row.stateEntity ? this.hass?.states[row.stateEntity.entity_id]?.state : undefined;
+  }
+
+  protected render(): TemplateResult {
+    const sections = this.buildSections();
+
+    return html`
+      <ha-card .header=${this.config.title}>
+        <div class="card-content">
+          ${sections === undefined
+            ? this.renderNotice(localize('common.loading'))
+            : sections.length === 0
+              ? this.renderNotice(localize('common.no_devices'))
+              : sections.map((section) => this.renderSection(section, sections.length > 1))}
+        </div>
+      </ha-card>
+    `;
+  }
+
+  private renderNotice(message: string): TemplateResult {
+    return html`<div class="notice">${message}</div>`;
+  }
+
+  private renderSection(section: ServerSection, showServerHeading: boolean): TemplateResult {
+    const heading = section.server
+      ? section.server.name_by_user || section.server.name || localize('common.server')
+      : localize('common.server');
+
+    return html`
+      ${showServerHeading ? html`<div class="server-heading">${heading}</div>` : nothing}
+      ${section.groups.map((group) => this.renderGroup(group))}
+    `;
+  }
+
+  private renderGroup(group: RowGroup): TemplateResult {
+    return html`
+      ${this.config.group_by_kind ? html`<div class="kind-heading">${localize(`kinds.${group.kind}`)}</div>` : nothing}
+      ${group.rows.map((row) => this.renderRow(row))}
+    `;
+  }
+
+  private renderRow(row: DeviceRow): TemplateResult {
+    const stateObj = row.stateEntity ? this.hass.states[row.stateEntity.entity_id] : undefined;
+    const unavailable = isUnavailableState(stateObj?.state);
+
+    return html`
+      <div class="row ${unavailable ? 'unavailable' : ''}">
+        <div
+          class="row-body"
+          @action=${(ev: ActionHandlerEvent) => this.handleAction(ev, row)}
+          ${actionHandler({
+            hasHold: hasAction(this.config.hold_action),
+            hasDoubleClick: hasAction(this.config.double_tap_action),
+          })}
+          tabindex="0"
+          role="button"
+        >
+          ${this.config.show_icon ? this.renderIcon(row, stateObj) : nothing}
+          <div class="text">
+            <span class="name" title=${row.name}>${row.name}</span>
+            ${this.config.show_state ? html`<span class="state">${this.renderState(stateObj)}</span>` : nothing}
+          </div>
+        </div>
+        ${this.config.show_link ? this.renderLink(row, stateObj) : nothing}
+        ${this.config.show_power ? this.renderPower(row) : nothing}
+      </div>
+    `;
+  }
+
+  /**
+   * The row icon.
+   *
+   * The state sensor of a Docker, LXC or VM guest carries the icon MOS itself
+   * shows for it as `entity_picture`, which beats any generic icon this card
+   * could pick. Kinds without one — and guests whose template has no icon —
+   * fall back to the per-kind MDI icon.
+   */
+  private renderIcon(row: DeviceRow, stateObj?: HassEntity): TemplateResult {
+    const picture = stateObj?.attributes.entity_picture;
+
+    if (picture) {
+      return html`<img class="icon picture" src=${picture} alt="" loading="lazy" />`;
+    }
+
+    return html`<ha-icon class="icon" .icon=${stateObj?.attributes.icon || KIND_INFO[row.kind].icon}></ha-icon>`;
+  }
+
+  private renderState(stateObj?: HassEntity): string {
     if (!stateObj) {
-      return this._showError(`Entity not found: ${this.config.entity}`);
+      return localize('common.no_state_entity');
     }
 
-    // Badge / chip mode — no ha-card wrapper
-    if (this.config.display_mode === 'badge') {
-      return this._renderBadge(stateObj);
+    // computeStateDisplay applies the user's own translations, units and
+    // precision, so an enum state reads the way it does everywhere else in
+    // Home Assistant rather than as the integration's raw string.
+    return computeStateDisplay(this.hass.localize, stateObj, this.hass.locale);
+  }
+
+  /**
+   * A link out to the thing itself.
+   *
+   * `web_ui_url` on the Docker state sensor is the container's own web
+   * interface, and the integration omits the attribute entirely for containers
+   * that have none — so its presence is the test. The device's configuration
+   * URL is the fallback, which is what the other kinds have.
+   */
+  private renderLink(row: DeviceRow, stateObj?: HassEntity): TemplateResult | typeof nothing {
+    const url = (stateObj?.attributes.web_ui_url as string | undefined) || row.device.configuration_url || undefined;
+
+    if (!url) {
+      return nothing;
     }
 
-    const actionHandlerConfig = {
-      hasHold: hasAction(this.config.hold_action),
-      hasDoubleClick: hasAction(this.config.double_tap_action),
-      repeat: this.config.hold_action?.repeat,
-      repeatLimit: this.config.hold_action?.repeat_limit,
-      isMomentary: !!(this.config.press_action || this.config.release_action),
-      disableKbd: false,
-    };
-
-    const accentColor = this.config.accent_color;
-    const inlineStyle = accentColor
-      ? `--card-accent-color: rgb(${accentColor[0]},${accentColor[1]},${accentColor[2]});`
-      : '';
-    const layoutClass = `layout-${this.config.layout || 'vertical'}`;
-    const styleClass = `style-${this.config.card_style || 'default'}`;
-
-    // Horizontal: suppress ha-card header — content fills the whole row
-    const cardHeader = this.config.layout === 'horizontal' ? undefined : this.config.name;
-
     return html`
-      <ha-card
-        .header=${cardHeader}
-        @action=${this._handleAction}
-        ${actionHandler(actionHandlerConfig)}
-        .config=${this.config}
-        tabindex="0"
-        .label=${`MOS NAS: ${this.config.entity}`}
-        class="clickable-card ${styleClass} ${layoutClass}"
-        style=${inlineStyle}
-      >
-        ${this._renderContent(stateObj)}
-        <ha-ripple
-          .disabled=${!hasAction(this.config.tap_action) &&
-          !hasAction(this.config.hold_action) &&
-          !hasAction(this.config.double_tap_action)}
-        ></ha-ripple>
-      </ha-card>
+      <a class="link" href=${url} target="_blank" rel="noreferrer noopener" title=${localize('common.open_link')}>
+        <ha-icon icon="mdi:open-in-new"></ha-icon>
+      </a>
     `;
   }
 
-  private _renderSkeleton(): TemplateResult {
-    return html`
-      <ha-card>
-        <div class="card-content skeleton-content">
-          <div class="skeleton-row">
-            <div class="skeleton skeleton-icon"></div>
-            <div class="skeleton-text-block">
-              <div class="skeleton skeleton-name"></div>
-              <div class="skeleton skeleton-state"></div>
-            </div>
-          </div>
-          <div class="skeleton skeleton-attr"></div>
-          <div class="skeleton skeleton-attr skeleton-attr--short"></div>
-        </div>
-      </ha-card>
-    `;
-  }
-
-  private _renderBadge(stateObj: HassEntity): TemplateResult {
-    const accentColor = this.config.accent_color;
-    const inlineStyle = accentColor
-      ? `--card-accent-color: rgb(${accentColor[0]},${accentColor[1]},${accentColor[2]});`
-      : '';
-    return html`
-      <div
-        class="badge"
-        style=${inlineStyle}
-        @click=${this._handleEntityClick}
-        role="button"
-        tabindex="0"
-        aria-label=${`${computeName(stateObj)}: ${computeState(stateObj)}`}
-      >
-        <ha-icon class="badge-icon" .icon=${computeIcon(stateObj, this.config.icon)}></ha-icon>
-        <span class="badge-name">${computeName(stateObj)}</span>
-        <span class="badge-state">${computeState(stateObj)}</span>
-      </div>
-    `;
-  }
-
-  // _renderContent separates layout logic from the main render() method.
-  // Splitting complex templates into private helper methods keeps render()
-  // readable at a glance. Each helper should have a single responsibility.
-  private _renderContent(stateObj: HassEntity): TemplateResult {
-    const isHorizontal = this.config.layout === 'horizontal';
-    const isMinimal = this.config.card_style === 'minimal';
-
-    if (isHorizontal) {
-      // Single compact row: icon · name+state · spacer · action buttons
-      return html`
-        <div class="card-content horizontal-strip">
-          <div class="icon">
-            <ha-icon .icon=${computeIcon(stateObj, this.config.icon)}></ha-icon>
-          </div>
-          <div class="entity-info">
-            <div class="name">${this.config.name ?? computeName(stateObj)}</div>
-            <div class="state">${computeState(stateObj)}</div>
-          </div>
-          <div class="horizontal-actions">${this._renderActionButtons(stateObj)}</div>
-        </div>
-      `;
+  private renderPower(row: DeviceRow): TemplateResult | typeof nothing {
+    if (!row.powerEntity) {
+      return nothing;
     }
 
-    // Vertical (default) — stacked sections
-    const entityRow = html`
-      <div class="entity-row clickable-row" @click=${this._handleEntityClick}>
-        <div class="icon">
-          <ha-icon .icon=${computeIcon(stateObj, this.config.icon)}></ha-icon>
-        </div>
-        <div class="entity-info">
-          <div class="name">${computeName(stateObj)}</div>
-          <div class="state">${computeState(stateObj)}</div>
-        </div>
-        <div class="entity-actions"><div class="toggle-hint">Tap to toggle</div></div>
-      </div>
-    `;
+    const switchObj = this.hass.states[row.powerEntity.entity_id];
+
+    if (!switchObj) {
+      return nothing;
+    }
 
     return html`
-      <div class="card-content">
-        ${entityRow} ${!isMinimal ? this._renderAttributes(stateObj, this.config.attribute_limit ?? 3) : ''}
-        ${!isMinimal ? this._renderActionButtons(stateObj) : ''}
-        ${this.config.show_timestamps !== false
-          ? html`
-              <div class="timestamps">
-                <div class="last-changed"><strong>Last Changed:</strong> ${formatTimestamp(stateObj.last_changed)}</div>
-                <div class="last-updated"><strong>Last Updated:</strong> ${formatTimestamp(stateObj.last_updated)}</div>
-              </div>
-            `
-          : ''}
-      </div>
+      <ha-switch
+        .checked=${switchObj.state === 'on'}
+        .disabled=${isUnavailableState(switchObj.state)}
+        title=${localize('common.toggle_power')}
+        @change=${(ev: Event) => this.togglePower(ev, row)}
+      ></ha-switch>
     `;
   }
 
-  // _handleAction is wired to the `@action` DOM event emitted by the
-  // action-handler directive. `handleAction` from custom-card-helpers reads
-  // ev.detail.action ('tap' | 'hold' | 'double_tap') and executes whichever
-  // ActionConfig the user configured (navigate, more-info, call-service, etc.).
-  //
-  // TODO: You can intercept specific actions here before delegating, e.g.
-  //   if (ev.detail.action === 'tap') { /* custom tap logic */ return; }
-  private _handleAction(ev: ActionHandlerEvent): void {
-    if (this.hass && this.config && ev.detail.action) {
-      handleAction(this, this.hass, this.config, ev.detail.action);
-    }
-  }
-
-  // _handleEntityClick demonstrates direct service calls without going through
-  // the configured tap_action. It shows how to branch on entity domain and call
-  // the appropriate HA service.
-  //
-  // In a real card you'd typically rely on handleAction() with tap_action instead
-  // of writing domain-specific logic here — this is for educational purposes.
-  private _handleEntityClick(ev: Event): void {
+  private togglePower(ev: Event, row: DeviceRow): void {
     ev.stopPropagation();
-    if (!this.config.entity || !this.hass) return;
 
-    const stateObj = this.hass.states[this.config.entity];
-    if (!stateObj) return;
-
-    // Demonstrate entity toggle functionality
-    const domain = stateObj.entity_id.split('.')[0];
-
-    switch (domain) {
-      case 'light':
-      case 'switch':
-      case 'fan':
-        this._callService(domain, 'toggle', { entity_id: this.config.entity });
-        break;
-      case 'cover': {
-        const coverState = stateObj.state;
-        const service = coverState === 'open' ? 'close_cover' : 'open_cover';
-        this._callService('cover', service, { entity_id: this.config.entity });
-        break;
-      }
-      case 'lock': {
-        const lockState = stateObj.state;
-        const lockService = lockState === 'locked' ? 'unlock' : 'lock';
-        this._callService('lock', lockService, { entity_id: this.config.entity });
-        break;
-      }
-      default:
-        // For other entities, show more info
-        this._showMoreInfo(this.config.entity);
-    }
-  }
-
-  private _callService(domain: string, service: string, serviceData: Record<string, unknown>): void {
-    this.hass.callService(domain, service, serviceData);
-  }
-
-  private _showMoreInfo(entityId: string): void {
-    const event = new Event('hass-more-info', {
-      bubbles: true,
-      composed: true,
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (event as any).detail = { entityId };
-    this.dispatchEvent(event);
-  }
-
-  private _navigate(path: string): void {
-    window.history.pushState(null, '', path);
-    const event = new Event('location-changed', {
-      bubbles: true,
-      composed: true,
-    });
-    this.dispatchEvent(event);
-  }
-
-  private _showWarning(warning: string): TemplateResult {
-    return html` <hui-warning>${warning}</hui-warning> `;
-  }
-
-  private _showError(error: string): TemplateResult {
-    const errorCard = document.createElement('hui-error-card');
-    errorCard.setConfig({
-      type: 'error',
-      error,
-      origConfig: this.config,
-    });
-
-    return html` ${errorCard} `;
-  }
-
-  // _renderAttributes shows a filtered subset of entity attributes.
-  //
-  // Why filter? `stateObj.attributes` can contain dozens of keys (HA internals,
-  // integration-specific data, etc.). Displaying everything would be noisy.
-  //
-  // TODO: Replace `importantAttrs` with the attributes relevant to your card's
-  // domain, or make the list configurable via `config.attribute_config`.
-  private _renderAttributes(stateObj: HassEntity, limit = 3): TemplateResult {
-    if (limit === 0) return html``;
-    // TODO: Adjust this list to match the attributes your card cares about.
-    const importantAttrs = ['battery_level', 'temperature', 'humidity', 'brightness', 'volume_level'];
-    const attrs = Object.entries(stateObj.attributes)
-      .filter(([key, _]) => importantAttrs.includes(key))
-      .slice(0, limit);
-
-    if (attrs.length === 0) {
-      return html``;
+    if (!row.powerEntity) {
+      return;
     }
 
-    return html`
-      <div class="attributes">
-        <strong>Attributes:</strong>
-        ${attrs.map(
-          ([key, value]) => html`
-            <div class="attribute">
-              <span class="attr-key">${key.replace(/_/g, ' ')}:</span>
-              <span class="attr-value">${value}</span>
-            </div>
-          `,
-        )}
-      </div>
-    `;
-  }
+    const target = ev.target as HTMLInputElement;
 
-  // _renderActionButtons exists purely to demonstrate the different action
-  // mechanisms available in HA custom cards. In a production card you would
-  // replace (or remove) this section with domain-appropriate controls.
-  //
-  // The four patterns shown:
-  //   1. `_showMoreInfo`  — fires the hass-more-info event (HA's built-in detail dialog)
-  //   2. `_navigate`      — pushes a path to the HA router
-  //   3. Domain buttons   — directly call HA services via `hass.callService`
-  //   4. `_handleDemoServiceCall` — creates a persistent notification via service call
-  //
-  // TODO: Remove or replace this method with the controls your card actually needs.
-  private _renderActionButtons(stateObj: HassEntity): TemplateResult {
-    return html`
-      <div class="action-buttons">
-        <div class="action-section">
-          <h4>Action Examples:</h4>
-
-          <button
-            class="action-button primary"
-            @click=${() => this._showMoreInfo(stateObj.entity_id)}
-            title="Tap Action: More Info"
-          >
-            <ha-icon icon="mdi:information"></ha-icon>
-            More Info
-          </button>
-
-          <button
-            class="action-button secondary"
-            @click=${() => this._navigate('/logbook')}
-            title="Navigate Action: Go to Logbook"
-          >
-            <ha-icon icon="mdi:book-open-variant"></ha-icon>
-            Logbook
-          </button>
-
-          ${this._renderDomainSpecificButtons(stateObj)}
-
-          <button
-            class="action-button service"
-            @click=${this._handleDemoServiceCall}
-            title="Service Call: Persistent Notification"
-          >
-            <ha-icon icon="mdi:bell"></ha-icon>
-            Demo Service
-          </button>
-        </div>
-
-        <div class="action-hints">
-          <div class="hint"><strong>Try:</strong> Tap entity row, Hold card, Double-tap card</div>
-          <div class="hint"><strong>Configured actions:</strong> ${this._getConfiguredActions()}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  private _renderDomainSpecificButtons(stateObj: HassEntity): TemplateResult {
-    const domain = stateObj.entity_id.split('.')[0];
-
-    switch (domain) {
-      case 'light':
-        return html`
-          <button
-            class="action-button toggle"
-            @click=${() => this._callService('light', 'toggle', { entity_id: stateObj.entity_id })}
-          >
-            <ha-icon icon="mdi:lightbulb"></ha-icon>
-            Toggle Light
-          </button>
-        `;
-      case 'switch':
-        return html`
-          <button
-            class="action-button toggle"
-            @click=${() => this._callService('switch', 'toggle', { entity_id: stateObj.entity_id })}
-          >
-            <ha-icon icon="mdi:toggle-switch"></ha-icon>
-            Toggle Switch
-          </button>
-        `;
-      case 'climate':
-        return html`
-          <button
-            class="action-button service"
-            @click=${() =>
-              this._callService('climate', 'set_temperature', { entity_id: stateObj.entity_id, temperature: 22 })}
-          >
-            <ha-icon icon="mdi:thermostat"></ha-icon>
-            Set 22°C
-          </button>
-        `;
-      default:
-        return html``;
-    }
-  }
-
-  private _handleDemoServiceCall(): void {
-    this._callService('persistent_notification', 'create', {
-      title: 'Demo Service Call',
-      message: `This notification was created by the MOS NAS card at ${new Date().toLocaleTimeString()}`,
-      notification_id: 'ha_mos_card_demo',
+    this.hass.callService('switch', target.checked ? 'turn_on' : 'turn_off', {
+      entity_id: row.powerEntity.entity_id,
     });
   }
 
-  private _getConfiguredActions(): string {
-    const actions = [];
-    if (this.config.tap_action && this.config.tap_action.action !== 'none') {
-      actions.push(`Tap: ${this.config.tap_action.action}`);
+  /**
+   * Route a row action.
+   *
+   * The configured actions are card-wide, but each row applies them to its own
+   * state entity — so a single `tap_action: more-info` opens the dialog for
+   * whichever container was tapped.
+   */
+  private handleAction(ev: ActionHandlerEvent, row: DeviceRow): void {
+    if (!this.hass || !this.config || !ev.detail?.action) {
+      return;
     }
-    if (this.config.hold_action && this.config.hold_action.action !== 'none') {
-      actions.push(`Hold: ${this.config.hold_action.action}`);
-    }
-    if (this.config.double_tap_action && this.config.double_tap_action.action !== 'none') {
-      actions.push(`Double-tap: ${this.config.double_tap_action.action}`);
-    }
-    return actions.length > 0 ? actions.join(', ') : 'None configured';
+
+    handleAction(
+      this,
+      this.hass,
+      {
+        entity: row.stateEntity?.entity_id,
+        tap_action: this.config.tap_action,
+        hold_action: this.config.hold_action,
+        double_tap_action: this.config.double_tap_action,
+      },
+      ev.detail.action,
+    );
   }
 
-  // Styles are encapsulated inside the Shadow DOM — they cannot leak out and
-  // external page styles cannot leak in (except for CSS custom properties).
-  //
-  // Use HA's CSS custom properties (e.g. `--primary-color`, `--divider-color`)
-  // so your card automatically adapts to the user's chosen theme.
-  // Full property list: https://github.com/home-assistant/frontend/blob/dev/src/resources/ha-style.ts
-  //
-  // TODO: Replace the demo styles below with styles for your own card layout.
-  // https://lit.dev/docs/components/styles/
   static get styles(): CSSResultGroup {
     return css`
       .card-content {
-        padding: 16px;
+        padding: 8px 16px 16px;
       }
 
-      /* Enhanced cursor and interaction styles */
-      .clickable-card {
-        cursor: pointer;
-        transition: all 0.2s ease-in-out;
+      .notice {
+        padding: 16px 0;
+        color: var(--secondary-text-color);
+        text-align: center;
       }
 
-      .clickable-card:hover {
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        transform: translateY(-1px);
+      .server-heading {
+        margin: 12px 0 4px;
+        font-weight: 500;
+        color: var(--primary-text-color);
       }
 
-      .clickable-card:active {
-        transform: translateY(0);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      .kind-heading {
+        margin: 12px 0 2px;
+        font-size: 0.85em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--secondary-text-color);
       }
 
-      .clickable-row {
-        cursor: pointer;
-        border-radius: 8px;
-        padding: 8px;
-        margin: -8px;
-        transition: background-color 0.2s ease-in-out;
-      }
-
-      .clickable-row:hover {
-        background-color: var(--secondary-background-color);
-      }
-
-      .clickable-row:active {
-        background-color: var(--divider-color);
-      }
-
-      .entity-row {
+      .row {
         display: flex;
-        align-items: center;
-        margin-bottom: 16px;
-        position: relative;
-      }
-
-      .icon {
-        margin-right: 16px;
-        color: var(--card-accent-color, var(--state-icon-color, var(--state-icon-active-color)));
-        transition: color 0.2s ease-in-out;
-      }
-
-      .clickable-row:hover .icon {
-        color: var(--card-accent-color, var(--primary-color));
-      }
-
-      /* Card style variants */
-      .style-compact .card-content {
-        padding: 8px;
-      }
-      .style-compact .entity-row {
-        margin-bottom: 8px;
-      }
-      .style-compact .name {
-        font-size: 14px;
-      }
-      .style-compact .state {
-        font-size: 12px;
-      }
-      .style-compact .action-buttons,
-      .style-compact .attributes {
-        margin: 8px 0;
-        padding: 8px;
-      }
-
-      .style-detailed .name {
-        font-size: 20px;
-      }
-      .style-detailed .state {
-        font-size: 16px;
-      }
-      .style-detailed .icon ha-icon {
-        width: 36px;
-        height: 36px;
-      }
-      .style-detailed .card-content {
-        padding: 24px;
-      }
-
-      .style-minimal .card-content {
-        padding: 12px 16px;
-      }
-      .style-minimal .attributes,
-      .style-minimal .timestamps {
-        display: none;
-      }
-
-      .icon ha-icon {
-        width: 24px;
-        height: 24px;
-      }
-
-      .entity-info {
-        flex: 1;
-      }
-
-      .entity-actions {
-        opacity: 0;
-        transition: opacity 0.2s ease-in-out;
-        font-size: 12px;
-        color: var(--secondary-text-color);
-      }
-
-      .entity-row:hover .entity-actions {
-        opacity: 1;
-      }
-
-      .toggle-hint {
-        font-style: italic;
-      }
-
-      .name {
-        font-weight: 500;
-        font-size: 16px;
-        color: var(--primary-text-color);
-        margin-bottom: 4px;
-      }
-
-      .state {
-        font-size: 14px;
-        color: var(--secondary-text-color);
-      }
-
-      .attributes {
-        margin: 16px 0;
-        padding: 12px;
-        background: var(--secondary-background-color);
-        border-radius: 8px;
-      }
-
-      .attribute {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 4px;
-      }
-
-      .attribute:last-child {
-        margin-bottom: 0;
-      }
-
-      .attr-key {
-        text-transform: capitalize;
-        color: var(--secondary-text-color);
-      }
-
-      .attr-value {
-        font-weight: 500;
-        color: var(--primary-text-color);
-      }
-
-      /* Action buttons styling */
-      .action-buttons {
-        margin: 16px 0;
-        padding: 16px;
-        background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
-        border-radius: 8px;
-      }
-
-      .action-section h4 {
-        margin: 0 0 12px 0;
-        color: var(--primary-text-color);
-        font-size: 14px;
-        font-weight: 500;
-      }
-
-      .action-button {
-        display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 8px 12px;
-        margin: 4px 4px 4px 0;
-        border: none;
-        border-radius: 16px;
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease-in-out;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        vertical-align: middle;
+        min-height: 40px;
       }
 
-      .action-button ha-icon {
-        display: block;
-        margin: 0;
+      .row.unavailable {
+        opacity: 0.5;
       }
 
-      .action-button.primary {
-        background: var(--primary-color);
-        color: var(--text-primary-color);
-      }
-
-      .action-button.primary:hover {
-        background: var(--primary-color);
-        filter: brightness(1.1);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-      }
-
-      .action-button.secondary {
-        background: var(--secondary-text-color);
-        color: var(--primary-background-color);
-      }
-
-      .action-button.secondary:hover {
-        background: var(--primary-text-color);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      }
-
-      .action-button.toggle {
-        background: var(--success-color, #4caf50);
-        color: white;
-      }
-
-      .action-button.toggle:hover {
-        background: var(--success-color, #45a049);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-      }
-
-      .action-button.service {
-        background: var(--warning-color, #ff9800);
-        color: white;
-      }
-
-      .action-button.service:hover {
-        background: var(--warning-color, #f57c00);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
-      }
-
-      .action-button:active {
-        transform: translateY(0);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-      }
-
-      .action-hints {
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px solid var(--divider-color);
-        font-size: 11px;
-        color: var(--secondary-text-color);
-      }
-
-      .hint {
-        margin-bottom: 4px;
-        line-height: 1.4;
-      }
-
-      .hint:last-child {
-        margin-bottom: 0;
-      }
-
-      .timestamps {
-        margin-top: 16px;
-        padding-top: 16px;
-        border-top: 1px solid var(--divider-color);
-        font-size: 12px;
-        color: var(--secondary-text-color);
-      }
-
-      .last-changed,
-      .last-updated {
-        margin-bottom: 4px;
-      }
-
-      .last-updated {
-        margin-bottom: 0;
-      }
-
-      /* ── Horizontal layout ────────────────────────────────── */
-      .layout-horizontal {
-        --ha-card-border-radius: var(--ha-card-border-radius, 12px);
-      }
-      .horizontal-strip {
+      .row-body {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 12px 16px;
+        flex: 1;
+        min-width: 0;
+        cursor: pointer;
+        border-radius: 4px;
+        outline: none;
       }
-      .horizontal-strip .icon {
-        margin-right: 0;
-        flex-shrink: 0;
+
+      .row-body:focus-visible {
+        box-shadow: 0 0 0 2px var(--primary-color);
       }
-      .horizontal-strip .entity-info {
+
+      .icon {
+        flex: 0 0 auto;
+        width: 24px;
+        height: 24px;
+        color: var(--state-icon-color, var(--paper-item-icon-color));
+      }
+
+      .icon.picture {
+        object-fit: contain;
+        border-radius: 4px;
+      }
+
+      .text {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
         flex: 1;
         min-width: 0;
       }
-      .horizontal-strip .name,
-      .horizontal-strip .state {
-        white-space: nowrap;
+
+      .name {
+        flex: 1;
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
-      }
-      .horizontal-strip .horizontal-actions {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-      }
-      .horizontal-strip .action-buttons {
-        margin: 0;
-        padding: 0;
-        background: none;
-        border: none;
-      }
-      .horizontal-strip .action-section h4,
-      .horizontal-strip .action-hints {
-        display: none;
+        white-space: nowrap;
       }
 
-      /* ── Badge / chip mode ───────────────────────────────────── */
-      .badge {
+      .state {
+        flex: 0 0 auto;
+        color: var(--secondary-text-color);
+        text-align: right;
+      }
+
+      .link {
+        flex: 0 0 auto;
         display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 10px 4px 6px;
-        border-radius: 999px;
-        background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
-        cursor: pointer;
-        font-size: 13px;
-        transition:
-          box-shadow 0.15s ease,
-          background 0.15s ease;
-        user-select: none;
-        -webkit-user-select: none;
-      }
-      .badge:hover {
-        box-shadow: var(--shadow-elevation-4dp, 0 2px 6px rgba(0, 0, 0, 0.18));
-        background: var(--secondary-background-color);
-      }
-      .badge:active {
-        box-shadow: none;
-      }
-      .badge-icon {
-        --mdc-icon-size: 18px;
-        color: var(--card-accent-color, var(--state-icon-color));
-      }
-      .badge-name {
-        font-weight: 500;
-        color: var(--primary-text-color);
-      }
-      .badge-state {
         color: var(--secondary-text-color);
       }
 
-      /* ── Skeleton / loading UI ───────────────────────────────── */
-      @keyframes skeleton-pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.4;
-        }
-      }
-      .skeleton {
-        border-radius: 4px;
-        background: var(--divider-color);
-        animation: skeleton-pulse 1.4s ease-in-out infinite;
-      }
-      .skeleton-content {
-        pointer-events: none;
-      }
-      .skeleton-row {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        margin-bottom: 16px;
-      }
-      .skeleton-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        flex-shrink: 0;
-      }
-      .skeleton-text-block {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .skeleton-name {
-        height: 16px;
-        width: 55%;
-      }
-      .skeleton-state {
-        height: 13px;
-        width: 35%;
-      }
-      .skeleton-attr {
-        height: 12px;
-        width: 80%;
-        margin-bottom: 8px;
-      }
-      .skeleton-attr--short {
-        width: 55%;
+      .link:hover {
+        color: var(--primary-color);
       }
 
-      /* ── Theme-aware CSS custom properties ───────────────────── */
-      :host {
-        --card-accent-color: var(--primary-color);
-      }
-
-      /* ── Responsive ─────────────────────────────────────────── */
-      @media (max-width: 600px) {
-        .action-button {
-          font-size: 11px;
-          padding: 6px 10px;
-        }
-        .entity-row {
-          margin-bottom: 12px;
-        }
-        .action-buttons {
-          margin: 12px 0;
-          padding: 12px;
-        }
-        .horizontal-strip {
-          flex-wrap: wrap;
-        }
-        .horizontal-strip .horizontal-actions {
-          width: 100%;
-          justify-content: flex-start;
-        }
+      ha-switch {
+        flex: 0 0 auto;
       }
     `;
   }

@@ -20,6 +20,7 @@ yarn lint
 ### Primary files
 
 - `src/ha-mos-card.ts` — main card implementation
+- `src/devices.ts` — device registry subscription, `model_id` filtering, per-kind facts
 - `src/editor.ts` — visual editor (`LovelaceCardEditor`)
 - `src/types.ts` — card config and type definitions
 - `src/const.ts` — `CARD_VERSION`, bumped by release-please
