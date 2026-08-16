@@ -1,0 +1,32 @@
+name: Validate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  # No hassfest job here, unlike the integration repository: hassfest validates
+  # a custom_components manifest, and a Lovelace card has none.
+  #
+  # The scheduled run is the point of this workflow. HACS is the only way this
+  # card is installed, and what breaks an install is usually not a code change
+  # at all - a release without the built asset attached, or a hacs.json that
+  # stopped matching what HACS expects of a plugin. A nightly check catches
+  # that between commits.
+  hacs: # https://github.com/hacs/action
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run HACS validation
+        uses: hacs/action@d556e736723344f83838d08488c983a15381059a # 22.5.0
+        with:
+          category: plugin

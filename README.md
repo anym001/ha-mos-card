@@ -1,47 +1,72 @@
-# Boilerplate Card
+# MOS NAS Card
 
-A community-driven boilerplate of best practices for Home Assistant Lovelace custom cards.
+A Lovelace card for the [MOS NAS integration](https://github.com/anym001/ha-mos) (domain `mos`).
+It renders the containers, virtual machines, disks, storage pools and UPS of a MOS server as a
+list of rows, and follows them as they come and go.
 
 [![GitHub Release][releases-shield]][releases]
-[![License][license-shield]](LICENSE.md)
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+[![License][license-shield]](LICENSE)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Activity][commits-shield]][commits]
 
 ---
 
 ## Overview
 
-This project is a fully-featured starting point for building your own custom Lovelace card. It is built on modern tooling (Lit 3, TypeScript 5, Rollup 4) and demonstrates real-world patterns used in production HA custom cards:
+- **Six device kinds**, each switchable on or off: Docker containers, LXC containers, virtual
+  machines, disks, storage pools and the UPS.
+- **Rows build themselves.** Each row shows the icon, the name, the state, a link to the thing's
+  own web interface where it has one, and a start/stop switch for the guests that can be
+  controlled.
+- **The list stays current.** The card reads the Home Assistant device registry and subscribes to
+  registry updates, so a container you delete on the NAS disappears from the card and a new one
+  shows up — no editing the card, no manual refresh.
+- **A broken endpoint does not empty the card.** Devices behind a failing MOS endpoint keep their
+  rows and go unavailable, which is a different thing from being gone.
 
-- Visual editor with collapsible accordion sections
-- Multiple entity support
-- Conditional card visibility based on entity states
-- Custom attribute display with label and unit overrides
-- Multiple layout modes (vertical, horizontal) and display modes (card, badge)
-- Comprehensive tap / hold / double-tap action support with repeat and haptic feedback
-- Skeleton loading state while `hass` initialises
-- Responsive design and theme-aware CSS custom properties
+### How devices are found
+
+The integration writes a `model_id` onto every device it creates for a container, disk, pool or
+UPS. This card matches on exactly that, plus `via_device_id` to scope the list to one server:
+
+| `model_id`         | Rendered as       | Has power switch |
+| ------------------ | ----------------- | ---------------- |
+| `docker_container` | Docker containers | yes              |
+| `lxc_container`    | LXC containers    | yes              |
+| `virtual_machine`  | Virtual machines  | yes              |
+| `disk`             | Disks             | no               |
+| `storage_pool`     | Storage pools     | no               |
+| `ups`              | UPS               | no               |
+
+The MOS **server** device carries no `model_id` on purpose — it is identified as the `via_device_id`
+parent of the devices above.
+
+The card matches on **neither** device `identifiers` (an internal format the integration reserves
+the right to change) **nor** display names (yours to rename). That is what makes renaming a
+container in Home Assistant safe. The contract is documented on the integration side in
+`docs/development/ARCHITECTURE.md` and in the decision log entry _Container Devices Carry Their Kind
+in `model_id`_.
 
 ---
 
 ## Installation
 
-### HACS (recommended)
+### HACS
 
 1. Open HACS in your Home Assistant instance.
-2. Go to **Frontend** → **+ Explore & Download Repositories**.
-3. Search for **Boilerplate Card** and click **Download**.
+2. Add `https://github.com/anym001/ha-mos-card` as a custom repository of type **Dashboard**.
+3. Search for **MOS NAS Card** and click **Download**.
 4. Refresh your browser.
 
 ### Manual
 
-1. Download `boilerplate-card.js` from the [latest release][releases].
-2. Copy it to `<config>/www/boilerplate-card.js`.
+1. Download `ha-mos-card.js` from the [latest release][releases].
+2. Copy it to `<config>/www/ha-mos-card.js`.
 3. Add a resource entry in your dashboard settings:
 
 ```yaml
 resources:
-  - url: /local/boilerplate-card.js
+  - url: /local/ha-mos-card.js
     type: module
 ```
 
@@ -49,96 +74,84 @@ resources:
 
 ## Configuration
 
-### Minimal example
+### Minimal
+
+Everything is optional. With no options at all the card shows every kind, on every MOS server:
 
 ```yaml
-type: custom:boilerplate-card
-entity: light.living_room
+type: custom:ha-mos-card
+```
+
+### Docker only, on one server
+
+```yaml
+type: custom:ha-mos-card
+title: Containers
+server: 1a2b3c4d5e6f7890abcdef1234567890
+kinds:
+  - docker_container
 ```
 
 ### Full example
 
 ```yaml
-type: custom:boilerplate-card
-entity: light.living_room
-name: Living Room
-icon: mdi:ceiling-light
-layout: vertical
-display_mode: card
-card_style: default
-accent_color: [255, 152, 0]
-attribute_limit: 3
-show_timestamps: true
+type: custom:ha-mos-card
+title: Sirius
+server: 1a2b3c4d5e6f7890abcdef1234567890
+kinds:
+  - docker_container
+  - lxc_container
+  - virtual_machine
+  - disk
+  - storage_pool
+  - ups
+group_by_kind: true
+show_icon: true
+show_state: true
+show_link: true
+show_power: true
+hide_unavailable: false
 tap_action:
-  action: toggle
-hold_action:
   action: more-info
-double_tap_action:
-  action: navigate
-  navigation_path: /lovelace/lights
+hold_action:
+  action: none
 ```
 
 ---
 
 ## Options
 
-### Core
+| Name                | Type    | Description                                                              | Default             |
+| ------------------- | ------- | ------------------------------------------------------------------------ | ------------------- |
+| `type`              | string  | **Required.** `custom:ha-mos-card`                                       |                     |
+| `title`             | string  | Card heading. Omit for no heading.                                       | none                |
+| `server`            | string  | Device id of the MOS server to show. Omit to show every server, grouped. | all servers         |
+| `kinds`             | list    | Which `model_id` kinds to render (see the table above).                  | all six             |
+| `group_by_kind`     | boolean | Show a heading above each kind.                                          | `true`              |
+| `show_icon`         | boolean | Show the row icon.                                                       | `true`              |
+| `show_state`        | boolean | Show the state value on each row.                                        | `true`              |
+| `show_link`         | boolean | Show a link button where the device has a URL.                           | `true`              |
+| `show_power`        | boolean | Show the start/stop switch on guest rows.                                | `true`              |
+| `hide_unavailable`  | boolean | Hide rows whose state is unavailable or unknown.                         | `false`             |
+| `tap_action`        | object  | Action for a tap on the row body, applied to that row's state entity.    | `action: more-info` |
+| `hold_action`       | object  | Action for a 500 ms hold.                                                | `action: none`      |
+| `double_tap_action` | object  | Action for a double tap.                                                 | `action: none`      |
 
-| Name           | Type    | Required     | Description                                      | Default           |
-| -------------- | ------- | ------------ | ------------------------------------------------ | ----------------- |
-| `type`         | string  | **Required** | `custom:boilerplate-card`                        |                   |
-| `entity`       | string  | **Optional** | Primary HA entity ID                             | `none`            |
-| `name`         | string  | **Optional** | Card title override                              | Entity friendly name |
-| `icon`         | string  | **Optional** | MDI icon override (e.g. `mdi:lightbulb`)         | Domain default    |
-| `area`         | string  | **Optional** | HA area to associate with the card               | `none`            |
-| `show_error`   | boolean | **Optional** | Render the error card template (for testing)     | `false`           |
-| `show_warning` | boolean | **Optional** | Render the warning banner template (for testing) | `false`           |
+An unknown value in `kinds` is a configuration error and the card says so, rather than silently
+rendering an empty list.
 
-### Actions
+### Where a row's parts come from
 
-| Name                | Type   | Required     | Description                     | Default             |
-| ------------------- | ------ | ------------ | ------------------------------- | ------------------- |
-| `tap_action`        | object | **Optional** | Action on single tap            | `action: more-info` |
-| `hold_action`       | object | **Optional** | Action on 500 ms hold           | `action: none`      |
-| `double_tap_action` | object | **Optional** | Action on double tap            | `action: none`      |
+Each row is built from a single entity per device — the state sensor the integration documents for
+exactly this purpose:
 
-#### Action object
-
-| Name              | Type   | Required     | Description                                                                             | Default     |
-| ----------------- | ------ | ------------ | --------------------------------------------------------------------------------------- | ----------- |
-| `action`          | string | **Required** | `more-info` `toggle` `navigate` `url` `call-service` `fire-dom-event` `none`           | `more-info` |
-| `navigation_path` | string | **Optional** | Path for `navigate` (e.g. `/lovelace/0/`)                                              | `none`      |
-| `url_path`        | string | **Optional** | URL for `url` action — opens in a new tab                                               | `none`      |
-| `service`         | string | **Optional** | Service for `call-service` (e.g. `light.turn_on`)                                      | `none`      |
-| `service_data`    | object | **Optional** | Service data payload for `call-service`                                                 | `none`      |
-| `haptic`          | string | **Optional** | Haptic feedback: `success` `warning` `failure` `light` `medium` `heavy` `selection`    | `none`      |
-| `repeat`          | number | **Optional** | Repeat interval in ms while held (`hold_action` only)                                  | `none`      |
-| `repeat_limit`    | number | **Optional** | Maximum number of repeats (`hold_action` only)                                          | `none`      |
-
-### Appearance
-
-| Name           | Type     | Required     | Description                                                              | Default              |
-| -------------- | -------- | ------------ | ------------------------------------------------------------------------ | -------------------- |
-| `layout`       | string   | **Optional** | `vertical` (stacked) or `horizontal` (icon + info + actions in one row) | `vertical`           |
-| `display_mode` | string   | **Optional** | `card` (full ha-card) or `badge` (compact inline chip)                  | `card`               |
-| `card_style`   | string   | **Optional** | `default` `compact` `detailed` `minimal`                                | `default`            |
-| `accent_color` | [r, g, b] | **Optional** | RGB accent color applied via `--card-accent-color`                     | Theme primary color  |
-
-#### Card styles
-
-| Value      | Effect                                             |
-| ---------- | -------------------------------------------------- |
-| `default`  | Standard padding and font sizes                    |
-| `compact`  | Reduced padding and smaller text                   |
-| `detailed` | Enlarged text, bigger icon, extra padding          |
-| `minimal`  | Entity row only — attributes and timestamps hidden |
-
-### Display
-
-| Name              | Type    | Required     | Description                                         | Default |
-| ----------------- | ------- | ------------ | --------------------------------------------------- | ------- |
-| `attribute_limit` | number  | **Optional** | Maximum number of attributes to display (`0` = none). Shown as a slider (0–10) in the visual editor. | `3`     |
-| `show_timestamps` | boolean | **Optional** | Show last changed / last updated timestamps         | `true`  |
+- **Icon** — the state sensor's `entity_picture`, which for Docker, LXC and VM guests is the icon
+  MOS itself shows. Falls back to a per-kind MDI icon.
+- **State** — the sensor's state, formatted the way Home Assistant formats it everywhere else, so
+  enum states read in your language.
+- **Link** — the Docker state sensor's `web_ui_url` attribute, falling back to the device's
+  configuration URL. Containers without a web interface get no button rather than a dead one.
+- **Power** — the single `switch` entity on the device, for the three guest kinds that have one.
 
 ---
 
@@ -151,34 +164,28 @@ double_tap_action:
 | Node.js | 24              | Required by `custom-card-helpers@2` |
 | Yarn    | 4               | Managed via Corepack                |
 
-TypeScript, Rollup, ESLint, and all other build tools are installed locally via `yarn install` — no global installs needed.
+TypeScript, Rollup, ESLint, and all other build tools are installed locally via `yarn install` — no
+global installs needed.
 
 ### Quick start — devcontainer (recommended)
 
-The devcontainer gives you a full HA development environment in one click with no local setup required.
-
 1. Open the project in VS Code.
-2. When prompted, click **Reopen in Container** (or run **Dev Containers: Rebuild Container**).
+2. When prompted, click **Reopen in Container**.
 3. A local Home Assistant instance starts automatically at `http://localhost:8123`.
 4. Log in with `dev` / `dev`.
-5. The built card is served from the container and hot-reloads on every save (`yarn start` is launched automatically).
+5. The built card is served from the container and rebuilds on every save.
 
 **Requires:** [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension.
 
 ### Quick start — local
 
 ```bash
-# 1. Clone or use the GitHub "Use this template" button
-git clone https://github.com/custom-cards/boilerplate-card.git my-card
-cd my-card
+git clone https://github.com/anym001/ha-mos-card.git
+cd ha-mos-card
 
-# 2. Install dependencies
 yarn install
-
-# 3. Verify the build works
+pre-commit install   # formatting, linting and commit-message checks
 yarn build
-
-# 4. Start the development watcher
 yarn start
 ```
 
@@ -186,107 +193,67 @@ Then add your local file as a Lovelace resource:
 
 ```yaml
 resources:
-  - url: /local/boilerplate-card.js
+  - url: /local/ha-mos-card.js
     type: module
 ```
 
-Copy or symlink `dist/boilerplate-card.js` into your HA `www/` folder, or use the devcontainer where this is handled automatically.
-
 ### Available scripts
 
-| Command          | Description                                             |
-| ---------------- | ------------------------------------------------------- |
-| `yarn build`     | Lint + production bundle (minified, ES2022 output)      |
-| `yarn rollup`    | Production bundle only (skips lint)                     |
-| `yarn start`     | Development watcher with hot reload (`rollup --watch`)  |
-| `yarn lint`      | ESLint across all `src/` files                          |
+| Command       | Description                                        |
+| ------------- | -------------------------------------------------- |
+| `yarn build`  | Lint + production bundle (minified, ES2022 output) |
+| `yarn rollup` | Production bundle only (skips lint)                |
+| `yarn start`  | Development watcher with rebuild on save           |
+| `yarn lint`   | ESLint across all `src/` files                     |
 
 ### Project structure
 
-```
+```text
 src/
-├── boilerplate-card.ts          # Main card element — LitElement subclass
+├── ha-mos-card.ts               # Main card element — LitElement subclass
+├── devices.ts                   # Device registry subscription and model_id filtering
 ├── editor.ts                    # Visual editor — implements LovelaceCardEditor
-├── types.ts                     # TypeScript interfaces for all config fields
-├── const.ts                     # CARD_VERSION constant
+├── types.ts                     # Card config interface
+├── const.ts                     # CARD_VERSION (bumped by release-please)
 ├── action-handler-directive.ts  # Lit directive: tap / hold / double-tap gestures
 └── localize/
     ├── localize.ts              # i18n helper
     └── languages/
-        ├── en.json              # English strings
-        └── nb.json              # Norwegian strings
+        ├── de.json              # German strings
+        └── en.json              # English strings
 dist/
-└── boilerplate-card.js          # Build output — serve this to HA
+└── ha-mos-card.js               # Build output — serve this to HA
 ```
 
-### Adapting the boilerplate for your own card
+### Why Rollup and not Vite
 
-Search the codebase for `TODO` — every required change is marked. The key steps in order:
+Deliberate. Vite's hot reload buys nothing for a Home Assistant card, because HA loads the built
+bundle from a resource URL rather than from a dev server. Rollup produces that single bundle
+directly, so the dev loop and the shipped artifact are the same thing.
 
-1. **Rename the element** — change `boilerplate-card` everywhere: the `@customElement` decorator, the `customCards.push` entry, the editor tag name in `getConfigElement`, and your YAML `type:` field.
-2. **Define config fields** — add your options to `BoilerplateCardConfig` in `types.ts`.
-3. **Validate and set defaults** — update `setConfig()` in `boilerplate-card.ts`. Throw for missing required fields; spread sensible defaults for optional ones.
-4. **Update `getStubConfig`** — return a minimal valid config so the card picker renders something immediately without the editor.
-5. **Build your render** — replace `_renderContent()` and `_renderAttributes()` with your domain-specific templates.
-6. **Update the visual editor** — add your config fields to the relevant accordion section in `editor.ts`. Use `ha-selector` for type-safe inputs that match HA's UI conventions.
-7. **Add user-facing strings** — put labels and messages in `src/localize/languages/en.json` and reference them with `localize('key')`.
+### Commits and releases
 
-### Toolchain summary
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/), enforced by a
+`commitlint` hook at the `commit-msg` stage (`pre-commit install` sets it up). `release-please`
+reads those subjects to decide the next version and to write the changelog, so a malformed subject
+produces a wrong release — fix the message rather than bypassing the hook.
 
-| Tool                        | Version | Role                                                       |
-| --------------------------- | ------- | ---------------------------------------------------------- |
-| Lit                         | 3.2     | Web components framework                                   |
-| TypeScript                  | 5.6     | Type checking and compilation                              |
-| Rollup                      | 4       | Bundler — single `.js` output with tree-shaking            |
-| `@rollup/plugin-typescript` | 11      | TypeScript integration                                     |
-| `@rollup/plugin-terser`     | 0.4     | Minifier                                                   |
-| ESLint                      | 8       | Linting with TypeScript and Prettier integration           |
+Releases are not hand-tagged. Merging to `main` opens or updates a release PR; merging that PR
+tags the release, bumps `package.json` and `src/const.ts`, and attaches the built `ha-mos-card.js`
+to it, which is what HACS downloads.
 
-> **Important:** Rollup and Terser are both configured for ES2022 output (`ecma: 2022`, `target: 'ES2022'`). Do **not** lower these targets. Lit 3 uses native ES6 `class` syntax and the `extends` keyword; downgrading to ES5 causes a runtime `TypeError: Class constructor cannot be invoked without 'new'`.
+### Languages
 
-### Action handler directive
+The card ships German and English, the same two the MOS integration ships, and German follows the
+integration's own wording so the two read alike. A key missing from one file falls back to English
+rather than showing a raw key, which makes a partial translation safe but easy to miss — add new
+keys to both files.
 
-`action-handler-directive.ts` is a Lit directive that attaches gesture recognisers to any element. Wire it up with the `actionHandler()` function and listen for the `@action` event:
-
-```typescript
-import { actionHandler } from './action-handler-directive';
-import { handleAction, ActionHandlerEvent } from 'custom-card-helpers';
-
-// In your render():
-html`
-  <div
-    ${actionHandler({ hasHold: true, hasDoubleClick: true })}
-    @action=${this._handleAction}
-    tabindex="0"
-  >...</div>
-`
-
-// Handler:
-private _handleAction(ev: ActionHandlerEvent): void {
-  handleAction(this, this.hass, this.config, ev.detail.action);
-}
-```
-
-| Gesture       | Activated by                             |
-| ------------- | ---------------------------------------- |
-| Tap           | Release before the hold threshold        |
-| Hold          | Press held for 500 ms                    |
-| Hold + repeat | Fires every `repeat` ms while held       |
-| Double tap    | Two taps within 250 ms                   |
-| Keyboard      | Enter or Space triggers tap              |
-
-### Adding a new language
+To add a third language:
 
 1. Copy `src/localize/languages/en.json` to `src/localize/languages/<lang>.json`.
 2. Translate the values (keep all keys identical).
 3. Import and register the new translations in `src/localize/localize.ts`.
-
-### Contributing
-
-1. Fork the repository and create a feature branch from `master`.
-2. Run `yarn build` before opening a PR — all lint checks must pass.
-3. Keep PRs focused on a single change.
-4. Code style is enforced automatically by Prettier and ESLint on build.
 
 ---
 
@@ -295,29 +262,38 @@ private _handleAction(ev: ActionHandlerEvent): void {
 **Card not appearing after install**
 Clear your browser cache or do a hard reload (`Ctrl+Shift+R` / `Cmd+Shift+R`).
 
+**"No MOS devices found"**
+The card found no device with a MOS `model_id`. Check that the MOS integration is set up and that
+its devices are not disabled in **Settings → Devices & services**. The integration must be recent
+enough to write `model_id` onto its devices.
+
+**A container is missing**
+Check whether its device is disabled, and whether its kind is enabled in the card's `kinds` option.
+Rows are never matched by name, so renaming is not the cause.
+
+**Rows show as unavailable**
+That is the intended signal for a MOS endpoint that is failing: the devices stay, their entities go
+unavailable. Check the integration's own diagnostics.
+
 **`TypeError: Class constructor cannot be invoked without 'new'`**
-Your bundler is transpiling Lit's class syntax down to ES5. Ensure `rollup.config.js` has `terser({ ecma: 2020 })` and `typescript({ compilerOptions: { target: 'ES2022' } })`.
-
-**Visual editor not opening**
-Check the browser console for import errors from the dynamic `import('./editor')` in `getConfigElement`. Also confirm the `boilerplate-card-editor` custom element tag matches what `getConfigElement` creates.
-
-**Card stuck on skeleton / not rendering**
-`shouldUpdate` may be returning `false` before `hass` is ready. The safest implementation for a single entity is:
-```typescript
-protected shouldUpdate(changedProps: PropertyValues): boolean {
-  if (!this.config) return false;
-  return changedProps.has('config') || changedProps.has('hass');
-}
-```
+Your bundler is transpiling Lit's class syntax down to ES5. Rollup and Terser are both configured
+for ES2022 output here — do not lower those targets.
 
 **General Lovelace plugin troubleshooting**
 See the [thomasloven wiki][troubleshooting].
 
 ---
 
-[commits-shield]: https://img.shields.io/github/commit-activity/y/custom-cards/boilerplate-card.svg?style=for-the-badge
-[commits]: https://github.com/custom-cards/boilerplate-card/commits/master
-[license-shield]: https://img.shields.io/github/license/custom-cards/boilerplate-card.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/custom-cards/boilerplate-card.svg?style=for-the-badge
-[releases]: https://github.com/custom-cards/boilerplate-card/releases
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+Maintained by [@anym001][user_profile].
+
+[commits-shield]: https://img.shields.io/github/commit-activity/y/anym001/ha-mos-card.svg?style=for-the-badge
+[commits]: https://github.com/anym001/ha-mos-card/commits/main
+[license-shield]: https://img.shields.io/github/license/anym001/ha-mos-card.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/anym001/ha-mos-card.svg?style=for-the-badge
+[releases]: https://github.com/anym001/ha-mos-card/releases
 [troubleshooting]: https://github.com/thomasloven/hass-config/wiki/Lovelace-Plugins
+[user_profile]: https://github.com/anym001

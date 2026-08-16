@@ -1,0 +1,11 @@
+{
+  // Files and directories excluded from markdownlint validation.
+  // Keep in sync with .prettierignore — markdownlint-cli2 does NOT support .markdownlintignore.
+  "ignores": [
+    "node_modules/**",
+    "dist/**",
+    ".yarn/**",
+    // Auto-generated release file
+    "CHANGELOG.md",
+  ],
+}

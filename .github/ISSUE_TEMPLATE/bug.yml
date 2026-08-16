@@ -1,0 +1,92 @@
+---
+name: 'Bug report'
+description: 'Report a bug with the MOS NAS card'
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: Before you open a new issue, search through the existing issues to see if others have had the same problem.
+  - type: markdown
+    attributes:
+      value: |
+        If a device is missing from the card, check first whether it is missing from
+        **Settings → Devices & services** as well. The card renders what the MOS
+        integration registers, so a device that is not there is an integration issue
+        and belongs in [anym001/ha-mos](https://github.com/anym001/ha-mos/issues).
+  - type: input
+    attributes:
+      label: 'Home Assistant version'
+      description: 'The version of Home Assistant you are using'
+      placeholder: '2025.1.0'
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: 'Card version'
+      description: 'The version of this card. It is printed to the browser console when the card loads.'
+      placeholder: '0.1.0'
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: 'MOS NAS integration version'
+      description: 'The version of the ha-mos integration this card is reading from'
+      placeholder: '0.2.1'
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: 'Browser'
+      description: 'Browser and version, and whether you are in the app or a normal tab'
+      placeholder: 'Firefox 140, companion app on Android'
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Checklist
+      options:
+        - label: I have cleared my browser cache and done a hard reload.
+          required: true
+        - label: I have filled out the issue template to the best of my ability.
+          required: true
+        - label: This issue only contains 1 issue (if you have multiple issues, open one issue for each issue).
+          required: true
+        - label: This issue is not a duplicate issue of any [previous issues](https://github.com/anym001/ha-mos-card/issues?q=is%3Aissue+label%3A%22bug%22+).
+          required: true
+  - type: textarea
+    attributes:
+      label: 'Describe the issue'
+      description: 'A clear and concise description of what the issue is.'
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction steps
+      description: 'Without steps to reproduce, it will be hard to fix. It is very important that you fill out this part. Issues without it will be closed.'
+      value: |
+        1.
+        2.
+        3.
+        ...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 'Card configuration'
+      description: "The YAML of the card, from the dashboard's raw configuration editor."
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 'Browser console output'
+      description: "Any errors or warnings in the browser's developer console while the card is on screen."
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: 'Screenshot'
+      description: 'Drag a screenshot here if the problem is visible on the card or in the editor.'
+    validations:
+      required: false

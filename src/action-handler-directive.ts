@@ -263,13 +263,13 @@ const setupActionHandlerMethods = (element: HTMLElement): ActionHandler => {
 
 const getActionHandler = (): ActionHandler => {
   const body = document.body;
-  const existing = body.querySelector('.action-handler-boilerplate-card'); // TODO You need to update this name to be unique for your card
+  const existing = body.querySelector('.action-handler-ha-mos-card'); // TODO You need to update this name to be unique for your card
   if (existing) {
     return existing as ActionHandler;
   }
 
   const div = document.createElement('div');
-  div.className = 'action-handler-boilerplate-card'; // TODO You need to update this name to be unique for your card
+  div.className = 'action-handler-ha-mos-card'; // TODO You need to update this name to be unique for your card
   div.style.position = 'absolute';
   div.style.width = isTouch ? '100px' : '50px';
   div.style.height = isTouch ? '100px' : '50px';

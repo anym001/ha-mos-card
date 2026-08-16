@@ -36,9 +36,9 @@ const onwarn = (warning, warn) => {
 
 export default [
   {
-    input: 'src/boilerplate-card.ts',
+    input: 'src/ha-mos-card.ts',
     output: {
-      file: 'dist/boilerplate-card.js',
+      file: 'dist/ha-mos-card.js',
       format: 'es',
       inlineDynamicImports: true,
     },

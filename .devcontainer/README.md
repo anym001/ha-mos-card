@@ -1,6 +1,6 @@
 # Home Assistant Custom Card - Dev Container Setup
 
-This directory contains the development container configuration for building and testing the boilerplate-card custom card for Home Assistant.
+This directory contains the development container configuration for building and testing the ha-mos-card custom card for Home Assistant.
 
 ## Setup Instructions
 
@@ -14,6 +14,7 @@ This directory contains the development container configuration for building and
    - Wait for the container to build (first time takes ~2-3 minutes)
 
 3. **Build the Card**
+
    ```bash
    yarn build      # Lint and build
    yarn start      # Start dev server with hot reload (port 5000)
@@ -23,8 +24,8 @@ This directory contains the development container configuration for building and
 
 4. **Access Services**
    - **Dev Container**: Terminal in VS Code (automatic)
-   - **Home Assistant**: http://localhost:8123 (user: dev/pass: dev)
-   - **Rollup Dev Server**: http://localhost:5000
+   - **Home Assistant**: <http://localhost:8123> (user: dev/pass: dev)
+   - **Rollup Dev Server**: <http://localhost:5000>
 
 5. **Configure Home Assistant to Use Your Card**
    - In Home Assistant, go to Settings > Dashboards
@@ -33,7 +34,7 @@ This directory contains the development container configuration for building and
 
 ## File Structure
 
-```
+```text
 .devcontainer/
 ├── devcontainer.json    # VS Code dev container config
 ├── .gitignore          # Ignore HA data
@@ -76,12 +77,14 @@ yarn rollup           # Create optimized dist files
 ## Troubleshooting
 
 ### Container Won't Start
+
 ```bash
 # Rebuild the container
 ctrl+shift+p → "Remote: Rebuild Container"
 ```
 
 ### Port Already in Use
+
 ```bash
 # Find what's using port 5000 or 8123
 lsof -i :5000
@@ -89,6 +92,7 @@ lsof -i :8123
 ```
 
 ### Node Modules Issues
+
 ```bash
 # Clear and reinstall dependencies
 rm -rf node_modules

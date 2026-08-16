@@ -1,5 +1,5 @@
 {
-    "name": "Boilerplate Card",
+    "name": "MOS NAS Card",
     "render_readme": true,
-    "filename": "boilerplate-card.js"
+    "filename": "ha-mos-card.js"
 }

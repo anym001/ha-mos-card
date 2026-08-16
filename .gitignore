@@ -1,7 +1,5 @@
 /node_modules/
-/.rpt2_cache/
 /dist
-homeassistant/
 .devcontainer/config/.storage/
 .devcontainer/config/tts/
 .devcontainer/config/*.db*

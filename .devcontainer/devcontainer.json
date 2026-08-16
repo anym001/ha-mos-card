@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json
 // Uses custom-cards/custom-card-devcontainer image for Home Assistant + Dev environment
 {
-  "name": "Home Assistant Custom Card Dev",
+  "name": "MOS NAS Card Dev",
 
   // Use published devcontainer image
   "image": "ghcr.io/custom-cards/custom-card-devcontainer:latest",
@@ -32,7 +32,7 @@
     "DEVCONTAINER": "1",
     "HASS_USERNAME": "dev",
     "HASS_PASSWORD": "dev",
-    "LOVELACE_REMOTE_FILES": "http://localhost:5000/boilerplate-card.js"
+    "LOVELACE_REMOTE_FILES": "http://localhost:5000/ha-mos-card.js"
   },
 
   // Setup Home Assistant and install dependencies

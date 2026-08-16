@@ -1,0 +1,45 @@
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Monthly on purpose, matching the integration repository: this is a solo
+# project and weekly updates produce more review churn than they are worth.
+# The monthly cadence also lets fresh releases settle on their own, which is
+# why no cooldown windows are configured.
+version: 2
+updates:
+  - package-ecosystem: 'devcontainers'
+    directory: '/'
+    schedule:
+      interval: 'monthly'
+    commit-message:
+      prefix: 'chore(deps)'
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'monthly'
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      # Bundle all minor/patch action updates into a single PR; major updates stay separate
+      github-actions:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'monthly'
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      # Bundle all minor/patch updates into a single PR. Major updates stay
+      # separate on purpose: for this card they are the ones that move the Lit,
+      # Rollup or custom-card-helpers major, each of which needs a deliberate
+      # look at the bundle rather than an auto-merge.
+      node-dependencies:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
