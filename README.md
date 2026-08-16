@@ -284,9 +284,16 @@ See the [thomasloven wiki][troubleshooting].
 
 ---
 
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+Maintained by [@anym001][user_profile].
+
 [commits-shield]: https://img.shields.io/github/commit-activity/y/anym001/ha-mos-card.svg?style=for-the-badge
 [commits]: https://github.com/anym001/ha-mos-card/commits/main
 [license-shield]: https://img.shields.io/github/license/anym001/ha-mos-card.svg?style=for-the-badge
 [releases-shield]: https://img.shields.io/github/release/anym001/ha-mos-card.svg?style=for-the-badge
 [releases]: https://github.com/anym001/ha-mos-card/releases
 [troubleshooting]: https://github.com/thomasloven/hass-config/wiki/Lovelace-Plugins
+[user_profile]: https://github.com/anym001
