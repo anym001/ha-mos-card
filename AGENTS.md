@@ -12,7 +12,8 @@ They are agent-independent: anything tool-specific belongs in that tool's own fi
 ### Core commands
 
 ```bash
-yarn install
+yarn setup       # dependencies + pre-commit hooks (one-command bootstrap)
+yarn check       # everything below except `start`, in one command
 yarn start
 yarn build
 yarn lint        # ESLint
@@ -112,8 +113,8 @@ listed and merely reports unavailable. Do not add manual refresh logic that figh
 ## Build and quality expectations
 
 - Keep `yarn lint` clean for changed code.
-- Ensure `yarn build` succeeds after non-trivial changes.
-- Run `yarn typecheck` as well, and do not read a green build as a green type check.
+- Run `yarn check` before handing work back — it is the local equivalent of the CI gates.
+- Do not read a green build as a green type check.
   `@rollup/plugin-typescript` reports type errors as warnings and still emits a bundle, so
   `yarn build` exits 0 on code that does not type-check. `yarn typecheck` is the only command
   that fails on one, which is why the Lint workflow runs it separately from the Build workflow.
@@ -145,7 +146,7 @@ BREAKING CHANGE: description (required if breaking)
 - Unrelated changes → separate commits
 
 This is enforced mechanically by a `commitlint` hook at the `commit-msg` stage (see
-`.commitlintrc.json` and `.pre-commit-config.yaml`). Install it once with `pre-commit install`.
+`.commitlintrc.json` and `.pre-commit-config.yaml`). `yarn setup` installs it.
 If it trips, fix the message — do not bypass it with `--no-verify`.
 
 ## Releases
@@ -159,7 +160,7 @@ never edit either version by hand.
 
 1. Read adjacent code before editing.
 2. Implement the smallest viable change.
-3. Run relevant checks (`yarn lint`, `yarn build`, or targeted command).
+3. Run `yarn check` (or a targeted command while iterating).
 4. Update docs/README when behavior or config changes.
 5. Summarize what changed and why.
 

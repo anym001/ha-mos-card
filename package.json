@@ -49,11 +49,13 @@
   },
   "scripts": {
     "build": "yarn clean && yarn lint && yarn rollup",
+    "check": "yarn lint && yarn typecheck && yarn lint:md && yarn lint:format && yarn build",
     "clean": "rm -rf dist",
     "lint": "eslint src/**/*.ts",
     "lint:format": "prettier --check .",
     "lint:md": "markdownlint-cli2 \"**/*.md\"",
     "rollup": "rollup -c",
+    "setup": "yarn install && pre-commit install || echo 'pre-commit not found - install it (https://pre-commit.com/#install) and rerun `yarn setup`'",
     "start": "rollup -c rollup.config.dev.js --watch",
     "typecheck": "tsc --noEmit"
   }
