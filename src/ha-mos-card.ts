@@ -394,7 +394,7 @@ export class HaMosCard extends LitElement {
   private renderGroup(group: RowGroup): TemplateResult {
     return html`
       ${this.config.group_by_kind ? html`<div class="kind-heading">${localize(`kinds.${group.kind}`)}</div>` : nothing}
-      ${group.rows.map((row) => this.renderRow(row))}
+      <div class="group">${group.rows.map((row) => this.renderRow(row))}</div>
     `;
   }
 
@@ -403,7 +403,7 @@ export class HaMosCard extends LitElement {
     const unavailable = isUnavailableState(stateObj?.state);
 
     return html`
-      <div class="row ${unavailable ? 'unavailable' : ''}">
+      <div class="row ${unavailable ? 'unavailable' : ''} tone-${this.tone(row.kind, stateObj)}">
         <div
           class="row-body"
           @action=${(ev: ActionHandlerEvent) => this.handleAction(ev, row)}
@@ -424,6 +424,40 @@ export class HaMosCard extends LitElement {
         ${this.config.show_power ? this.renderPower(row) : nothing}
       </div>
     `;
+  }
+
+  /**
+   * The colour family a row is drawn in.
+   *
+   * Kept to a handful of names rather than a colour per state so the palette
+   * stays a theme concern: the CSS maps each tone onto a Home Assistant theme
+   * variable, and a state nobody anticipated lands on the neutral one.
+   *
+   * Only kinds whose state says something about *running* are coloured. A disk
+   * reporting `active` is naming its ATA power mode and a pool reports how full
+   * it is — neither is good news or bad news, and colouring them drowns out the
+   * containers, which are the reason to look at the card at all.
+   */
+  private tone(kind: MosDeviceKind, stateObj?: HassEntity): string {
+    const state = stateObj?.state;
+
+    if (state === undefined || isUnavailableState(state)) {
+      return 'unknown';
+    }
+
+    if (kind === 'disk' || kind === 'storage_pool') {
+      return 'neutral';
+    }
+
+    if (['running', 'on', 'active', 'ol', 'online'].includes(state.toLowerCase())) {
+      return 'active';
+    }
+
+    if (['paused', 'frozen', 'standby', 'idle', 'sleeping', 'starting'].includes(state.toLowerCase())) {
+      return 'idle';
+    }
+
+    return 'inactive';
   }
 
   /**
@@ -479,7 +513,7 @@ export class HaMosCard extends LitElement {
 
     return html`
       <a class="link" href=${url} target="_blank" rel="noreferrer noopener" title=${localize('common.open_link')}>
-        <ha-icon icon="mdi:open-in-new"></ha-icon>
+        <ha-icon icon="mdi:web"></ha-icon>
       </a>
     `;
   }
@@ -495,13 +529,21 @@ export class HaMosCard extends LitElement {
       return nothing;
     }
 
+    const on = switchObj.state === 'on';
+    const disabled = isUnavailableState(switchObj.state);
+
+    // A toggle reads as a setting that is either on or off; a guest is a thing
+    // that is doing something right now. So the control is a button showing the
+    // action it performs — start what is stopped, stop what is running.
     return html`
-      <ha-switch
-        .checked=${switchObj.state === 'on'}
-        .disabled=${isUnavailableState(switchObj.state)}
+      <button
+        class="power-button"
+        ?disabled=${disabled}
         title=${localize('common.toggle_power')}
-        @change=${(ev: Event) => this.togglePower(ev, row)}
-      ></ha-switch>
+        @click=${(ev: Event) => this.togglePower(ev, row)}
+      >
+        <ha-icon icon=${on ? 'mdi:stop' : 'mdi:play'}></ha-icon>
+      </button>
     `;
   }
 
@@ -512,9 +554,12 @@ export class HaMosCard extends LitElement {
       return;
     }
 
-    const target = ev.target as HTMLInputElement;
+    // Derived from the entity rather than from the widget, because the two
+    // controls report differently: the switch has already flipped its own
+    // `checked` by the time this fires, a button has no such state at all.
+    const current = this.hass.states[row.powerEntity.entity_id]?.state;
 
-    this.hass.callService('switch', target.checked ? 'turn_on' : 'turn_off', {
+    this.hass.callService('switch', current === 'on' ? 'turn_off' : 'turn_on', {
       entity_id: row.powerEntity.entity_id,
     });
   }
@@ -543,11 +588,10 @@ export class HaMosCard extends LitElement {
       ev.detail.action,
     );
   }
-
   static get styles(): CSSResultGroup {
     return css`
       .card-content {
-        padding: 8px 16px 16px;
+        padding: 4px 12px 12px;
       }
 
       .notice {
@@ -557,28 +601,79 @@ export class HaMosCard extends LitElement {
       }
 
       .server-heading {
-        margin: 12px 0 4px;
+        margin: 14px 4px 6px;
         font-weight: 500;
         color: var(--primary-text-color);
       }
 
       .kind-heading {
-        margin: 12px 0 2px;
-        font-size: 0.85em;
+        margin: 14px 4px 6px;
+        font-size: 0.75em;
+        font-weight: 500;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.08em;
         color: var(--secondary-text-color);
       }
 
+      .group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      /* Every row carries a tone class derived from its state; these map it onto
+         the theme's own colours, so a custom theme recolours the card without
+         the card knowing anything about it. */
       .row {
+        --tone-color: var(--secondary-text-color);
         display: flex;
         align-items: center;
-        gap: 8px;
-        min-height: 40px;
+        gap: 12px;
+        padding: 8px 12px;
+        min-height: 56px;
+        border-radius: 14px;
+        box-sizing: border-box;
+        /* Lifted off the card by mixing the text colour into the card's own
+           background: a fixed grey would sit invisibly on the card in one theme
+           or the other, and this stays a step darker in light and a step lighter
+           in dark without needing to know which is in use. */
+        background: color-mix(
+          in srgb,
+          var(--primary-text-color) 7%,
+          var(--ha-card-background, var(--card-background-color))
+        );
+      }
+
+      .row.tone-active {
+        --tone-color: var(--success-color, var(--state-active-color, #43a047));
+      }
+
+      .row.tone-idle {
+        --tone-color: var(--warning-color, #ffa726);
+      }
+
+      .row.tone-inactive {
+        --tone-color: var(--state-inactive-color, var(--secondary-text-color));
+      }
+
+      .row.tone-unknown {
+        --tone-color: var(--disabled-color, var(--secondary-text-color));
+      }
+
+      .row.tone-neutral {
+        --tone-color: var(--state-icon-color, var(--paper-item-icon-color, var(--secondary-text-color)));
+      }
+
+      /* The secondary line only takes the tone colour where the tone means
+         something; on a neutral row it is ordinary secondary text. */
+      .row.tone-neutral .state,
+      .row.tone-inactive .state,
+      .row.tone-unknown .state {
+        color: var(--secondary-text-color);
       }
 
       .row.unavailable {
-        opacity: 0.5;
+        opacity: 0.6;
       }
 
       .row-body {
@@ -588,7 +683,7 @@ export class HaMosCard extends LitElement {
         flex: 1;
         min-width: 0;
         cursor: pointer;
-        border-radius: 4px;
+        border-radius: 10px;
         outline: none;
       }
 
@@ -596,52 +691,112 @@ export class HaMosCard extends LitElement {
         box-shadow: 0 0 0 2px var(--primary-color);
       }
 
+      /* The icon well.
+         A rounded square rather than a circle, because most of what lands here
+         is a square app logo from the MOS template and a circle clips its
+         corners. The tone is carried by a ring around the well instead of a
+         wash behind the artwork, which would drain the colour out of it. */
       .icon {
         flex: 0 0 auto;
-        width: 24px;
-        height: 24px;
-        color: var(--state-icon-color, var(--paper-item-icon-color));
+        width: 44px;
+        height: 44px;
+        padding: 8px;
+        box-sizing: border-box;
+        border-radius: 12px;
+        color: var(--tone-color);
+        background: color-mix(in srgb, var(--tone-color) 16%, transparent);
+        --mdc-icon-size: 28px;
       }
 
+      /* The ring is the state signal, so it is only drawn where the state is
+         one — otherwise it reads as a stray border around every icon. */
+      .row.tone-active .icon,
+      .row.tone-idle .icon {
+        box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tone-color) 35%, transparent);
+      }
+
+      /* Artwork gets a neutral well and more room: it brings its own colours,
+         and a tinted backdrop behind a logo reads as a stain. */
       .icon.picture {
+        padding: 5px;
         object-fit: contain;
-        border-radius: 4px;
+        background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
       }
 
       .text {
         display: flex;
-        align-items: baseline;
-        gap: 8px;
+        flex-direction: column;
+        justify-content: center;
         flex: 1;
         min-width: 0;
+        gap: 1px;
       }
 
       .name {
-        flex: 1;
+        width: 100%;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        font-weight: 500;
+        line-height: 1.3;
+        color: var(--primary-text-color);
       }
 
       .state {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.85em;
+        line-height: 1.3;
+        color: var(--tone-color);
+      }
+
+      /* Controls sit in matching round wells so the row ends in a consistent
+         shape whether a device has a link, a switch, both or neither. */
+      .link,
+      .power-button {
         flex: 0 0 auto;
-        color: var(--secondary-text-color);
-        text-align: right;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        --mdc-icon-size: 20px;
       }
 
       .link {
-        flex: 0 0 auto;
-        display: inline-flex;
         color: var(--secondary-text-color);
+        background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
       }
 
       .link:hover {
         color: var(--primary-color);
+        background: color-mix(in srgb, var(--primary-color) 18%, transparent);
       }
 
-      ha-switch {
-        flex: 0 0 auto;
+      .power-button {
+        cursor: pointer;
+        color: var(--tone-color);
+        background: color-mix(in srgb, var(--tone-color) 16%, transparent);
+        transition: background 0.15s ease-in-out;
+      }
+
+      .power-button:hover {
+        background: color-mix(in srgb, var(--tone-color) 30%, transparent);
+      }
+
+      .power-button:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 1px;
+      }
+
+      .power-button:disabled {
+        cursor: default;
+        opacity: 0.5;
       }
     `;
   }
