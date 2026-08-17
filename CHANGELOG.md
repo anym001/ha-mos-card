@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.1](https://github.com/anym001/ha-mos-card/compare/v0.1.0...v0.1.1) (2026-08-17)
+## [0.1.1](https://github.com/anym001/ha-mos-card/compare/1e40a4c9d72f3ca939c9b8d7f9f7091967ae3567...v0.1.1) (2026-08-17)
 
 
 ### Features
@@ -11,5 +11,4 @@
 
 ### Bug Fixes
 
-* **build:** tag releases as v0.1.1 and stop the ternary lint churn ([0731280](https://github.com/anym001/ha-mos-card/commit/0731280b09617deeab3c8f2d2c81d3347b6c659b))
 * **build:** tag releases as v0.1.1 instead of ha-mos-card-v0.1.1 ([1152ce3](https://github.com/anym001/ha-mos-card/commit/1152ce3954bde8ada7caf2f286df3b0269095363))
