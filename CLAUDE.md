@@ -16,11 +16,11 @@ Read `AGENTS.md` completely before starting any work. It contains:
 - **Integration:** [`anym001/ha-mos`](https://github.com/anym001/ha-mos), domain `mos`
 - **Main code:** `src/ha-mos-card.ts`, device selection in `src/devices.ts`
 - **Technical docs:** `docs/development/ARCHITECTURE.md` (the README is for end users)
+- **Validate:** `yarn check` (lint + typecheck + lint:md + lint:format + build)
 - **Build:** `yarn build` (lint + production bundle)
-- **Lint:** `yarn lint`, `yarn typecheck`, `yarn lint:md`, `yarn lint:format`
 - **Careful:** a green `yarn build` is not a green type check — run `yarn typecheck`
 - **Dev watcher:** `yarn start`
-- **Hooks:** `pre-commit install` (formatting, lint, and the commit-msg check)
+- **Hooks:** installed by `yarn setup` (formatting, lint, and the commit-msg check)
 
 ## The `model_id` Contract (non-negotiable)
 

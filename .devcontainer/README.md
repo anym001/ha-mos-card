@@ -55,12 +55,13 @@ The image includes the `container` helper used by the devcontainer lifecycle com
 
 ```bash
 # One-time setup (automatic on container creation)
-yarn install
+yarn setup            # Dependencies + pre-commit hooks
 
 # Development with hot reload
 yarn start              # Runs Rollup in watch mode on port 5000
 
 # Quality checks
+yarn check            # Everything CI runs - the pre-PR gate
 yarn lint             # ESLint check
 yarn build            # Full build pipeline (lint + rollup)
 

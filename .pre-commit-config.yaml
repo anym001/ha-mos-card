@@ -5,9 +5,9 @@
 # binary from ./node_modules/.bin/. Run `yarn install` once and the hooks work;
 # there is no separate Python toolchain to bootstrap.
 #
-# Install both hook types with a plain `pre-commit install` — without this,
-# the commit-msg hook below would need an explicit --hook-type flag and would
-# silently never run for anyone who forgot it.
+# `yarn setup` runs a plain `pre-commit install`, and this line is what makes
+# that enough: without it the commit-msg hook below would need an explicit
+# --hook-type flag and would silently never run for anyone who forgot it.
 default_install_hook_types: [pre-commit, commit-msg]
 
 repos:

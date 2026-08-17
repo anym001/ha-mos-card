@@ -153,8 +153,8 @@ environment (Home Assistant, Node 24, all tooling):
 
 - **Devcontainer:** open the repository in VS Code with the Dev Containers extension →
   **Reopen in Container**
-- Then: `yarn start` (the card rebuilds on save, Home Assistant on <http://localhost:8123>),
-  `yarn build`, `yarn typecheck`
+- Then: `yarn start` (the card rebuilds on save, Home Assistant on <http://localhost:8123>) and
+  `yarn check` before you open a pull request
 
 How to contribute — branching, commit conventions, the release process and what testing a card
 change actually requires — is in [CONTRIBUTING.md](CONTRIBUTING.md). Architecture, the

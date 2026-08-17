@@ -35,8 +35,8 @@
     "LOVELACE_REMOTE_FILES": "http://localhost:5000/ha-mos-card.js"
   },
 
-  // Setup Home Assistant and install dependencies
-  "postCreateCommand": "container setup && corepack enable && yarn install",
+  // Setup Home Assistant, install dependencies and wire up the pre-commit hooks
+  "postCreateCommand": "container setup && corepack enable && yarn setup",
   "postStartCommand": "container launch & yarn start & wait",
 
   // VS Code extensions for development

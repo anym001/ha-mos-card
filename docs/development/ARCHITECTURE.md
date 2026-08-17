@@ -105,15 +105,29 @@ single bundle directly, so the dev loop and the shipped artifact are the same th
 `rollup.config.js` is production only; `rollup.config.dev.js` is what `yarn start` runs and is the
 one with the dev server.
 
-| Command            | Description                                        |
-| ------------------ | -------------------------------------------------- |
-| `yarn build`       | Lint + production bundle (minified, ES2022 output) |
-| `yarn rollup`      | Production bundle only (skips lint)                |
-| `yarn start`       | Development watcher with rebuild on save           |
-| `yarn lint`        | ESLint across all `src/` files                     |
-| `yarn typecheck`   | `tsc --noEmit`                                     |
-| `yarn lint:md`     | markdownlint                                       |
-| `yarn lint:format` | `prettier --check`                                 |
+| Command            | Description                                                        |
+| ------------------ | ------------------------------------------------------------------ |
+| `yarn setup`       | Dependencies plus the pre-commit hooks — the one-command bootstrap |
+| `yarn check`       | Everything CI runs: lint, typecheck, lint:md, lint:format, build   |
+| `yarn build`       | Lint + production bundle (minified, ES2022 output)                 |
+| `yarn rollup`      | Production bundle only (skips lint)                                |
+| `yarn start`       | Development watcher with rebuild on save                           |
+| `yarn lint`        | ESLint across all `src/` files                                     |
+| `yarn typecheck`   | `tsc --noEmit`                                                     |
+| `yarn lint:md`     | markdownlint                                                       |
+| `yarn lint:format` | `prettier --check`                                                 |
+
+`yarn check` is the local equivalent of the CI gates — it is what a contributor runs before
+opening a pull request, and it is the reason this repository needs no `script/` directory of its
+own. The individual commands remain available for a faster loop while working.
+
+> [!NOTE]
+> The hooks cannot install themselves from `yarn install`. Yarn 4 runs neither `prepare` nor
+> `postinstall` for the root project — that is a Yarn Berry behaviour change from Yarn 1, and it is
+> why the bootstrap is an explicit `yarn setup` rather than a lifecycle script. The devcontainer's
+> `postCreateCommand` runs `yarn setup` for the same reason, so a devcontainer user gets the hooks
+> without knowing any of this. `yarn setup` still exits 0 when `pre-commit` itself is missing, so a
+> checkout without it is not blocked; it prints how to install it.
 
 > [!IMPORTANT]
 > A green `yarn build` is **not** a green type check. `@rollup/plugin-typescript` reports type
@@ -169,9 +183,8 @@ extension.
 git clone https://github.com/anym001/ha-mos-card.git
 cd ha-mos-card
 
-yarn install
-pre-commit install   # formatting, linting and the commit-message check
-yarn build
+yarn setup   # dependencies + pre-commit hooks (formatting, lint, commit-message check)
+yarn check   # lint, type check, markdownlint, formatting, build
 yarn start
 ```
 
@@ -186,7 +199,7 @@ resources:
 ## Commits and Releases
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/), enforced by a
-`commitlint` hook at the `commit-msg` stage that `pre-commit install` sets up. `release-please`
+`commitlint` hook at the `commit-msg` stage that `yarn setup` sets up. `release-please`
 reads those subjects to decide the next version and to write the changelog, so a malformed subject
 produces a wrong release — fix the message rather than bypassing the hook. The full type and scope
 table is in [`AGENTS.md`](../../AGENTS.md).

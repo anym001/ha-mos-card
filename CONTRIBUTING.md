@@ -14,10 +14,10 @@ GitHub is used to host code, to track issues and feature requests, as well as ac
 Pull requests are the best way to propose changes to the codebase.
 
 1. Create your branch from `main` (see [Branching model](#branching-model)).
-2. Run `yarn install` and `pre-commit install` to install dependencies and the hooks.
+2. Run `yarn setup` — dependencies plus the pre-commit hooks, in one command.
 3. If you've changed something, update the documentation.
-4. Make sure your code passes all checks: `yarn lint`, `yarn typecheck`, `yarn lint:md`,
-   `yarn lint:format` and `yarn build`.
+4. Make sure your code passes all checks: `yarn check` runs lint, type check, markdownlint,
+   the formatting check and the build, in that order.
 5. Test your contribution — see [Testing your change](#testing-your-change).
 6. Open a pull request against `main`.
 
@@ -40,8 +40,8 @@ feature/xyz ──PR──▶ main ──release-please──▶ Release (vX.Y.Z
 ```
 
 1. **Branch** from `main`: `git switch main && git pull && git switch -c feature/xyz`.
-2. **Test locally** before opening the PR: `yarn build`, `yarn typecheck`, and the card itself in a
-   Home Assistant instance.
+2. **Test locally** before opening the PR: `yarn check`, and the card itself in a Home Assistant
+   instance.
 3. **Open a PR against `main`.** `Lint`, `Test build` and `guard` must be green. On
    `HACS validation`, see the note under [Branch protection](#branch-protection).
 4. **Merge with "Rebase and merge".** It is the only method enabled on this repository, and that
@@ -56,7 +56,7 @@ feature/xyz ──PR──▶ main ──release-please──▶ Release (vX.Y.Z
 > **every commit subject** has to be a valid Conventional Commit, not just the pull request title.
 > Under a squash workflow only the final subject would matter and intermediate work-in-progress
 > commits could be sloppy; that is not the case here. The `commitlint` hook enforces it locally,
-> and `pre-commit install` is what turns it on, so install it before you start.
+> and `yarn setup` is what turns it on, so run that before you start.
 >
 > The upside is that the changelog reads commit by commit, and a merge commit's subject never gets
 > counted alongside the commits it contains.
@@ -129,13 +129,14 @@ This project uses:
 - [TypeScript](https://www.typescriptlang.org/) in strict mode
 - [markdownlint](https://github.com/DavidAnson/markdownlint) for the documentation
 
-`pre-commit install` wires all of these into the commit, and the `Lint` workflow runs the same
-commands in CI, so a clean commit is a clean pull request.
+`yarn setup` wires all of these into the commit through the pre-commit hooks, and the `Lint`
+workflow runs the same commands in CI, so a clean commit is a clean pull request.
 
 > [!IMPORTANT]
 > A green `yarn build` is **not** a green type check. `@rollup/plugin-typescript` reports type
 > errors as warnings and still emits a bundle, so `yarn build` exits 0 on code that does not
-> type-check. Run `yarn typecheck` — it is the only command that fails on one.
+> type-check. Run `yarn typecheck` — it is the only command that fails on one, and `yarn check`
+> includes it for exactly that reason.
 
 ## Code quality
 
