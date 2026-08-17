@@ -15,7 +15,10 @@ They are agent-independent: anything tool-specific belongs in that tool's own fi
 yarn install
 yarn start
 yarn build
-yarn lint
+yarn lint        # ESLint
+yarn typecheck   # tsc --noEmit
+yarn lint:md     # markdownlint
+yarn lint:format # prettier --check
 ```
 
 ### Primary files
@@ -107,6 +110,10 @@ listed and merely reports unavailable. Do not add manual refresh logic that figh
 
 - Keep `yarn lint` clean for changed code.
 - Ensure `yarn build` succeeds after non-trivial changes.
+- Run `yarn typecheck` as well, and do not read a green build as a green type check.
+  `@rollup/plugin-typescript` reports type errors as warnings and still emits a bundle, so
+  `yarn build` exits 0 on code that does not type-check. `yarn typecheck` is the only command
+  that fails on one, which is why the Lint workflow runs it separately from the Build workflow.
 - Do not introduce unrelated refactors in focused changes.
 - If updating build tooling, keep dev and prod Rollup configs consistent.
 - The build stays on **Rollup**. Vite's hot reload buys nothing here: Home Assistant loads the

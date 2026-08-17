@@ -48,11 +48,13 @@
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "start": "rollup -c rollup.config.dev.js --watch",
     "build": "yarn clean && yarn lint && yarn rollup",
     "clean": "rm -rf dist",
     "lint": "eslint src/**/*.ts",
+    "lint:format": "prettier --check .",
+    "lint:md": "markdownlint-cli2 \"**/*.md\"",
     "rollup": "rollup -c",
-    "lint:md": "markdownlint-cli2 \"**/*.md\""
+    "start": "rollup -c rollup.config.dev.js --watch",
+    "typecheck": "tsc --noEmit"
   }
 }
