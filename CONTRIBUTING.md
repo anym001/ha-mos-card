@@ -53,10 +53,10 @@ feature/xyz ──PR──▶ main ──release-please──▶ Release (vX.Y.Z
 
 > [!IMPORTANT]
 > Because merging is **rebase-only**, every commit you write lands on `main` individually — so
-> **every commit subject** has to be a valid Conventional Commit, not just the PR title. This is
-> the opposite of a squash workflow, where only the final squashed subject matters and WIP commits
-> can be sloppy. The `commitlint` hook enforces it locally; `pre-commit install` is what turns it
-> on, so install it before you start.
+> **every commit subject** has to be a valid Conventional Commit, not just the pull request title.
+> Under a squash workflow only the final subject would matter and intermediate work-in-progress
+> commits could be sloppy; that is not the case here. The `commitlint` hook enforces it locally,
+> and `pre-commit install` is what turns it on, so install it before you start.
 >
 > The upside is that the changelog reads commit by commit, and a merge commit's subject never gets
 > counted alongside the commits it contains.
