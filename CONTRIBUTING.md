@@ -27,7 +27,7 @@ Pull requests are the best way to propose changes to the codebase.
 
 | Branch      | Purpose                                                                                                                                                                       | Protected |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `main`      | release-ready; [release-please](https://github.com/googleapis/release-please) opens a release PR from Conventional Commits, and merging it tags `vX.Y.Z` and cuts the release | not yet   |
+| `main`      | release-ready; [release-please](https://github.com/googleapis/release-please) opens a release PR from Conventional Commits, and merging it tags `vX.Y.Z` and cuts the release | yes       |
 | `feature/*` | short-lived work on a single topic; deleted after merge                                                                                                                       | –         |
 
 Keep **Settings → General → "Automatically delete head branches"** enabled — it cleans up merged
@@ -43,7 +43,7 @@ feature/xyz ──PR──▶ main ──release-please──▶ Release (vX.Y.Z
 2. **Test locally** before opening the PR: `yarn build`, `yarn typecheck`, and the card itself in a
    Home Assistant instance.
 3. **Open a PR against `main`.** `Lint`, `Test build` and `guard` must be green. On
-   `HACS validation`, see the note under [Branch protection](#branch-protection-one-time).
+   `HACS validation`, see the note under [Branch protection](#branch-protection).
 4. **Merge with "Rebase and merge".** It is the only method enabled on this repository, and that
    has a consequence worth knowing — see below.
 5. **Releases are automatic.** On push to `main`, release-please maintains a release PR; merging
@@ -76,22 +76,16 @@ The project is pre-1.0, and the release-please config (`bump-minor-pre-major` +
 That last row surprises people: a pull request consisting only of dependency bumps or CI work
 produces no release, so its changes sit on `main` until the next `fix:` or `feat:` ships one.
 
-### Branch protection (one-time)
+### Branch protection
 
-This repository has **no branch protection yet**. If you want it, GitHub →
-**Settings → Rules → Rulesets → New branch ruleset**:
-
-1. **Ruleset name:** `protected-branches`, **Enforcement:** `Active`, bypass list empty.
-2. **Target branches → Add target:** `Include default branch`.
-3. **Branch rules:** Restrict deletions, Block force pushes, Require a pull request before merging
-   with **Required approvals: `0`** — as a solo maintainer you cannot approve your own PR, and the
-   PR requirement and status checks still apply at zero.
-4. **Require status checks to pass** and add `Lint`, `Test build` and `guard`.
+`main` is protected by a **ruleset** (GitHub → **Settings → Rules → Rulesets**, the newer system —
+note that the older `protected` flag in the branches API stays `false` for rulesets, so it is not a
+reliable way to check). Work on a branch and open a pull request; do not push to `main` directly.
 
 > [!WARNING]
-> Do **not** add `HACS validation` as a required check yet. It currently fails on one of eight
-> sub-checks because the README has no screenshot of the card, so requiring it would block every
-> merge. Add it once that check passes.
+> If you extend the ruleset with required status checks, do **not** add `HACS validation` while its
+> images sub-check still fails for want of a screenshot in the README — requiring it would block
+> every merge. `Lint`, `Test build` and `guard` are safe to require.
 
 ## Any contributions you make will be under the MIT Software License
 
