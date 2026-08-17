@@ -57,9 +57,16 @@ jobs:
       # release-please bumps package.json and src/const.ts in the same commit.
       # If they ever disagree, the console banner would advertise a version the
       # release does not carry, so fail here rather than ship that.
+      #
+      # release-please-config.json sets include-component-in-tag: false, so the
+      # tag is "v0.1.1". Without it, release-type "node" derives a component
+      # from the package name and tags "ha-mos-card-v0.1.1" instead. Stripping
+      # through the last "v" rather than just a leading one keeps this step
+      # correct either way — a semver version contains no "v" of its own — so
+      # flipping that setting can no longer silently break the upload.
       - name: Verify both version sources match the tag
         run: |
-          VERSION="${TAG_NAME#v}"
+          VERSION="${TAG_NAME##*v}"
 
           PKG_VERSION=$(node -p "require('./package.json').version")
           CONST_VERSION=$(sed -n "s/^export const CARD_VERSION = '\(.*\)';.*$/\1/p" src/const.ts)
