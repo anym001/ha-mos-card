@@ -22,7 +22,7 @@ Fixes #(issue)
 
 - [ ] I have read [`CONTRIBUTING.md`](../CONTRIBUTING.md) and `AGENTS.md`
 - [ ] I have accurately described the extent of human review, automated testing, and real-world testing
-- [ ] `yarn build` passes (this runs the linter as well)
+- [ ] `yarn check` passes (lint, type check, markdownlint, formatting, build)
 - [ ] Device selection still matches on `model_id`, never on `identifiers` or display names
 - [ ] I have updated the documentation accordingly
 - [ ] I have added any new user-facing strings to both `de.json` and `en.json`
