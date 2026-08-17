@@ -32,6 +32,7 @@ yarn lint:format # prettier --check
 - `src/localize/localize.ts` — localization helper
 - `src/localize/languages/de.json` and `src/localize/languages/en.json` — translation files
 - `rollup.config.js` and `rollup.config.dev.js` — production and dev build config
+- `docs/development/ARCHITECTURE.md` — this card's technical documentation; the README is for users
 
 ## The `model_id` contract (read this before touching device selection)
 
@@ -46,8 +47,10 @@ creates, and that field is the only supported anchor:
   change) or on display names (the user's to rename).
 
 This is a released, public contract. It is documented on the integration side in
-`docs/development/ARCHITECTURE.md` ("Base Entity") and in the decision log entry
-_Container Devices Carry Their Kind in `model_id`_ in `docs/development/DECISIONS.md`.
+the **`ha-mos` repository's** `docs/development/ARCHITECTURE.md` ("Base Entity") and in the decision
+log entry _Container Devices Carry Their Kind in `model_id`_ in its
+`docs/development/DECISIONS.md` — not this repository's file of the same name, which describes the
+card side and lives at [`docs/development/ARCHITECTURE.md`](docs/development/ARCHITECTURE.md).
 Changing how the card matches means re-reading both first.
 
 Because the integration adds and removes these devices at runtime

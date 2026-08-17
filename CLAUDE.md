@@ -15,6 +15,7 @@ Read `AGENTS.md` completely before starting any work. It contains:
 - **Card type:** `custom:ha-mos-card`
 - **Integration:** [`anym001/ha-mos`](https://github.com/anym001/ha-mos), domain `mos`
 - **Main code:** `src/ha-mos-card.ts`, device selection in `src/devices.ts`
+- **Technical docs:** `docs/development/ARCHITECTURE.md` (the README is for end users)
 - **Build:** `yarn build` (lint + production bundle)
 - **Lint:** `yarn lint`, `yarn typecheck`, `yarn lint:md`, `yarn lint:format`
 - **Careful:** a green `yarn build` is not a green type check — run `yarn typecheck`
@@ -29,8 +30,10 @@ server via `via_device_id`. Device `identifiers` and display names are **never**
 is an internal format, the second is the user's to rename.
 
 This is a released, public contract documented on the integration side in
-`docs/development/ARCHITECTURE.md` and in the decision log entry _Container Devices Carry Their Kind
-in `model_id`_ in `docs/development/DECISIONS.md`. Read both before changing how matching works.
+the **`ha-mos` repository's** `docs/development/ARCHITECTURE.md` and in the decision log entry
+_Container Devices Carry Their Kind in `model_id`_ in its `docs/development/DECISIONS.md`. Read both
+before changing how matching works. This repository has its own
+[`docs/development/ARCHITECTURE.md`](docs/development/ARCHITECTURE.md) describing the card side.
 
 Full rationale and the lifecycle consequences: see the `model_id` section in `AGENTS.md`.
 
