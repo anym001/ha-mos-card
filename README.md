@@ -2,7 +2,7 @@
 
 A Lovelace card for the [MOS NAS integration](https://github.com/anym001/ha-mos) (domain `mos`).
 It renders the containers, virtual machines, disks, storage pools and UPS of a MOS server as a
-list of rows, and follows them as they come and go.
+stack of tiles, and follows them as they come and go.
 
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]](LICENSE)
@@ -15,15 +15,18 @@ list of rows, and follows them as they come and go.
 
 - **Six device kinds**, each switchable on or off: Docker containers, LXC containers, virtual
   machines, disks, storage pools and the UPS.
-- **Rows build themselves.** Each row shows the icon, the name, the state, a link to the thing's
-  own web interface where it has one, and a start/stop switch for the guests that can be
+- **Tiles build themselves.** Each tile shows the icon, the name, the state, a link to the thing's
+  own web interface where it has one, and a start/stop button for the guests that can be
   controlled.
+- **The state is visible before it is read.** A running guest gets a coloured ring around its icon
+  and its state in the same colour; a stopped one stays neutral. Disks and pools are left neutral
+  on purpose — a disk reporting `Active` is naming its power mode, not reporting good news.
 - **The list stays current.** A container you delete on the NAS disappears from the card and a new
   one shows up on its own — no editing the card, no manual refresh.
 - **Renaming is safe.** The card never matches devices by name, so you can rename a container in
   Home Assistant without breaking anything.
 - **A broken endpoint does not empty the card.** Devices behind a failing MOS endpoint keep their
-  rows and go unavailable, which is a different thing from being gone.
+  tiles and go unavailable, which is a different thing from being gone.
 
 ---
 
@@ -106,12 +109,12 @@ hold_action:
 | `server`            | string  | Device id of the MOS server to show. Omit to show every server, grouped. | all servers         |
 | `kinds`             | list    | Which device kinds to render (see below).                                | all six             |
 | `group_by_kind`     | boolean | Show a heading above each kind.                                          | `true`              |
-| `show_icon`         | boolean | Show the row icon.                                                       | `true`              |
-| `show_state`        | boolean | Show the state value on each row.                                        | `true`              |
+| `show_icon`         | boolean | Show the tile icon.                                                      | `true`              |
+| `show_state`        | boolean | Show the state value on each tile.                                       | `true`              |
 | `show_link`         | boolean | Show a link button where the device has a URL.                           | `true`              |
-| `show_power`        | boolean | Show the start/stop switch on guest rows.                                | `true`              |
-| `hide_unavailable`  | boolean | Hide rows whose state is unavailable or unknown.                         | `false`             |
-| `tap_action`        | object  | Action for a tap on the row body, applied to that row's state entity.    | `action: more-info` |
+| `show_power`        | boolean | Show the start/stop button on guest tiles.                               | `true`              |
+| `hide_unavailable`  | boolean | Hide tiles whose state is unavailable or unknown.                        | `false`             |
+| `tap_action`        | object  | Action for a tap on the tile body, applied to that tile's state entity.  | `action: more-info` |
 | `hold_action`       | object  | Action for a 500 ms hold.                                                | `action: none`      |
 | `double_tap_action` | object  | Action for a double tap.                                                 | `action: none`      |
 
@@ -135,9 +138,9 @@ each device is.
 
 **A container is missing**
 Check whether its device is disabled, and whether its kind is enabled in the card's `kinds` option.
-Rows are never matched by name, so renaming is not the cause.
+Tiles are never matched by name, so renaming is not the cause.
 
-**Rows show as unavailable**
+**Tiles show as unavailable**
 That is the intended signal for a MOS endpoint that is failing: the devices stay, their entities go
 unavailable. Check the integration's own diagnostics.
 
