@@ -48,7 +48,7 @@ does not. The card matches neither, ever.
 
 **Lifecycle comes for free.** The integration adds and removes these devices at runtime through
 `async_setup_dynamic_entities`, so following the registry means a deleted container disappears from
-the card, a new one shows up, and a container behind a failing MOS endpoint keeps its row and
+the card, a new one shows up, and a container behind a failing MOS endpoint keeps its tile and
 merely reports unavailable. There is nothing to refresh by hand, and no manual refresh logic should
 be added that fights this.
 
@@ -57,21 +57,51 @@ device that is the `via_device_id` parent of a device with a MOS kind is by defi
 server. That is what `findServerDevices()` does, and it is why the card can scope a dashboard to
 one server without the integration having to label the server.
 
-## How a Row Is Composed
+## How a Tile Is Composed
 
-Each row is built from a single entity per device — the state sensor the integration documents for
+Each tile is built from a single entity per device — the state sensor the integration documents for
 exactly this purpose.
 
 - **Icon** — the state sensor's `entity_picture`, which for Docker, LXC and VM guests is the icon
   MOS itself shows. Falls back to the per-kind MDI icon in `KIND_INFO`.
-- **State** — the sensor's state through `computeStateDisplay`, so enum states read in the user's
+- **State** — the sensor's state through `hass.formatEntityState`, so enum states read in the user's
   language and units match the rest of Home Assistant.
 - **Link** — the Docker state sensor's `web_ui_url` attribute, falling back to the device's
   configuration URL. The integration omits the attribute entirely for containers without a web
   interface, so its presence is the test; a container without one gets no button rather than a
   dead one.
 - **Power** — the single `switch` entity on the device. Each of the three guest kinds contributes
-  exactly one, so matching the domain is enough and does not depend on the switch's name.
+  exactly one, so matching the domain is enough and does not depend on the switch's name. It is
+  drawn as a start/stop button rather than a toggle: a toggle states a setting, and what a guest is
+  doing right now is not one.
+
+## Styling
+
+A Lovelace card renders into its own shadow root, so none of Home Assistant's stylesheets reach it —
+only CSS custom properties inherit across the boundary. Every card therefore ships its own CSS, and
+the convention that matters is not _how much_ but _which values_: shape and layout belong to the
+card, colours and surfaces come from the theme.
+
+So every colour here is a `var(--…)` against a Home Assistant theme variable, and the two literal
+hex values in the file are the last link of a fallback chain. Those chains are not decorative:
+`--ha-card-background` is unset in a stock install, and the card would render transparent tiles
+without the `--card-background-color` fallback behind it.
+
+Tints are computed with `color-mix()` on the resolved colour rather than through the `--rgb-*`
+duplicates a theme also exposes. Those duplicates are maintained separately and drift — a stock
+install reports `--primary-text-color: #141414` alongside `--rgb-primary-text-color: 33, 33, 33`.
+
+### Tones
+
+Each tile carries a `tone-*` class that the CSS maps onto a theme variable, so a state nobody
+anticipated lands on the neutral one instead of on nothing. Only kinds whose state says something
+about _running_ are coloured: a disk reporting `active` is naming its ATA power mode and a pool
+reports how full it is, and colouring those drowns out the containers.
+
+Home Assistant's own tile internals (`ha-tile-icon`, `ha-tile-info`, `state-badge`) are registered
+globally and would have saved this CSS. They are deliberately not used: they are internal elements
+with no compatibility promise, and a core refactor would break the card silently for every user.
+Only the long-stable public elements — `ha-card`, `ha-icon`, `ha-switch` — are relied on.
 
 ### Finding the state entity
 
