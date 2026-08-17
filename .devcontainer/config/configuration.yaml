@@ -1,4 +1,7 @@
+# Deliberately minimal. The card renders MOS devices, and this instance has no
+# MOS integration - what it proves is that the card loads, that the editor opens
+# and that the empty and error states render. Testing device selection needs the
+# integration configured against a real server; see CONTRIBUTING.md.
 default_config:
-demo:
 homeassistant_alerts:
   enabled: false

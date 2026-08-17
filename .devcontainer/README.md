@@ -1,125 +1,85 @@
-# Home Assistant Custom Card - Dev Container Setup
+# Devcontainer
 
-This directory contains the development container configuration for building and testing the ha-mos-card custom card for Home Assistant.
+A Home Assistant instance with the card already wired into it, so a change can be looked at
+rather than only compiled.
 
-## Setup Instructions
+## Getting started
 
-1. **Install VS Code Remote Containers**
-   - [VS Code Extension: Remote - Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+1. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
+2. Open the repository in VS Code and choose **Reopen in Container** (`Ctrl+Shift+P` →
+   "Dev Containers: Reopen in Container"). The first build takes a few minutes.
+3. Home Assistant comes up on <http://localhost:8123>, log in with `dev` / `dev`.
+4. Add the card to a dashboard from the GUI — the resource is already registered.
 
-2. **Open in Dev Container**
-   - Open the project folder in VS Code
-   - Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
-   - Type "Remote-Containers: Reopen in Container"
-   - Wait for the container to build (first time takes ~2-3 minutes)
+Nothing needs to be started by hand. `postCreateCommand` runs `yarn setup` once, and
+`postStartCommand` runs `container launch & yarn start & wait` on every container start, so
+Home Assistant and the Rollup watcher are both up whenever the container is.
 
-3. **Build the Card**
+Saving a source file rebuilds the bundle; reload the browser to pick it up.
 
-   ```bash
-   yarn build      # Lint and build
-   yarn start      # Start dev server with hot reload (port 5000)
-   yarn lint       # Check code quality
-   yarn rollup     # Production build
-   ```
+## How the card reaches Home Assistant
 
-4. **Access Services**
-   - **Dev Container**: Terminal in VS Code (automatic)
-   - **Home Assistant**: <http://localhost:8123> (user: dev/pass: dev)
-   - **Rollup Dev Server**: <http://localhost:5000>
+Three settings in `devcontainer.json` do it:
 
-5. **Configure Home Assistant to Use Your Card**
-   - In Home Assistant, go to Settings > Dashboards
-   - Create a new Dashboard
-   - Add the card from the GUI
+| Setting                            | Effect                                                   |
+| ---------------------------------- | -------------------------------------------------------- |
+| `dist` → `/config/www/workspace`   | The built bundle lands inside Home Assistant's `www`     |
+| `.devcontainer/config` → `/config` | `configuration.yaml` below is Home Assistant's config    |
+| `LOVELACE_REMOTE_FILES`            | Registers `http://localhost:5000/ha-mos-card.js` for you |
 
-## File Structure
+Port 5000 is the Rollup dev server, 8123 is Home Assistant.
+
+## What this instance can and cannot prove
+
+`config/configuration.yaml` is deliberately minimal — `default_config:` and nothing else of
+substance. There is **no MOS integration here**, so there are no devices carrying a `model_id`.
+
+That means the instance is good for: the card loading at all, the visual editor opening, the
+config options taking effect, and the empty and error states rendering.
+
+It cannot show that device selection works. For that the integration has to be installed and
+configured against a real MOS server — see the note in
+[`CONTRIBUTING.md`](../CONTRIBUTING.md#testing-your-change).
+
+## Commands
+
+```bash
+yarn start    # Rollup watcher on port 5000 (already running in the container)
+yarn check    # Everything CI runs - lint, typecheck, markdownlint, format, build
+yarn build    # Lint + production bundle
+```
+
+The full command table is in
+[`docs/development/ARCHITECTURE.md`](../docs/development/ARCHITECTURE.md).
+
+## File structure
 
 ```text
 .devcontainer/
-├── devcontainer.json    # VS Code dev container config
-├── .gitignore          # Ignore HA data
-└── README.md           # This file
+├── devcontainer.json       # Container image, mounts, ports, lifecycle commands
+├── config/
+│   └── configuration.yaml  # Mounted as Home Assistant's /config
+└── README.md               # This file
 ```
 
-## Base Image
+## Base image
 
-This project uses the published image:
-
-- `ghcr.io/custom-cards/custom-card-devcontainer:latest`
-
-The image includes the `container` helper used by the devcontainer lifecycle commands.
-
-## Development Workflow
-
-### Building the Card
-
-```bash
-# One-time setup (automatic on container creation)
-yarn setup            # Dependencies + pre-commit hooks
-
-# Development with hot reload
-yarn start              # Runs Rollup in watch mode on port 5000
-
-# Quality checks
-yarn check            # Everything CI runs - the pre-PR gate
-yarn lint             # ESLint check
-yarn build            # Full build pipeline (lint + rollup)
-
-# Production build
-yarn rollup           # Create optimized dist files
-```
-
-### File Locations
-
-- **Source Code**: `src/`
-- **Built Output**: `dist/` (inside container)
-- **Configuration**: Root directory (`tsconfig.json`, `rollup.config.js`, etc.)
+`ghcr.io/custom-cards/custom-card-devcontainer:latest`, running as user `vscode`. It ships the
+`container` helper that `postStartCommand` uses to launch Home Assistant.
 
 ## Troubleshooting
 
-### Container Won't Start
+**Container won't start** — `Ctrl+Shift+P` → "Dev Containers: Rebuild Container".
 
-```bash
-# Rebuild the container
-ctrl+shift+p → "Remote: Rebuild Container"
-```
+**Port already in use** — `lsof -i :5000` / `lsof -i :8123`.
 
-### Port Already in Use
+**Dependencies out of sync** — `rm -rf node_modules && yarn install`.
 
-```bash
-# Find what's using port 5000 or 8123
-lsof -i :5000
-lsof -i :8123
-```
+**The card does not appear after a change** — the watcher rebuilds, the browser caches. Hard
+reload with `Ctrl+Shift+R` / `Cmd+Shift+R`.
 
-### Node Modules Issues
+## Further reading
 
-```bash
-# Clear and reinstall dependencies
-rm -rf node_modules
-yarn install
-```
-
-## Additional Resources
-
-- [Home Assistant Custom Card Development](https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/)
-- [VS Code Dev Containers Docs](https://code.visualstudio.com/docs/remote/containers)
-- [Lit Documentation](https://lit.dev/)
-- [Material Design Web Components](https://github.com/material-components/material-web)
-
-## Environment Details
-
-- **Node.js**: 24
-- **TypeScript**: 5.9.3
-- **Build Tool**: Rollup 4.20
-- **Linter**: ESLint 9 + TypeScript Support
-- **Code Formatter**: Prettier 3.8
-- **Web Framework**: Lit 3.2
-- **Home Assistant Image**: Latest (optional)
-
-## Notes
-
-- The container runs as non-root user `nodejs` for security
-- Volume mounts use `cached` consistency mode for better performance on Mac/Windows
-- All Yarn commands run inside the container automatically
-- VS Code extensions are configured for TypeScript and YAML development
+- [Home Assistant custom card development](https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/)
+- [Dev Containers documentation](https://code.visualstudio.com/docs/remote/containers)
+- [Lit documentation](https://lit.dev/)
