@@ -346,19 +346,34 @@ export class HaMosCard extends LitElement {
   }
 
   protected render(): TemplateResult {
-    const sections = this.buildSections();
-
     return html`
       <ha-card .header=${this.config.title}>
-        <div class="card-content">
-          ${sections === undefined
-            ? this.renderNotice(localize('common.loading'))
-            : sections.length === 0
-              ? this.renderNotice(localize('common.no_devices'))
-              : sections.map((section) => this.renderSection(section, sections.length > 1))}
-        </div>
+        <div class="card-content">${this.renderBody()}</div>
       </ha-card>
     `;
+  }
+
+  /**
+   * The card body: a notice while the registries are still loading, a notice
+   * when nothing matched, and the sections themselves otherwise.
+   *
+   * Written as early returns rather than the nested ternary this used to be.
+   * Prettier changed how it indents nested ternaries between 3.8 and 3.9, so
+   * that construct turned every Prettier bump into a lint failure on a line
+   * whose behaviour never changed. Early returns format identically under both.
+   */
+  private renderBody(): TemplateResult | TemplateResult[] {
+    const sections = this.buildSections();
+
+    if (sections === undefined) {
+      return this.renderNotice(localize('common.loading'));
+    }
+
+    if (sections.length === 0) {
+      return this.renderNotice(localize('common.no_devices'));
+    }
+
+    return sections.map((section) => this.renderSection(section, sections.length > 1));
   }
 
   private renderNotice(message: string): TemplateResult {
