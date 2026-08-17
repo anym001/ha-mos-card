@@ -11,6 +11,13 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    // Required alongside experimentalDecorators. With target es2022 TypeScript
+    // defaults this to true, which emits `@property`/`@state` fields with
+    // [[Define]] semantics: every instance gets an own data property that
+    // shadows the accessor Lit installed on the prototype. The values still
+    // stick, so nothing throws — but no assignment ever schedules an update and
+    // the card never renders at all. See lit.dev/docs/components/decorators.
+    "useDefineForClassFields": false
   }
 }
