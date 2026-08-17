@@ -17,14 +17,7 @@ const serveopts = {
   },
 };
 
-const plugins = [
-  nodeResolve(),
-  commonjs(),
-  typescript(),
-  json(),
-  dev && serve(serveopts),
-  !dev && terser()
-];
+const plugins = [nodeResolve(), commonjs(), typescript(), json(), dev && serve(serveopts), !dev && terser()];
 
 const onwarn = (warning, warn) => {
   if (warning.code === 'THIS_IS_UNDEFINED' && warning.id?.includes('/node_modules/')) {

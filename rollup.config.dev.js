@@ -30,8 +30,8 @@ export default {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
+        Pragma: 'no-cache',
+        Expires: '0',
       },
     }),
   ],
@@ -40,7 +40,7 @@ export default {
     exclude: 'node_modules/**',
     buildDelay: 500,
     chokidar: {
-      usePolling: true,  // Required for reliable file detection on Docker volume mounts
+      usePolling: true, // Required for reliable file detection on Docker volume mounts
       interval: 1000,
     },
   },

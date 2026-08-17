@@ -1,5 +1,5 @@
 {
-    "name": "MOS NAS Card",
-    "render_readme": true,
-    "filename": "ha-mos-card.js"
+  "name": "MOS NAS Card",
+  "render_readme": true,
+  "filename": "ha-mos-card.js"
 }
