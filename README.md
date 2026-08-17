@@ -156,8 +156,10 @@ environment (Home Assistant, Node 24, all tooling):
 - Then: `yarn start` (the card rebuilds on save, Home Assistant on <http://localhost:8123>),
   `yarn build`, `yarn typecheck`
 
-Architecture, the device-selection contract, build setup, commit conventions and the release
-process are in [docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md).
+How to contribute — branching, commit conventions, the release process and what testing a card
+change actually requires — is in [CONTRIBUTING.md](CONTRIBUTING.md). Architecture, the
+device-selection contract and the build setup are in
+[docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md).
 
 > [!NOTE]
 > **Transparency:** This card was developed with the help of an AI coding agent (Claude Code). It

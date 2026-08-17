@@ -196,7 +196,9 @@ the release, bumps `package.json` and `src/const.ts`, and attaches the built `ha
 which is what HACS downloads. Never edit either version by hand.
 
 Merging is restricted to **rebase**, so commits land on `main` individually and the changelog does
-not pick up a merge commit's subject alongside the commits it contains.
+not pick up a merge commit's subject alongside the commits it contains. The practical consequence —
+that every commit subject must be conventional, not just the pull request title — and the full
+branching workflow are in [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 ## Localization
 

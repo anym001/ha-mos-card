@@ -20,7 +20,7 @@ Fixes #(issue)
 
 ## Checklist
 
-- [ ] I have read `AGENTS.md`
+- [ ] I have read [`CONTRIBUTING.md`](../CONTRIBUTING.md) and `AGENTS.md`
 - [ ] I have accurately described the extent of human review, automated testing, and real-world testing
 - [ ] `yarn build` passes (this runs the linter as well)
 - [ ] Device selection still matches on `model_id`, never on `identifiers` or display names
