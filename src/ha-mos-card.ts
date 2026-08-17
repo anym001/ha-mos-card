@@ -449,10 +449,17 @@ export class HaMosCard extends LitElement {
       return localize('common.no_state_entity');
     }
 
-    // computeStateDisplay applies the user's own translations, units and
-    // precision, so an enum state reads the way it does everywhere else in
-    // Home Assistant rather than as the integration's raw string.
-    return computeStateDisplay(this.hass.localize, stateObj, this.hass.locale);
+    // `formatEntityState` is the core's own formatter: it resolves the state
+    // translations an integration declares under its entity's translation_key,
+    // so a Docker container reads "Stopped" here exactly as it does in the
+    // more-info dialog. `computeStateDisplay` from custom-card-helpers predates
+    // translation_key enums and hands back the raw `exited`, so it is only the
+    // fallback for cores too old to offer the former.
+    const hass = this.hass as HomeAssistant & { formatEntityState?: (stateObj: HassEntity) => string };
+
+    return hass.formatEntityState
+      ? hass.formatEntityState(stateObj)
+      : computeStateDisplay(this.hass.localize, stateObj, this.hass.locale);
   }
 
   /**
