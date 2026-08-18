@@ -33,7 +33,7 @@
     "show_icon": "Symbol anzeigen",
     "show_state": "Status anzeigen",
     "show_link": "Link anzeigen",
-    "show_power": "Ein/Aus-Schalter anzeigen",
+    "show_power": "Start/Stopp-Knopf anzeigen",
     "hide_unavailable": "Nicht verfügbare Geräte ausblenden"
   }
 }

@@ -33,7 +33,7 @@
     "show_icon": "Show icon",
     "show_state": "Show state",
     "show_link": "Show link",
-    "show_power": "Show power switch",
+    "show_power": "Show power button",
     "hide_unavailable": "Hide unavailable devices"
   }
 }
