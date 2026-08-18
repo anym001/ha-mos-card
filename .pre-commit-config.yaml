@@ -46,6 +46,16 @@ repos:
         types: [ts]
         pass_filenames: false
 
+      # hacs.json is what HACS enforces; the README and ARCHITECTURE only claim.
+      # This fails when a claim stops matching, and needs no node_modules, so
+      # unlike the hooks above it has nothing to skip over.
+      - id: ha-version-sync
+        name: ha-version-sync
+        entry: node scripts/ha-version-sync.mjs
+        language: system
+        files: ^(hacs\.json|README\.md|docs/development/ARCHITECTURE\.md|\.devcontainer/devcontainer\.json|\.github/workflows/.*)$
+        pass_filenames: false
+
       # Commit message linting (Conventional Commits)
       # release-please derives the version bump and CHANGELOG from these
       # subjects, so a malformed message produces a wrong release.

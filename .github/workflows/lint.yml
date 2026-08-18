@@ -49,3 +49,9 @@ jobs:
 
       - name: Formatting
         run: yarn lint:format
+
+      # hacs.json declares the minimum Home Assistant version and HACS enforces
+      # it; the README and ARCHITECTURE only describe it. This catches the day
+      # those stop agreeing.
+      - name: Home Assistant version sync
+        run: yarn ha-version-sync

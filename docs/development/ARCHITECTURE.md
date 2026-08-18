@@ -206,7 +206,8 @@ Every action is pinned to a commit sha with the version in a trailing comment. A
 
 The Home Assistant floor is the integration's floor: ha-mos requires 2026.8 for the device registry
 APIs it uses, and a card that renders that integration's devices is useless on a core the
-integration refuses to run on.
+integration refuses to run on. `scripts/ha-version-sync.mjs` keeps this table, the README and
+`hacs.json` from drifting apart; `yarn check` runs it.
 
 TypeScript, Rollup, ESLint and the rest are installed locally by `yarn install` — no global
 installs needed.
