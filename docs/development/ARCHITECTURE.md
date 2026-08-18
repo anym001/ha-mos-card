@@ -7,7 +7,7 @@ This document describes the technical architecture of `ha-mos-card`, the Lovelac
 
 ```text
 src/
-├── ha-mos-card.ts               # Main card element — LitElement subclass
+├── mos-card.ts                  # Main card element — LitElement subclass
 ├── devices.ts                   # Device registry subscription and model_id filtering
 ├── editor.ts                    # Visual editor — implements LovelaceCardEditor
 ├── types.ts                     # Card config interface
@@ -19,7 +19,7 @@ src/
         ├── de.json              # German strings
         └── en.json              # English strings
 dist/
-└── ha-mos-card.js               # Build output — the file HACS ships
+└── mos-card.js                  # Build output — the file HACS ships
 ```
 
 ## The `model_id` Contract
@@ -181,13 +181,13 @@ syntax, and transpiling to ES5 produces `TypeError: Class constructor cannot be 
 
 ## Continuous Integration
 
-| Workflow               | What it proves                                                                    |
-| ---------------------- | --------------------------------------------------------------------------------- |
-| `lint.yml`             | ESLint, `tsc --noEmit`, markdownlint and `prettier --check` — the type gate       |
-| `build.yml`            | A clean checkout with `--immutable` dependencies still produces a bundle          |
-| `no-npm-lockfiles.yml` | No `package-lock.json` slipped in; this repository is Yarn-only                   |
-| `validate.yml`         | `hacs/action` with `category: plugin`, nightly and on pull requests               |
-| `release-please.yml`   | Opens the release PR, then tags and attaches `dist/ha-mos-card.js` to the release |
+| Workflow               | What it proves                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------ |
+| `lint.yml`             | ESLint, `tsc --noEmit`, markdownlint and `prettier --check` — the type gate    |
+| `build.yml`            | A clean checkout with `--immutable` dependencies still produces a bundle       |
+| `no-npm-lockfiles.yml` | No `package-lock.json` slipped in; this repository is Yarn-only                |
+| `validate.yml`         | `hacs/action` with `category: plugin`, nightly and on pull requests            |
+| `release-please.yml`   | Opens the release PR, then tags and attaches `dist/mos-card.js` to the release |
 
 ESLint runs in both `lint.yml` and (via `yarn build`) `build.yml`. That duplication is deliberate:
 it costs about twenty seconds and buys a lint failure that reads as "Lint" rather than as a broken
@@ -238,7 +238,7 @@ Then add the built file as a Lovelace resource:
 
 ```yaml
 resources:
-  - url: /local/ha-mos-card.js
+  - url: /local/mos-card.js
     type: module
 ```
 
@@ -251,7 +251,7 @@ produces a wrong release — fix the message rather than bypassing the hook. The
 table is in [`AGENTS.md`](../../AGENTS.md).
 
 Releases are not hand-tagged. Merging to `main` opens or updates a release PR; merging that PR tags
-the release, bumps `package.json` and `src/const.ts`, and attaches the built `ha-mos-card.js`,
+the release, bumps `package.json` and `src/const.ts`, and attaches the built `mos-card.js`,
 which is what HACS downloads. Never edit either version by hand.
 
 Merging is restricted to **rebase**, so commits land on `main` individually and the changelog does

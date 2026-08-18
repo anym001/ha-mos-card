@@ -16,7 +16,7 @@
     "lxc",
     "proxmox"
   ],
-  "module": "ha-mos-card.js",
+  "module": "mos-card.js",
   "repository": "git@github.com:anym001/ha-mos-card.git",
   "author": "anym001",
   "license": "MIT",

@@ -263,13 +263,13 @@ const setupActionHandlerMethods = (element: HTMLElement): ActionHandler => {
 
 const getActionHandler = (): ActionHandler => {
   const body = document.body;
-  const existing = body.querySelector('.action-handler-ha-mos-card');
+  const existing = body.querySelector('.action-handler-mos-card');
   if (existing) {
     return existing as ActionHandler;
   }
 
   const div = document.createElement('div');
-  div.className = 'action-handler-ha-mos-card';
+  div.className = 'action-handler-mos-card';
   div.style.position = 'absolute';
   div.style.width = isTouch ? '100px' : '50px';
   div.style.height = isTouch ? '100px' : '50px';

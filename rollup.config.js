@@ -19,9 +19,9 @@ const onwarn = (warning, warn) => {
 
 export default [
   {
-    input: 'src/ha-mos-card.ts',
+    input: 'src/mos-card.ts',
     output: {
-      file: 'dist/ha-mos-card.js',
+      file: 'dist/mos-card.js',
       format: 'es',
       inlineDynamicImports: true,
     },

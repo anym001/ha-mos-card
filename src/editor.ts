@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant, LovelaceCardEditor, fireEvent } from 'custom-card-helpers';
 import type { UnsubscribeFunc } from 'home-assistant-js-websocket';
 
-import type { HaMosCardConfig } from './types';
+import type { MosCardConfig } from './types';
 import { DeviceRegistryEntry, MOS_DEVICE_KINDS, findServerDevices, subscribeDeviceRegistry } from './devices';
 import { localize } from './localize/localize';
 
@@ -16,11 +16,11 @@ interface FormSchema {
   selector: Record<string, unknown>;
 }
 
-@customElement('ha-mos-card-editor')
-export class HaMosCardEditor extends LitElement implements LovelaceCardEditor {
+@customElement('mos-card-editor')
+export class MosCardEditor extends LitElement implements LovelaceCardEditor {
   @property({ attribute: false }) public hass?: HomeAssistant;
 
-  @state() private _config?: HaMosCardConfig;
+  @state() private _config?: MosCardConfig;
 
   /**
    * The MOS servers to offer in the picker.
@@ -32,7 +32,7 @@ export class HaMosCardEditor extends LitElement implements LovelaceCardEditor {
 
   private _unsubscribe?: UnsubscribeFunc;
 
-  public setConfig(config: HaMosCardConfig): void {
+  public setConfig(config: MosCardConfig): void {
     this._config = config;
   }
 
@@ -111,7 +111,7 @@ export class HaMosCardEditor extends LitElement implements LovelaceCardEditor {
    * Defaults here must match the ones the card's `setConfig` applies, or the
    * editor shows one thing while the card does another.
    */
-  private _data(config: HaMosCardConfig): Record<string, unknown> {
+  private _data(config: MosCardConfig): Record<string, unknown> {
     const data: Record<string, unknown> = {
       title: config.title ?? '',
       server: config.server ?? '',
@@ -154,7 +154,7 @@ export class HaMosCardEditor extends LitElement implements LovelaceCardEditor {
     }
 
     const value = ev.detail.value as Record<string, unknown>;
-    const config: HaMosCardConfig = { ...this._config, ...value } as HaMosCardConfig;
+    const config: MosCardConfig = { ...this._config, ...value } as MosCardConfig;
 
     // The form has to hand back a value for every key it renders, so the two
     // optional ones arrive as empty strings when cleared. Lovelace would write
@@ -178,6 +178,6 @@ export class HaMosCardEditor extends LitElement implements LovelaceCardEditor {
   }
 }
 
-if (!customElements.get('ha-mos-card-editor')) {
-  customElements.define('ha-mos-card-editor', HaMosCardEditor);
+if (!customElements.get('mos-card-editor')) {
+  customElements.define('mos-card-editor', MosCardEditor);
 }
