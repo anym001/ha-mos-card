@@ -192,8 +192,7 @@ change actually requires — is in [CONTRIBUTING.md](CONTRIBUTING.md). Architect
 device-selection contract and the build setup are in
 [docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md).
 
-> [!NOTE]
-> **Transparency:** This card was developed with the help of an AI coding agent (Claude Code). It
+> **Note — Transparency:** This card was developed with the help of an AI coding agent (Claude Code). It
 > follows Home Assistant frontend conventions, but AI-generated code may not be reviewed and tested
 > to the same extent as hand-written code. If something behaves unexpectedly, please
 > [open an issue](../../issues).
