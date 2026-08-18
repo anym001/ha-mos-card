@@ -9,6 +9,8 @@ stack of tiles, and follows them as they come and go.
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Activity][commits-shield]][commits]
 
+![Every kind of device on a MOS server, in one card](https://raw.githubusercontent.com/anym001/ha-mos-card/main/assets/overview-light.png)
+
 ---
 
 ## Overview
@@ -130,7 +132,19 @@ Valid values for `kinds`: `docker_container`, `lxc_container`, `virtual_machine`
 `storage_pool`, `ups`. Anything else is a configuration error and the card says so, rather than
 silently rendering an empty list.
 
-The visual editor offers all of these, so the YAML above is only needed if you prefer it.
+Every option is in the visual editor, so the YAML above is only needed if you prefer it. The
+preview beside it is the real card, updating as you change things.
+
+![The card's visual editor, with the live preview beside it](https://raw.githubusercontent.com/anym001/ha-mos-card/main/assets/editor-light.png)
+
+### Themes
+
+The card takes its colours from the active theme, so it follows light and dark without any
+configuration:
+
+| Light                                                                                                                                          | Dark                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| <img src="https://raw.githubusercontent.com/anym001/ha-mos-card/main/assets/containers-light.png" width="400" alt="The card on a light theme"> | <img src="https://raw.githubusercontent.com/anym001/ha-mos-card/main/assets/containers-dark.png" width="400" alt="The card on a dark theme"> |
 
 ---
 
@@ -178,8 +192,7 @@ change actually requires — is in [CONTRIBUTING.md](CONTRIBUTING.md). Architect
 device-selection contract and the build setup are in
 [docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md).
 
-> [!NOTE]
-> **Transparency:** This card was developed with the help of an AI coding agent (Claude Code). It
+> **Note — Transparency:** This card was developed with the help of an AI coding agent (Claude Code). It
 > follows Home Assistant frontend conventions, but AI-generated code may not be reviewed and tested
 > to the same extent as hand-written code. If something behaves unexpectedly, please
 > [open an issue](../../issues).
