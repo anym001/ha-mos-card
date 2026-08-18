@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.0](https://github.com/anym001/ha-mos-card/compare/v0.1.2...v0.2.0) (2026-08-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **card:** `type: custom:ha-mos-card` must become `type: custom:mos-card`. Manual installs also need the resource URL repointed, since the file is now `mos-card.js`.
+
+### Features
+
+* **card:** rename the custom element to mos-card ([92c94d4](https://github.com/anym001/ha-mos-card/commit/92c94d45b56b020e6e01ca3a57d2ecfc9e29a0d7))
+* **config:** declare the minimum Home Assistant version ([5c2b21e](https://github.com/anym001/ha-mos-card/commit/5c2b21e0a5c2023717c3a0195d87314dd6b74d3d))
+
+
+### Bug Fixes
+
+* **card:** follow the icons the integration declares ([287356a](https://github.com/anym001/ha-mos-card/commit/287356ad1b894064a44fad720dba0b90dff77fa9))
+* **editor:** make the server picker work again ([c8d2680](https://github.com/anym001/ha-mos-card/commit/c8d268021232971df6f887ecc38d920ac37eb6a8))
+* **localize:** call the power control a button, not a switch ([d5f615e](https://github.com/anym001/ha-mos-card/commit/d5f615e03a3e8b8fab2d77ec17e2bf7b755fb5ee))
+
 ## [0.1.2](https://github.com/anym001/ha-mos-card/compare/v0.1.1...v0.1.2) (2026-08-17)
 
 
