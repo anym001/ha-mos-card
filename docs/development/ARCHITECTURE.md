@@ -198,10 +198,15 @@ Every action is pinned to a commit sha with the version in a trailing comment. A
 
 ## Development Environment
 
-| Tool    | Minimum version | Notes                               |
-| ------- | --------------- | ----------------------------------- |
-| Node.js | 24              | Required by `custom-card-helpers@2` |
-| Yarn    | 4               | Managed via Corepack                |
+| Tool           | Minimum version | Notes                                     |
+| -------------- | --------------- | ----------------------------------------- |
+| Home Assistant | 2026.8          | Declared in `hacs.json`, enforced by HACS |
+| Node.js        | 24              | Required by `custom-card-helpers@2`       |
+| Yarn           | 4               | Managed via Corepack                      |
+
+The Home Assistant floor is the integration's floor: ha-mos requires 2026.8 for the device registry
+APIs it uses, and a card that renders that integration's devices is useless on a core the
+integration refuses to run on.
 
 TypeScript, Rollup, ESLint and the rest are installed locally by `yarn install` — no global
 installs needed.

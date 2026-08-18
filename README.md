@@ -30,6 +30,14 @@ stack of tiles, and follows them as they come and go.
 
 ---
 
+## Requirements
+
+- **Home Assistant 2026.8** or newer. HACS will not offer the card on older cores.
+- The [MOS NAS integration](https://github.com/anym001/ha-mos), set up and reporting devices. The
+  card renders what that integration provides and shows nothing without it.
+
+---
+
 ## Installation
 
 ### HACS
