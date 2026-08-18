@@ -7,10 +7,14 @@ import type { HaMosCardConfig } from './types';
 import { DeviceRegistryEntry, MOS_DEVICE_KINDS, findServerDevices, subscribeDeviceRegistry } from './devices';
 import { localize } from './localize/localize';
 
-/** The boolean options, rendered as one switch each. */
+/** The boolean options, each rendered as its own switch. */
 const TOGGLES = ['group_by_kind', 'show_icon', 'show_state', 'show_link', 'show_power', 'hide_unavailable'] as const;
 
-type Toggle = (typeof TOGGLES)[number];
+/** One entry of an `ha-form` schema. Home Assistant types this internally. */
+interface FormSchema {
+  name: string;
+  selector: Record<string, unknown>;
+}
 
 @customElement('ha-mos-card-editor')
 export class HaMosCardEditor extends LitElement implements LovelaceCardEditor {
@@ -59,129 +63,107 @@ export class HaMosCardEditor extends LitElement implements LovelaceCardEditor {
     });
   }
 
+  /**
+   * The form description Home Assistant renders from.
+   *
+   * `ha-form` is the supported way to build a card editor: Home Assistant maps
+   * each selector onto whatever widget its current frontend uses, so the editor
+   * follows the frontend instead of pinning itself to one generation of it.
+   * Driving `ha-select` and `mwc-list-item` by hand is what broke the server
+   * picker — `ha-select` was reimplemented on a different base and stopped
+   * emitting the event this editor listened for, leaving a dropdown that opened,
+   * listed both servers and did nothing at all when one was clicked.
+   */
+  private _schema(): FormSchema[] {
+    return [
+      { name: 'title', selector: { text: {} } },
+      {
+        name: 'server',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: [
+              { value: '', label: localize('editor.all_servers') },
+              ...this._servers.map((server) => ({
+                value: server.id,
+                label: server.name_by_user || server.name || server.id,
+              })),
+            ],
+          },
+        },
+      },
+      {
+        name: 'kinds',
+        selector: {
+          select: {
+            multiple: true,
+            options: MOS_DEVICE_KINDS.map((kind) => ({ value: kind, label: localize(`kinds.${kind}`) })),
+          },
+        },
+      },
+      ...TOGGLES.map((option) => ({ name: option, selector: { boolean: {} } })),
+    ];
+  }
+
+  /**
+   * The config as the form wants it: every key present, defaults filled in.
+   *
+   * Defaults here must match the ones the card's `setConfig` applies, or the
+   * editor shows one thing while the card does another.
+   */
+  private _data(config: HaMosCardConfig): Record<string, unknown> {
+    const data: Record<string, unknown> = {
+      title: config.title ?? '',
+      server: config.server ?? '',
+      kinds: config.kinds ?? [...MOS_DEVICE_KINDS],
+    };
+
+    for (const option of TOGGLES) {
+      const value = config[option];
+      data[option] = typeof value === 'boolean' ? value : option !== 'hide_unavailable';
+    }
+
+    return data;
+  }
+
   protected render(): TemplateResult | typeof nothing {
     if (!this._config || !this.hass) {
       return nothing;
     }
 
-    const kinds = this._config.kinds ?? [...MOS_DEVICE_KINDS];
-
     return html`
-      <div class="editor">
-        <ha-textfield
-          .label=${localize('editor.title')}
-          .value=${this._config.title ?? ''}
-          @input=${this._titleChanged}
-        ></ha-textfield>
-
-        <ha-select
-          .label=${localize('editor.server')}
-          .value=${this._config.server ?? ''}
-          naturalMenuWidth
-          fixedMenuPosition
-          @selected=${this._serverChanged}
-          @closed=${(ev: Event) => ev.stopPropagation()}
-        >
-          <mwc-list-item value="">${localize('editor.all_servers')}</mwc-list-item>
-          ${this._servers.map(
-            (server) =>
-              html`<mwc-list-item .value=${server.id}
-                >${server.name_by_user || server.name || server.id}</mwc-list-item
-              >`,
-          )}
-        </ha-select>
-
-        <div class="section-label">${localize('editor.kinds')}</div>
-        <div class="hint">${localize('editor.kinds_hint')}</div>
-        ${MOS_DEVICE_KINDS.map(
-          (kind) => html`
-            <ha-formfield .label=${localize(`kinds.${kind}`)}>
-              <ha-checkbox .checked=${kinds.includes(kind)} .value=${kind} @change=${this._kindChanged}></ha-checkbox>
-            </ha-formfield>
-          `,
-        )}
-
-        <div class="section-label">${localize('editor.display')}</div>
-        ${TOGGLES.map(
-          (option) => html`
-            <ha-formfield .label=${localize(`editor.${option}`)}>
-              <ha-switch
-                .checked=${this._toggleValue(option)}
-                .value=${option}
-                @change=${this._toggleChanged}
-              ></ha-switch>
-            </ha-formfield>
-          `,
-        )}
-      </div>
+      <ha-form
+        .hass=${this.hass}
+        .data=${this._data(this._config)}
+        .schema=${this._schema()}
+        .computeLabel=${this._computeLabel}
+        .computeHelper=${this._computeHelper}
+        @value-changed=${this._valueChanged}
+      ></ha-form>
     `;
   }
 
-  /** Defaults here must match the ones setConfig applies, or the editor lies. */
-  private _toggleValue(option: Toggle): boolean {
-    const value = this._config?.[option];
+  private _computeLabel = (schema: FormSchema): string => localize(`editor.${schema.name}`);
 
-    if (typeof value === 'boolean') {
-      return value;
-    }
+  private _computeHelper = (schema: FormSchema): string =>
+    schema.name === 'kinds' ? localize('editor.kinds_hint') : '';
 
-    return option !== 'hide_unavailable';
-  }
-
-  private _titleChanged(ev: Event): void {
-    const value = (ev.target as HTMLInputElement).value;
-    this._emit({ title: value || undefined });
-  }
-
-  private _serverChanged(ev: Event): void {
-    const value = (ev.target as HTMLSelectElement).value;
-
-    if (value === (this._config?.server ?? '')) {
-      return;
-    }
-
-    this._emit({ server: value || undefined });
-  }
-
-  private _kindChanged(ev: Event): void {
+  private _valueChanged(ev: CustomEvent): void {
     if (!this._config) {
       return;
     }
 
-    const target = ev.target as HTMLInputElement;
-    const kind = target.value as (typeof MOS_DEVICE_KINDS)[number];
-    const current = new Set(this._config.kinds ?? MOS_DEVICE_KINDS);
+    const value = ev.detail.value as Record<string, unknown>;
+    const config: HaMosCardConfig = { ...this._config, ...value } as HaMosCardConfig;
 
-    if (target.checked) {
-      current.add(kind);
-    } else {
-      current.delete(kind);
+    // The form has to hand back a value for every key it renders, so the two
+    // optional ones arrive as empty strings when cleared. Lovelace would write
+    // those into the YAML as empty keys, so they are dropped rather than stored.
+    if (!value.title) {
+      delete config.title;
     }
-
-    // Keep the declared order rather than click order, so the config reads the
-    // same way however the boxes were ticked — and so the card renders groups
-    // in a stable order.
-    this._emit({ kinds: MOS_DEVICE_KINDS.filter((candidate) => current.has(candidate)) });
-  }
-
-  private _toggleChanged(ev: Event): void {
-    const target = ev.target as HTMLInputElement;
-    this._emit({ [target.value as Toggle]: target.checked });
-  }
-
-  private _emit(patch: Partial<HaMosCardConfig>): void {
-    if (!this._config) {
-      return;
-    }
-
-    const config: HaMosCardConfig = { ...this._config, ...patch };
-
-    // Undefined survives a spread, and Lovelace would serialize it into the
-    // YAML as an empty key, so strip anything cleared back out.
-    for (const [key, value] of Object.entries(patch)) {
-      if (value === undefined) {
-        delete config[key];
-      }
+    if (!value.server) {
+      delete config.server;
     }
 
     fireEvent(this, 'config-changed', { config });
@@ -189,31 +171,8 @@ export class HaMosCardEditor extends LitElement implements LovelaceCardEditor {
 
   static get styles(): CSSResultGroup {
     return css`
-      .editor {
-        display: flex;
-        flex-direction: column;
-      }
-
-      ha-textfield,
-      ha-select {
-        width: 100%;
-        margin-bottom: 12px;
-      }
-
-      .section-label {
-        margin: 12px 0 4px;
-        font-weight: 500;
-      }
-
-      .hint {
-        margin-bottom: 4px;
-        color: var(--secondary-text-color);
-        font-size: 0.85em;
-      }
-
-      ha-formfield {
+      ha-form {
         display: block;
-        padding: 2px 0;
       }
     `;
   }
