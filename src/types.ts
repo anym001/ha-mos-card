@@ -4,11 +4,11 @@ import type { MosDeviceKind } from './devices';
 
 declare global {
   interface HTMLElementTagNameMap {
-    'ha-mos-card-editor': LovelaceCardEditor;
+    'mos-card-editor': LovelaceCardEditor;
   }
 }
 
-export interface HaMosCardConfig extends LovelaceCardConfig {
+export interface MosCardConfig extends LovelaceCardConfig {
   type: string;
 
   /** Card heading. Omit for no heading. */

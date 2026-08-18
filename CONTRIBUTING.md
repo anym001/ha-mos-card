@@ -48,7 +48,7 @@ feature/xyz ──PR──▶ main ──release-please──▶ Release (vX.Y.Z
    has a consequence worth knowing — see below.
 5. **Releases are automatic.** On push to `main`, release-please maintains a release PR; merging
    that PR pushes the `vX.Y.Z` tag, bumps `package.json` and `src/const.ts`, and attaches the built
-   `dist/ha-mos-card.js` to the release. That asset is what HACS downloads. There is no manual tag
+   `dist/mos-card.js` to the release. That asset is what HACS downloads. There is no manual tag
    step, and neither version is ever edited by hand.
 
 > [!IMPORTANT]

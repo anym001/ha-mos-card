@@ -24,7 +24,7 @@ yarn lint:format # prettier --check
 
 ### Primary files
 
-- `src/ha-mos-card.ts` — main card implementation
+- `src/mos-card.ts` — main card implementation
 - `src/devices.ts` — device registry subscription, `model_id` filtering, per-kind facts
 - `src/editor.ts` — visual editor (`LovelaceCardEditor`)
 - `src/types.ts` — card config and type definitions
@@ -61,7 +61,7 @@ listed and merely reports unavailable. Do not add manual refresh logic that figh
 
 ## Architecture and patterns
 
-- The custom element is `custom:ha-mos-card`.
+- The custom element is `custom:mos-card`.
 - Prefer Lit 3 patterns and idiomatic web component structure.
 - Keep configuration shape centralized in `src/types.ts`.
 - Keep editor schema and defaults aligned with runtime card behavior.
@@ -152,7 +152,7 @@ If it trips, fix the message — do not bypass it with `--no-verify`.
 ## Releases
 
 Releases are driven by `release-please`, not by hand-tagging. Merging to `main` opens or updates
-a release PR; merging that PR tags the release and the workflow attaches `dist/ha-mos-card.js` to
+a release PR; merging that PR tags the release and the workflow attaches `dist/mos-card.js` to
 it, which is what HACS downloads. `package.json` and `src/const.ts` are both bumped automatically —
 never edit either version by hand.
 
