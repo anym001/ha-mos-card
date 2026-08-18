@@ -92,7 +92,7 @@ jobs:
         uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # 2.11.5
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/ha-mos-card.js
-          asset_name: ha-mos-card.js
+          file: dist/mos-card.js
+          asset_name: mos-card.js
           tag: ${{ needs.release-please.outputs.tag_name }}
           overwrite: true

@@ -12,9 +12,9 @@ Read `AGENTS.md` completely before starting any work. It contains:
 
 ## Quick Reference
 
-- **Card type:** `custom:ha-mos-card`
+- **Card type:** `custom:mos-card`
 - **Integration:** [`anym001/ha-mos`](https://github.com/anym001/ha-mos), domain `mos`
-- **Main code:** `src/ha-mos-card.ts`, device selection in `src/devices.ts`
+- **Main code:** `src/mos-card.ts`, device selection in `src/devices.ts`
 - **Technical docs:** `docs/development/ARCHITECTURE.md` (the README is for end users)
 - **Validate:** `yarn check` (lint + typecheck + lint:md + lint:format + build)
 - **Build:** `yarn build` (lint + production bundle)
@@ -69,6 +69,6 @@ bypass it with `--no-verify`.
 ## Releases
 
 Releases are driven by `release-please`, not by hand-tagging. Merging to `main` opens or updates
-a release PR; merging that PR tags the release and the workflow attaches `dist/ha-mos-card.js` to
+a release PR; merging that PR tags the release and the workflow attaches `dist/mos-card.js` to
 it, which is what HACS downloads. `package.json` and `src/const.ts` are both bumped automatically —
 never edit either version by hand.

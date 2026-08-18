@@ -49,13 +49,13 @@ stack of tiles, and follows them as they come and go.
 
 ### Manual
 
-1. Download `ha-mos-card.js` from the [latest release][releases].
-2. Copy it to `<config>/www/ha-mos-card.js`.
+1. Download `mos-card.js` from the [latest release][releases].
+2. Copy it to `<config>/www/mos-card.js`.
 3. Add a resource entry in your dashboard settings:
 
 ```yaml
 resources:
-  - url: /local/ha-mos-card.js
+  - url: /local/mos-card.js
     type: module
 ```
 
@@ -68,13 +68,13 @@ resources:
 Everything is optional. With no options at all the card shows every kind, on every MOS server:
 
 ```yaml
-type: custom:ha-mos-card
+type: custom:mos-card
 ```
 
 ### Docker only, on one server
 
 ```yaml
-type: custom:ha-mos-card
+type: custom:mos-card
 title: Containers
 server: 1a2b3c4d5e6f7890abcdef1234567890
 kinds:
@@ -84,7 +84,7 @@ kinds:
 ### Full example
 
 ```yaml
-type: custom:ha-mos-card
+type: custom:mos-card
 title: Sirius
 server: 1a2b3c4d5e6f7890abcdef1234567890
 kinds:
@@ -112,7 +112,7 @@ hold_action:
 
 | Name                | Type    | Description                                                              | Default             |
 | ------------------- | ------- | ------------------------------------------------------------------------ | ------------------- |
-| `type`              | string  | **Required.** `custom:ha-mos-card`                                       |                     |
+| `type`              | string  | **Required.** `custom:mos-card`                                          |                     |
 | `title`             | string  | Card heading. Omit for no heading.                                       | none                |
 | `server`            | string  | Device id of the MOS server to show. Omit to show every server, grouped. | all servers         |
 | `kinds`             | list    | Which device kinds to render (see below).                                | all six             |
@@ -135,6 +135,12 @@ The visual editor offers all of these, so the YAML above is only needed if you p
 ---
 
 ## Troubleshooting
+
+**"Custom element doesn't exist: ha-mos-card"**
+The card was renamed from `ha-mos-card` to `mos-card`. Change `type: custom:ha-mos-card` to
+`type: custom:mos-card` in every card that uses it. If you installed manually, the file is now
+`mos-card.js` and the resource URL has to follow; a HACS install may need the old resource entry
+removed under **Settings → Dashboards → Resources**.
 
 **Card not appearing after install**
 Clear your browser cache or do a hard reload (`Ctrl+Shift+R` / `Cmd+Shift+R`).

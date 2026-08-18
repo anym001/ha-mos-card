@@ -32,7 +32,7 @@
     "DEVCONTAINER": "1",
     "HASS_USERNAME": "dev",
     "HASS_PASSWORD": "dev",
-    "LOVELACE_REMOTE_FILES": "http://localhost:5000/ha-mos-card.js"
+    "LOVELACE_REMOTE_FILES": "http://localhost:5000/mos-card.js"
   },
 
   // Setup Home Assistant, install dependencies and wire up the pre-commit hooks

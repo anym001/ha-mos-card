@@ -21,11 +21,11 @@ Saving a source file rebuilds the bundle; reload the browser to pick it up.
 
 Three settings in `devcontainer.json` do it:
 
-| Setting                            | Effect                                                   |
-| ---------------------------------- | -------------------------------------------------------- |
-| `dist` → `/config/www/workspace`   | The built bundle lands inside Home Assistant's `www`     |
-| `.devcontainer/config` → `/config` | `configuration.yaml` below is Home Assistant's config    |
-| `LOVELACE_REMOTE_FILES`            | Registers `http://localhost:5000/ha-mos-card.js` for you |
+| Setting                            | Effect                                                |
+| ---------------------------------- | ----------------------------------------------------- |
+| `dist` → `/config/www/workspace`   | The built bundle lands inside Home Assistant's `www`  |
+| `.devcontainer/config` → `/config` | `configuration.yaml` below is Home Assistant's config |
+| `LOVELACE_REMOTE_FILES`            | Registers `http://localhost:5000/mos-card.js` for you |
 
 Port 5000 is the Rollup dev server, 8123 is Home Assistant.
 

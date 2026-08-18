@@ -11,7 +11,7 @@ import {
   computeStateDisplay,
 } from 'custom-card-helpers';
 
-import type { HaMosCardConfig } from './types';
+import type { MosCardConfig } from './types';
 import {
   DeviceRegistryEntry,
   EntityRegistryEntry,
@@ -37,7 +37,7 @@ import { CARD_VERSION } from './const';
 import { localize } from './localize/localize';
 
 console.info(
-  `%c  HA-MOS-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
+  `%c  MOS-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
   'color: orange; font-weight: bold; background: black',
   'color: white; font-weight: bold; background: dimgray',
 );
@@ -49,7 +49,7 @@ interface WindowWithCustomCards extends Window {
 (window as unknown as WindowWithCustomCards).customCards =
   (window as unknown as WindowWithCustomCards).customCards || [];
 (window as unknown as WindowWithCustomCards).customCards.push({
-  type: 'ha-mos-card',
+  type: 'mos-card',
   name: 'MOS NAS Card',
   description: 'Containers, VMs, disks, pools and the UPS of a MOS NAS server',
 });
@@ -75,11 +75,11 @@ interface ServerSection {
   groups: RowGroup[];
 }
 
-@customElement('ha-mos-card')
-export class HaMosCard extends LitElement {
+@customElement('mos-card')
+export class MosCard extends LitElement {
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
-    return document.createElement('ha-mos-card-editor');
+    return document.createElement('mos-card-editor');
   }
 
   public static getStubConfig(): Record<string, unknown> {
@@ -88,7 +88,7 @@ export class HaMosCard extends LitElement {
 
   @property({ attribute: false }) public hass!: HomeAssistant;
 
-  @state() private config!: HaMosCardConfig;
+  @state() private config!: MosCardConfig;
 
   /**
    * The registries, mirrored locally.
@@ -116,11 +116,11 @@ export class HaMosCard extends LitElement {
   private trackedCache?: {
     devices?: DeviceRegistryEntry[];
     entities?: EntityRegistryEntry[];
-    config: HaMosCardConfig;
+    config: MosCardConfig;
     ids: string[];
   };
 
-  public setConfig(config: HaMosCardConfig): void {
+  public setConfig(config: MosCardConfig): void {
     if (!config) {
       throw new Error(localize('common.invalid_configuration'));
     }
