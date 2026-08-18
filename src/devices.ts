@@ -182,6 +182,63 @@ export const subscribeEntityRegistry = (
   );
 
 /**
+ * The icons an integration declares in its `icons.json`, as the frontend serves
+ * them: domain, then `translation_key`, then a default and optional per-state
+ * overrides.
+ */
+export interface IntegrationIcons {
+  [domain: string]: Record<string, { default?: string; state?: Record<string, string> }>;
+}
+
+/**
+ * Fetch the integration's own entity icons.
+ *
+ * Since ha-mos moved its icons into `icons.json`, they no longer arrive as the
+ * `icon` attribute on a state: Home Assistant resolves them in the frontend
+ * from the entity's `translation_key`. A card that wants to show what the
+ * integration intends therefore has to ask for them, which is what this does —
+ * the same websocket command the frontend itself uses.
+ *
+ * One request per card, answered from Home Assistant's own cache, and the
+ * result never changes for a given integration version.
+ */
+export const fetchIntegrationIcons = (conn: Connection, integration: string): Promise<IntegrationIcons> =>
+  conn
+    .sendMessagePromise<{ resources: Record<string, IntegrationIcons> }>({
+      type: 'frontend/get_icons',
+      category: 'entity',
+      integration,
+    })
+    .then((result) => result.resources?.[integration] ?? {});
+
+/**
+ * The icon `icons.json` declares for an entity, if it declares one.
+ *
+ * A `translation_key` is what ties the entity to its entry, so an entity
+ * without one — or a kind the integration gives no icon, which is the case for
+ * the Docker, LXC and VM state sensors that carry a picture instead — resolves
+ * to nothing and leaves the caller to fall back.
+ */
+export function declaredIcon(
+  icons: IntegrationIcons | undefined,
+  entity: EntityRegistryEntry | undefined,
+  state: string | undefined,
+): string | undefined {
+  if (!icons || !entity?.translation_key) {
+    return undefined;
+  }
+
+  const domain = entity.entity_id.split('.')[0];
+  const declared = icons[domain]?.[entity.translation_key];
+
+  if (!declared) {
+    return undefined;
+  }
+
+  return (state !== undefined ? declared.state?.[state] : undefined) ?? declared.default;
+}
+
+/**
  * The MOS server devices: the `via_device_id` targets of the container devices.
  *
  * Derived rather than matched, precisely because the server device carries no

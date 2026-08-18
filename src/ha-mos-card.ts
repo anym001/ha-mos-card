@@ -15,11 +15,14 @@ import type { HaMosCardConfig } from './types';
 import {
   DeviceRegistryEntry,
   EntityRegistryEntry,
+  IntegrationIcons,
   KIND_INFO,
   MOS_DEVICE_KINDS,
   MosDeviceKind,
+  declaredIcon,
   deviceDisplayName,
   entitiesByDevice,
+  fetchIntegrationIcons,
   findPowerEntity,
   findServerDevices,
   findStateEntity,
@@ -100,6 +103,14 @@ export class HaMosCard extends LitElement {
 
   @state() private entities?: EntityRegistryEntry[];
 
+  /**
+   * The icons the integration declares for its entities.
+   *
+   * Fetched rather than read off the state, because `icons.json` icons are
+   * resolved in the frontend and never reach a state attribute.
+   */
+  @state() private icons?: IntegrationIcons;
+
   private unsubscribe: UnsubscribeFunc[] = [];
 
   private trackedCache?: {
@@ -177,7 +188,12 @@ export class HaMosCard extends LitElement {
       return true;
     }
 
-    if (changedProps.has('config') || changedProps.has('devices') || changedProps.has('entities')) {
+    if (
+      changedProps.has('config') ||
+      changedProps.has('devices') ||
+      changedProps.has('entities') ||
+      changedProps.has('icons')
+    ) {
       return true;
     }
 
@@ -250,6 +266,14 @@ export class HaMosCard extends LitElement {
         this.entities = entities;
       }),
     ];
+
+    // Best effort: without it the card falls back to its own per-kind icons,
+    // which is a cosmetic loss and no reason to fail the whole card.
+    fetchIntegrationIcons(this.hass.connection, 'mos')
+      .then((icons) => {
+        this.icons = icons;
+      })
+      .catch(() => undefined);
   }
 
   private unsubscribeRegistries(): void {
@@ -461,12 +485,17 @@ export class HaMosCard extends LitElement {
   }
 
   /**
-   * The row icon.
+   * The row icon, in the order Home Assistant itself resolves one.
    *
-   * The state sensor of a Docker, LXC or VM guest carries the icon MOS itself
-   * shows for it as `entity_picture`, which beats any generic icon this card
-   * could pick. Kinds without one — and guests whose template has no icon —
-   * fall back to the per-kind MDI icon.
+   * 1. `entity_picture` — the artwork MOS shows for a Docker, LXC or VM guest,
+   *    which beats any glyph either side could pick.
+   * 2. The `icon` state attribute, for an entity that still sets one directly.
+   * 3. What the integration declares in its `icons.json`. Those are resolved in
+   *    the frontend and never reach a state attribute, so they are fetched
+   *    separately — without this step the card silently ignores the icons the
+   *    integration went to the trouble of declaring.
+   * 4. The card's own per-kind icon, for the kinds the integration names none
+   *    for and for the moment before the fetch lands.
    */
   private renderIcon(row: DeviceRow, stateObj?: HassEntity): TemplateResult {
     const picture = stateObj?.attributes.entity_picture;
@@ -475,7 +504,12 @@ export class HaMosCard extends LitElement {
       return html`<img class="icon picture" src=${picture} alt="" loading="lazy" />`;
     }
 
-    return html`<ha-icon class="icon" .icon=${stateObj?.attributes.icon || KIND_INFO[row.kind].icon}></ha-icon>`;
+    const icon =
+      stateObj?.attributes.icon ||
+      declaredIcon(this.icons, row.stateEntity, stateObj?.state) ||
+      KIND_INFO[row.kind].icon;
+
+    return html`<ha-icon class="icon" .icon=${icon}></ha-icon>`;
   }
 
   private renderState(stateObj?: HassEntity): string {
@@ -661,7 +695,7 @@ export class HaMosCard extends LitElement {
       }
 
       .row.tone-neutral {
-        --tone-color: var(--state-icon-color, var(--paper-item-icon-color, var(--secondary-text-color)));
+        --tone-color: var(--state-icon-color, var(--secondary-text-color));
       }
 
       /* The secondary line only takes the tone colour where the tone means
