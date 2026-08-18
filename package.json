@@ -49,8 +49,9 @@
   },
   "scripts": {
     "build": "yarn clean && yarn lint && yarn rollup",
-    "check": "yarn lint && yarn typecheck && yarn lint:md && yarn lint:format && yarn build",
+    "check": "yarn lint && yarn typecheck && yarn lint:md && yarn lint:format && yarn ha-version-sync && yarn build",
     "clean": "rm -rf dist",
+    "ha-version-sync": "node scripts/ha-version-sync.mjs",
     "lint": "eslint src/**/*.ts",
     "lint:format": "prettier --check .",
     "lint:md": "markdownlint-cli2 \"**/*.md\"",
