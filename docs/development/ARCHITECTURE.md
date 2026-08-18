@@ -62,8 +62,18 @@ one server without the integration having to label the server.
 Each tile is built from a single entity per device — the state sensor the integration documents for
 exactly this purpose.
 
-- **Icon** — the state sensor's `entity_picture`, which for Docker, LXC and VM guests is the icon
-  MOS itself shows. Falls back to the per-kind MDI icon in `KIND_INFO`.
+- **Icon** — resolved in the order Home Assistant itself uses: the state sensor's `entity_picture`
+  (for Docker, LXC and VM guests, the icon MOS shows), then its `icon` attribute, then what the
+  integration declares in its `icons.json`, then the per-kind MDI icon in `KIND_INFO`.
+
+  The third step needs a fetch. Since ha-mos moved its icons into `icons.json`, they are resolved in
+  the frontend from the entity's `translation_key` and never appear as a state attribute — every MOS
+  entity now reports no `icon` at all. `fetchIntegrationIcons()` asks for them over the same
+  websocket command the frontend uses (`frontend/get_icons`), once per card, and a failure falls
+  through to `KIND_INFO` rather than failing the card. Without this the card silently ignores the
+  icons the integration declares: disks would draw `mdi:harddisk` where `icons.json` asks for
+  `mdi:power`, and pools `mdi:database` where it asks for `mdi:harddisk`.
+
 - **State** — the sensor's state through `hass.formatEntityState`, so enum states read in the user's
   language and units match the rest of Home Assistant.
 - **Link** — the Docker state sensor's `web_ui_url` attribute, falling back to the device's
