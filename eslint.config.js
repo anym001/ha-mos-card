@@ -10,7 +10,7 @@ export default [
     ignores: ['dist', 'node_modules', '*.config.js'],
   },
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.ts', 'tests/**/*.ts'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

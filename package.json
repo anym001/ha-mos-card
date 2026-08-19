@@ -45,19 +45,22 @@
     "rollup": "^4.62.4",
     "rollup-plugin-esbuild": "^6.2.1",
     "rollup-plugin-serve": "^1.1.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3"
   },
   "scripts": {
     "build": "yarn clean && yarn lint && yarn rollup",
-    "check": "yarn lint && yarn typecheck && yarn lint:md && yarn lint:format && yarn ha-version-sync && yarn build",
+    "check": "yarn lint && yarn typecheck && yarn test && yarn lint:md && yarn lint:format && yarn ha-version-sync && yarn build",
     "clean": "rm -rf dist",
     "ha-version-sync": "node scripts/ha-version-sync.mjs",
-    "lint": "eslint src/**/*.ts",
+    "lint": "eslint src/**/*.ts tests/**/*.ts",
     "lint:format": "prettier --check .",
     "lint:md": "markdownlint-cli2 \"**/*.md\"",
     "rollup": "rollup -c",
     "setup": "yarn install && pre-commit install || echo 'pre-commit not found - install it (https://pre-commit.com/#install) and rerun `yarn setup`'",
     "start": "rollup -c rollup.config.dev.js --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   }
 }
