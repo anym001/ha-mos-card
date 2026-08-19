@@ -124,6 +124,7 @@ hold_action:
 | `show_state`        | boolean | Show the state value on each tile.                                       | `true`              |
 | `show_link`         | boolean | Show a link button where the device has a URL.                           | `true`              |
 | `show_power`        | boolean | Show the start/stop button on guest tiles.                               | `true`              |
+| `confirm_stop`      | boolean | Ask before stopping a running guest. Starting never asks.                | `false`             |
 | `show_update`       | boolean | Badge tiles whose device reports a waiting update (needs `show_icon`).   | `true`              |
 | `hide_unavailable`  | boolean | Hide tiles whose state is unavailable or unknown.                        | `false`             |
 | `tap_action`        | object  | Action for a tap on the tile body, applied to that tile's state entity.  | `action: more-info` |
@@ -133,6 +134,9 @@ hold_action:
 `toggle` is the one action that does not use the tile's state entity: that entity only reports a
 state, so the action is applied to the tile's start/stop switch instead. Tiles without one — disks,
 storage pools, the UPS — have nothing to toggle and ignore the action.
+
+While the server works on a start or a stop, the button shows that it is waiting rather than its
+usual icon, and ignores further presses until the device reports its new state.
 
 Valid values for `kinds`: `docker_container`, `lxc_container`, `virtual_machine`, `disk`,
 `storage_pool`, `ups`. Anything else is a configuration error and the card says so, rather than
