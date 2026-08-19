@@ -128,6 +128,7 @@ hold_action:
 | `show_link`           | boolean | Show a link button where the device has a URL.                           | `true`              |
 | `show_power`          | boolean | Show the start/stop button on guest tiles.                               | `true`              |
 | `confirm_stop`        | boolean | Ask before stopping a running guest. Starting never asks.                | `false`             |
+| `show_problem`        | boolean | Badge tiles whose device reports a fault (needs `show_icon`).            | `true`              |
 | `show_update`         | boolean | Badge tiles whose device reports a waiting update (needs `show_icon`).   | `true`              |
 | `hide_unavailable`    | boolean | Hide tiles whose state is unavailable or unknown.                        | `false`             |
 | `tap_action`          | object  | Action for a tap on the tile body, applied to that tile's state entity.  | `action: more-info` |
@@ -140,6 +141,11 @@ storage pools, the UPS — have nothing to toggle and ignore the action.
 
 While the server works on a start or a stop, the button shows that it is waiting rather than its
 usual icon, and ignores further presses until the device reports its new state.
+
+A fault is whatever the integration marks with Home Assistant's `problem` device class: a SMART
+warning on a disk, an unhealthy container, a degraded storage pool, a UPS on bypass or overloaded.
+The badge names what it found, in Home Assistant's own wording, so a disk reads "SMART warning" and
+not just "problem". A device with both a fault and a waiting update shows both badges.
 
 `sort: state` lists what is running first, then what is paused, then what is stopped, alphabetically
 within each. Disks and storage pools stay alphabetical either way — their state says nothing about
