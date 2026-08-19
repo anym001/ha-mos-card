@@ -113,23 +113,26 @@ hold_action:
 
 ## Options
 
-| Name                | Type    | Description                                                              | Default             |
-| ------------------- | ------- | ------------------------------------------------------------------------ | ------------------- |
-| `type`              | string  | **Required.** `custom:mos-card`                                          |                     |
-| `title`             | string  | Card heading. Omit for no heading.                                       | none                |
-| `server`            | string  | Device id of the MOS server to show. Omit to show every server, grouped. | all servers         |
-| `kinds`             | list    | Which device kinds to render (see below).                                | all six             |
-| `group_by_kind`     | boolean | Show a heading above each kind.                                          | `true`              |
-| `show_icon`         | boolean | Show the tile icon.                                                      | `true`              |
-| `show_state`        | boolean | Show the state value on each tile.                                       | `true`              |
-| `show_link`         | boolean | Show a link button where the device has a URL.                           | `true`              |
-| `show_power`        | boolean | Show the start/stop button on guest tiles.                               | `true`              |
-| `confirm_stop`      | boolean | Ask before stopping a running guest. Starting never asks.                | `false`             |
-| `show_update`       | boolean | Badge tiles whose device reports a waiting update (needs `show_icon`).   | `true`              |
-| `hide_unavailable`  | boolean | Hide tiles whose state is unavailable or unknown.                        | `false`             |
-| `tap_action`        | object  | Action for a tap on the tile body, applied to that tile's state entity.  | `action: more-info` |
-| `hold_action`       | object  | Action for a 500 ms hold.                                                | `action: none`      |
-| `double_tap_action` | object  | Action for a double tap.                                                 | `action: none`      |
+| Name                  | Type    | Description                                                              | Default             |
+| --------------------- | ------- | ------------------------------------------------------------------------ | ------------------- |
+| `type`                | string  | **Required.** `custom:mos-card`                                          |                     |
+| `title`               | string  | Card heading. Omit for no heading.                                       | none                |
+| `server`              | string  | Device id of the MOS server to show. Omit to show every server, grouped. | all servers         |
+| `kinds`               | list    | Which device kinds to render (see below).                                | all six             |
+| `group_by_kind`       | boolean | Show a heading above each kind.                                          | `true`              |
+| `sort`                | string  | Row order within a group: `name` or `state`.                             | `name`              |
+| `secondary_info`      | string  | Extra value beside the state: `none`, `auto`, `cpu` or `memory`.         | `none`              |
+| `show_server_summary` | boolean | Show the server's own load beside its name.                              | `false`             |
+| `show_icon`           | boolean | Show the tile icon.                                                      | `true`              |
+| `show_state`          | boolean | Show the state value on each tile.                                       | `true`              |
+| `show_link`           | boolean | Show a link button where the device has a URL.                           | `true`              |
+| `show_power`          | boolean | Show the start/stop button on guest tiles.                               | `true`              |
+| `confirm_stop`        | boolean | Ask before stopping a running guest. Starting never asks.                | `false`             |
+| `show_update`         | boolean | Badge tiles whose device reports a waiting update (needs `show_icon`).   | `true`              |
+| `hide_unavailable`    | boolean | Hide tiles whose state is unavailable or unknown.                        | `false`             |
+| `tap_action`          | object  | Action for a tap on the tile body, applied to that tile's state entity.  | `action: more-info` |
+| `hold_action`         | object  | Action for a 500 ms hold.                                                | `action: none`      |
+| `double_tap_action`   | object  | Action for a double tap.                                                 | `action: none`      |
 
 `toggle` is the one action that does not use the tile's state entity: that entity only reports a
 state, so the action is applied to the tile's start/stop switch instead. Tiles without one — disks,
@@ -137,6 +140,16 @@ storage pools, the UPS — have nothing to toggle and ignore the action.
 
 While the server works on a start or a stop, the button shows that it is waiting rather than its
 usual icon, and ignores further presses until the device reports its new state.
+
+`sort: state` lists what is running first, then what is paused, then what is stopped, alphabetically
+within each. Disks and storage pools stay alphabetical either way — their state says nothing about
+whether something is running.
+
+`secondary_info: auto` picks the number that is worth seeing for each kind: CPU and memory for a
+container or VM, temperature for a disk, free space for a storage pool, load for the UPS. `cpu` and
+`memory` ask for one specific number and show nothing on the kinds that have none. A value the
+server cannot report right now — a stopped container has no CPU figure — is left out rather than
+shown as unknown.
 
 Valid values for `kinds`: `docker_container`, `lxc_container`, `virtual_machine`, `disk`,
 `storage_pool`, `ups`. Anything else is a configuration error and the card says so, rather than
