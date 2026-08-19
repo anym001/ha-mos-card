@@ -20,8 +20,6 @@ import {
   KIND_INFO,
   MOS_DEVICE_KINDS,
   MosDeviceKind,
-  ROW_SORTS,
-  SECONDARY_INFO_MODES,
   SERVER_METRICS,
   declaredIcon,
   deviceDisplayName,
@@ -33,7 +31,6 @@ import {
   findServerDevices,
   findStateEntity,
   findUpdateEntity,
-  isMosDeviceKind,
   isUnavailableState,
   metricsForMode,
   passesFilter,
@@ -41,6 +38,8 @@ import {
   subscribeDeviceRegistry,
   subscribeEntityRegistry,
 } from './devices';
+import { normalizeConfig } from './config';
+import { capRows, compareRows, settledPending, toneFor } from './rows';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
 import { localize } from './localize/localize';
@@ -173,61 +172,7 @@ export class MosCard extends LitElement {
   };
 
   public setConfig(config: MosCardConfig): void {
-    if (!config) {
-      throw new Error(localize('common.invalid_configuration'));
-    }
-
-    if (config.kinds !== undefined) {
-      if (!Array.isArray(config.kinds)) {
-        throw new Error(localize('errors.kinds_not_a_list'));
-      }
-      const unknown = config.kinds.filter((kind) => !isMosDeviceKind(kind));
-      if (unknown.length) {
-        throw new Error(`${localize('errors.unknown_kind')}: ${unknown.join(', ')}`);
-      }
-      if (!config.kinds.length) {
-        throw new Error(localize('errors.no_kinds'));
-      }
-    }
-
-    if (config.sort !== undefined && !ROW_SORTS.includes(config.sort)) {
-      throw new Error(`${localize('errors.unknown_sort')}: ${config.sort}`);
-    }
-
-    if (config.secondary_info !== undefined && !SECONDARY_INFO_MODES.includes(config.secondary_info)) {
-      throw new Error(`${localize('errors.unknown_secondary_info')}: ${config.secondary_info}`);
-    }
-
-    if (config.max_rows !== undefined && (!Number.isInteger(config.max_rows) || config.max_rows < 1)) {
-      throw new Error(`${localize('errors.bad_max_rows')}: ${config.max_rows}`);
-    }
-
-    if (
-      config.columns !== undefined &&
-      (!Number.isInteger(config.columns) || config.columns < 1 || config.columns > 4)
-    ) {
-      throw new Error(`${localize('errors.bad_columns')}: ${config.columns}`);
-    }
-
-    this.config = {
-      kinds: [...MOS_DEVICE_KINDS],
-      group_by_kind: true,
-      sort: 'name',
-      secondary_info: 'none',
-      show_server_summary: false,
-      show_icon: true,
-      show_state: true,
-      show_link: true,
-      show_power: true,
-      confirm_stop: false,
-      show_problem: true,
-      columns: 1,
-      compact: false,
-      show_update: true,
-      hide_unavailable: false,
-      tap_action: { action: 'more-info' },
-      ...config,
-    };
+    this.config = normalizeConfig(config);
   }
 
   public connectedCallback(): void {
@@ -253,10 +198,8 @@ export class MosCard extends LitElement {
       return;
     }
 
-    for (const [entityId, before] of this.pending) {
-      if ((this.hass.states[entityId]?.state ?? '') !== before) {
-        this.clearPending(entityId);
-      }
+    for (const entityId of settledPending(this.pending, (id) => this.hass.states[id]?.state)) {
+      this.clearPending(entityId);
     }
   }
 
@@ -495,19 +438,12 @@ export class MosCard extends LitElement {
           })
           .filter((row) => passesFilter(row.name, this.config.filter))
           .filter((row) => !this.config.hide_unavailable || !isUnavailableState(this.stateValue(row)))
-          .sort((left, right) => this.compareRows(left, right));
+          .sort(compareRows(this.config.sort, (row) => this.stateValue(row)));
 
         if (rows.length) {
           const key = `${serverId ?? ''}:${kind}`;
-          const cap = this.config.max_rows;
-          const capped = cap !== undefined && !this.expanded.has(key) && rows.length > cap;
 
-          groups.push({
-            kind,
-            key,
-            rows: capped ? rows.slice(0, cap) : rows,
-            hidden: capped ? rows.length - (cap as number) : 0,
-          });
+          groups.push({ kind, key, ...capRows(rows, this.config.max_rows, this.expanded.has(key)) });
         }
       }
 
@@ -543,33 +479,6 @@ export class MosCard extends LitElement {
     return metricsForMode(kind, mode)
       .map((metric) => findMetricEntity(entities, metric))
       .filter((entity): entity is EntityRegistryEntry => entity !== undefined);
-  }
-
-  /**
-   * How two rows of the same kind are ordered.
-   *
-   * `state` ranks by the same tone the row is drawn in, so the sorted order and
-   * the colours tell the same story, and falls back to the name so that two
-   * rows in the same state keep a stable, readable order.
-   */
-  private compareRows(left: DeviceRow, right: DeviceRow): number {
-    if (this.config.sort === 'state') {
-      const rank = this.sortRank(left) - this.sortRank(right);
-
-      if (rank !== 0) {
-        return rank;
-      }
-    }
-
-    return left.name.localeCompare(right.name);
-  }
-
-  /** Where a row's tone places it under `sort: state`. */
-  private sortRank(row: DeviceRow): number {
-    const order = ['active', 'idle', 'neutral', 'inactive', 'unknown'];
-    const stateObj = row.stateEntity ? this.hass?.states[row.stateEntity.entity_id] : undefined;
-
-    return order.indexOf(this.tone(row.kind, stateObj));
   }
 
   protected render(): TemplateResult {
@@ -669,9 +578,9 @@ export class MosCard extends LitElement {
 
     return html`
       <div
-        class="row ${unavailable ? 'unavailable' : ''} ${this.config.compact ? 'compact' : ''} tone-${this.tone(
+        class="row ${unavailable ? 'unavailable' : ''} ${this.config.compact ? 'compact' : ''} tone-${toneFor(
           row.kind,
-          stateObj,
+          stateObj?.state,
         )}"
       >
         <div
@@ -694,40 +603,6 @@ export class MosCard extends LitElement {
         ${this.config.show_power ? this.renderPower(row) : nothing}
       </div>
     `;
-  }
-
-  /**
-   * The colour family a row is drawn in.
-   *
-   * Kept to a handful of names rather than a colour per state so the palette
-   * stays a theme concern: the CSS maps each tone onto a Home Assistant theme
-   * variable, and a state nobody anticipated lands on the neutral one.
-   *
-   * Only kinds whose state says something about *running* are coloured. A disk
-   * reporting `active` is naming its ATA power mode and a pool reports how full
-   * it is — neither is good news or bad news, and colouring them drowns out the
-   * containers, which are the reason to look at the card at all.
-   */
-  private tone(kind: MosDeviceKind, stateObj?: HassEntity): string {
-    const state = stateObj?.state;
-
-    if (state === undefined || isUnavailableState(state)) {
-      return 'unknown';
-    }
-
-    if (kind === 'disk' || kind === 'storage_pool') {
-      return 'neutral';
-    }
-
-    if (['running', 'on', 'active', 'ol', 'online'].includes(state.toLowerCase())) {
-      return 'active';
-    }
-
-    if (['paused', 'frozen', 'standby', 'idle', 'sleeping', 'starting'].includes(state.toLowerCase())) {
-      return 'idle';
-    }
-
-    return 'inactive';
   }
 
   /** The icon and whatever is badged onto it. */

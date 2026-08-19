@@ -22,7 +22,11 @@ function resolveTranslation(path: string, dictionary: Record<string, unknown>): 
 }
 
 export function localize(string: string, search = '', replace = ''): string {
-  const lang = (localStorage.getItem('selectedLanguage') || 'en').replace(/['"]+/g, '').replace('-', '_');
+  // Guarded rather than read directly: this module is imported by the config
+  // helpers, which are pure and are exercised outside a browser. Reaching for a
+  // browser global at call time would make them untestable for no benefit.
+  const selected = typeof localStorage === 'undefined' ? null : localStorage.getItem('selectedLanguage');
+  const lang = (selected || 'en').replace(/['"]+/g, '').replace('-', '_');
 
   let translated = resolveTranslation(string, languages[lang] || languages.en);
 

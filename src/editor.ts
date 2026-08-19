@@ -12,36 +12,8 @@ import {
   findServerDevices,
   subscribeDeviceRegistry,
 } from './devices';
+import { CARD_DEFAULTS, MAX_COLUMNS, TOGGLES, foldFilter, patternsToText } from './config';
 import { localize } from './localize/localize';
-
-/** The boolean options, each rendered as its own switch. */
-const TOGGLES = [
-  'group_by_kind',
-  'compact',
-  'show_server_summary',
-  'show_icon',
-  'show_state',
-  'show_link',
-  'show_power',
-  'confirm_stop',
-  'show_problem',
-  'show_update',
-  'hide_unavailable',
-] as const;
-
-/**
- * The toggles that default to off.
- *
- * Every other one defaults to on, so this is the shorter list to keep. Each of
- * these adds friction, hides information or takes room, none of which is what
- * an untouched card should do.
- */
-const OFF_BY_DEFAULT: ReadonlySet<string> = new Set([
-  'compact',
-  'confirm_stop',
-  'hide_unavailable',
-  'show_server_summary',
-]);
 
 /**
  * The action options, paired with the action the card falls back to without them.
@@ -67,16 +39,6 @@ const HELPERS: Readonly<Record<string, string>> = {
   max_rows: 'editor.max_rows_hint',
   columns: 'editor.columns_hint',
 };
-
-/** The filter's list form as one editable line, and back. */
-const patternsToText = (value: string | readonly string[] | undefined): string =>
-  value === undefined ? '' : (typeof value === 'string' ? [value] : value).join(', ');
-
-const textToPatterns = (value: unknown): string[] =>
-  String(value ?? '')
-    .split(',')
-    .map((pattern) => pattern.trim())
-    .filter(Boolean);
 
 /** One entry of an `ha-form` schema. Home Assistant types this internally. */
 interface FormSchema {
@@ -176,7 +138,7 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
       { name: 'filter_include', selector: { text: {} } },
       { name: 'filter_exclude', selector: { text: {} } },
       { name: 'max_rows', selector: { number: { min: 1, max: 100, mode: 'box' } } },
-      { name: 'columns', selector: { number: { min: 1, max: 4, mode: 'slider' } } },
+      { name: 'columns', selector: { number: { min: 1, max: MAX_COLUMNS, mode: 'slider' } } },
       {
         name: 'sort',
         selector: {
@@ -223,19 +185,19 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
       title: config.title ?? '',
       server: config.server ?? '',
       kinds: config.kinds ?? [...MOS_DEVICE_KINDS],
-      sort: config.sort ?? 'name',
-      secondary_info: config.secondary_info ?? 'none',
+      sort: config.sort ?? CARD_DEFAULTS.sort,
+      secondary_info: config.secondary_info ?? CARD_DEFAULTS.secondary_info,
+      columns: config.columns ?? CARD_DEFAULTS.columns,
       // The filter is a list in the config and a comma-separated line in the
       // form, because a repeating text field is not something `ha-form` offers.
       filter_include: patternsToText(config.filter?.include),
       filter_exclude: patternsToText(config.filter?.exclude),
       max_rows: config.max_rows,
-      columns: config.columns ?? 1,
     };
 
     for (const option of TOGGLES) {
       const value = config[option];
-      data[option] = typeof value === 'boolean' ? value : !OFF_BY_DEFAULT.has(option);
+      data[option] = typeof value === 'boolean' ? value : CARD_DEFAULTS[option];
     }
 
     for (const action of ACTIONS) {
@@ -281,17 +243,13 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
     // The two filter lines are the form's own fields, not config keys: they are
     // folded back into one `filter` object, and the object is dropped entirely
     // when both are empty so an untouched card keeps no filter at all.
-    const include = textToPatterns(value.filter_include);
-    const exclude = textToPatterns(value.filter_exclude);
+    const filter = foldFilter(value.filter_include, value.filter_exclude);
 
     delete (config as Record<string, unknown>).filter_include;
     delete (config as Record<string, unknown>).filter_exclude;
 
-    if (include.length || exclude.length) {
-      config.filter = {
-        ...(include.length ? { include } : {}),
-        ...(exclude.length ? { exclude } : {}),
-      };
+    if (filter) {
+      config.filter = filter;
     } else {
       delete config.filter;
     }
