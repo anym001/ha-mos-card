@@ -19,7 +19,7 @@ stack of tiles, and follows them as they come and go.
   machines, disks, storage pools and the UPS.
 - **Tiles build themselves.** Each tile shows the icon, the name, the state, a link to the thing's
   own web interface where it has one, and a start/stop button for the guests that can be
-  controlled.
+  controlled. A Docker container with a newer image waiting gets a badge on its icon.
 - **The state is visible before it is read.** A running guest gets a coloured ring around its icon
   and its state in the same colour; a stopped one stays neutral. Disks and pools are left neutral
   on purpose — a disk reporting `Active` is naming its power mode, not reporting good news.
@@ -101,6 +101,7 @@ show_icon: true
 show_state: true
 show_link: true
 show_power: true
+show_update: true
 hide_unavailable: false
 tap_action:
   action: more-info
@@ -123,6 +124,7 @@ hold_action:
 | `show_state`        | boolean | Show the state value on each tile.                                       | `true`              |
 | `show_link`         | boolean | Show a link button where the device has a URL.                           | `true`              |
 | `show_power`        | boolean | Show the start/stop button on guest tiles.                               | `true`              |
+| `show_update`       | boolean | Badge tiles whose device reports a waiting update (needs `show_icon`).   | `true`              |
 | `hide_unavailable`  | boolean | Hide tiles whose state is unavailable or unknown.                        | `false`             |
 | `tap_action`        | object  | Action for a tap on the tile body, applied to that tile's state entity.  | `action: more-info` |
 | `hold_action`       | object  | Action for a 500 ms hold.                                                | `action: none`      |

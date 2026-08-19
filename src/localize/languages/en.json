@@ -7,7 +7,8 @@
     "no_state_entity": "No state entity",
     "server": "MOS server",
     "open_link": "Open web interface",
-    "toggle_power": "Start or stop"
+    "toggle_power": "Start or stop",
+    "update_available": "Update available"
   },
   "errors": {
     "kinds_not_a_list": "'kinds' must be a list",
@@ -34,6 +35,7 @@
     "show_state": "Show state",
     "show_link": "Show link",
     "show_power": "Show power button",
+    "show_update": "Show update badge",
     "hide_unavailable": "Hide unavailable devices",
     "actions_note": "Actions",
     "tap_action": "Tap action",

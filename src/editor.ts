@@ -8,7 +8,15 @@ import { DeviceRegistryEntry, MOS_DEVICE_KINDS, findServerDevices, subscribeDevi
 import { localize } from './localize/localize';
 
 /** The boolean options, each rendered as its own switch. */
-const TOGGLES = ['group_by_kind', 'show_icon', 'show_state', 'show_link', 'show_power', 'hide_unavailable'] as const;
+const TOGGLES = [
+  'group_by_kind',
+  'show_icon',
+  'show_state',
+  'show_link',
+  'show_power',
+  'show_update',
+  'hide_unavailable',
+] as const;
 
 /**
  * The action options, paired with the action the card falls back to without them.

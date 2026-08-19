@@ -27,6 +27,7 @@ import {
   findPowerEntity,
   findServerDevices,
   findStateEntity,
+  findUpdateEntity,
   isMosDeviceKind,
   isUnavailableState,
   selectMosDevices,
@@ -62,6 +63,7 @@ interface DeviceRow {
   name: string;
   stateEntity?: EntityRegistryEntry;
   powerEntity?: EntityRegistryEntry;
+  updateEntity?: EntityRegistryEntry;
 }
 
 /** Rows of one kind, under one server. */
@@ -146,6 +148,7 @@ export class MosCard extends LitElement {
       show_state: true,
       show_link: true,
       show_power: true,
+      show_update: true,
       hide_unavailable: false,
       tap_action: { action: 'more-info' },
       ...config,
@@ -348,6 +351,7 @@ export class MosCard extends LitElement {
               name: deviceDisplayName(device, serverName),
               stateEntity: findStateEntity(deviceEntities, kind),
               powerEntity: findPowerEntity(deviceEntities, kind),
+              updateEntity: findUpdateEntity(deviceEntities, kind),
             };
           })
           .filter((row) => !this.config.hide_unavailable || !isUnavailableState(this.stateValue(row)))
@@ -485,6 +489,11 @@ export class MosCard extends LitElement {
     return 'inactive';
   }
 
+  /** The icon and whatever is badged onto it. */
+  private renderIcon(row: DeviceRow, stateObj?: HassEntity): TemplateResult {
+    return html`<div class="icon-wrap">${this.renderArtwork(row, stateObj)}${this.renderUpdateBadge(row)}</div>`;
+  }
+
   /**
    * The row icon, in the order Home Assistant itself resolves one.
    *
@@ -498,7 +507,7 @@ export class MosCard extends LitElement {
    * 4. The card's own per-kind icon, for the kinds the integration names none
    *    for and for the moment before the fetch lands.
    */
-  private renderIcon(row: DeviceRow, stateObj?: HassEntity): TemplateResult {
+  private renderArtwork(row: DeviceRow, stateObj?: HassEntity): TemplateResult {
     const picture = stateObj?.attributes.entity_picture;
 
     if (picture) {
@@ -511,6 +520,36 @@ export class MosCard extends LitElement {
       KIND_INFO[row.kind].icon;
 
     return html`<ha-icon class="icon" .icon=${icon}></ha-icon>`;
+  }
+
+  /**
+   * The mark on a device whose image has a newer version waiting.
+   *
+   * It sits on the icon rather than next to the link and the switch, because
+   * the right end of a row is where the controls are and this is not one.
+   * Only Docker containers report updates — MOS tracks an image's local and
+   * remote version, and no other kind has an equivalent — so every other row
+   * finds no entity here and renders nothing.
+   */
+  private renderUpdateBadge(row: DeviceRow): TemplateResult | typeof nothing {
+    if (!this.config.show_update || !row.updateEntity) {
+      return nothing;
+    }
+
+    // Only an outright "on" earns the badge: unavailable and unknown mean the
+    // integration cannot currently say, which is not the same as "up to date"
+    // but is also no reason to tell someone to go and update something.
+    if (this.hass.states[row.updateEntity.entity_id]?.state !== 'on') {
+      return nothing;
+    }
+
+    const label = localize('common.update_available');
+
+    return html`
+      <div class="update-badge" role="img" aria-label=${label} title=${label}>
+        <ha-icon icon="mdi:arrow-up"></ha-icon>
+      </div>
+    `;
   }
 
   private renderState(stateObj?: HassEntity): string {
@@ -687,6 +726,16 @@ export class MosCard extends LitElement {
          the card knowing anything about it. */
       .row {
         --tone-color: var(--secondary-text-color);
+        /* Lifted off the card by mixing the text colour into the card's own
+           background: a fixed grey would sit invisibly on the card in one theme
+           or the other, and this stays a step darker in light and a step lighter
+           in dark without needing to know which is in use. Named so the update
+           badge can cut its ring out of the same colour. */
+        --row-background: color-mix(
+          in srgb,
+          var(--primary-text-color) 7%,
+          var(--ha-card-background, var(--card-background-color))
+        );
         display: flex;
         align-items: center;
         gap: 12px;
@@ -694,15 +743,7 @@ export class MosCard extends LitElement {
         min-height: 56px;
         border-radius: 14px;
         box-sizing: border-box;
-        /* Lifted off the card by mixing the text colour into the card's own
-           background: a fixed grey would sit invisibly on the card in one theme
-           or the other, and this stays a step darker in light and a step lighter
-           in dark without needing to know which is in use. */
-        background: color-mix(
-          in srgb,
-          var(--primary-text-color) 7%,
-          var(--ha-card-background, var(--card-background-color))
-        );
+        background: var(--row-background);
       }
 
       .row.tone-active {
@@ -774,6 +815,33 @@ export class MosCard extends LitElement {
       .row.tone-active .icon,
       .row.tone-idle .icon {
         box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tone-color) 35%, transparent);
+      }
+
+      /* Holds the icon and the badge together. The icon keeps its own box, so
+         nothing about its size or spacing changes when no badge is drawn. */
+      .icon-wrap {
+        position: relative;
+        flex: 0 0 auto;
+        display: inline-flex;
+      }
+
+      .update-badge {
+        position: absolute;
+        right: -3px;
+        bottom: -3px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        box-sizing: border-box;
+        border-radius: 50%;
+        /* The ring is the row's own background, which lifts the badge off the
+           icon instead of letting it merge into the corner of a dark logo. */
+        border: 2px solid var(--row-background);
+        color: var(--text-primary-color, #fff);
+        background: var(--warning-color, #ffa726);
+        --mdc-icon-size: 10px;
       }
 
       /* Artwork gets a neutral well and more room: it brings its own colours,

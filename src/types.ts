@@ -50,6 +50,14 @@ export interface MosCardConfig extends LovelaceCardConfig {
   show_power?: boolean;
 
   /**
+   * Show a badge on rows whose device reports a waiting update. Default true.
+   *
+   * The badge sits on the row's icon, so it needs `show_icon` as well. Only
+   * Docker containers report updates at all.
+   */
+  show_update?: boolean;
+
+  /**
    * Hide rows whose state is unavailable or unknown. Default false.
    *
    * Off by default on purpose: a device behind a failing MOS endpoint keeps its

@@ -68,7 +68,23 @@ interface KindInfo {
   readonly stateKeySuffix: string;
   /** Whether devices of this kind carry a start/stop switch. */
   readonly hasPower: boolean;
+  /**
+   * The `translation_key` of the kind's update-available binary sensor.
+   *
+   * Only Docker containers have one: MOS tracks an image's local and remote
+   * version, and neither LXC nor VM has an equivalent. Omitted for the kinds
+   * that carry no update information at all.
+   */
+  readonly updateTranslationKey?: string;
 }
+
+/**
+ * The `unique_id` suffix of every update-available entity, used as the fallback
+ * when a core does not serialize `translation_key` into the registry payload.
+ * The integration builds the id from the entity description's key, which is
+ * `update_available` for the one kind that has one.
+ */
+const UPDATE_KEY_SUFFIX = '_update_available';
 
 export const KIND_INFO: Readonly<Record<MosDeviceKind, KindInfo>> = {
   docker_container: {
@@ -76,6 +92,7 @@ export const KIND_INFO: Readonly<Record<MosDeviceKind, KindInfo>> = {
     stateTranslationKey: 'docker_state',
     stateKeySuffix: 'state',
     hasPower: true,
+    updateTranslationKey: 'docker_update_available',
   },
   lxc_container: {
     icon: 'mdi:linux',
@@ -341,6 +358,32 @@ export function findPowerEntity(
   }
 
   return entities.find((entity) => entity.entity_id.startsWith('switch.'));
+}
+
+/**
+ * The entity reporting that an update is waiting for this device, if it has one.
+ *
+ * Matched the same way as the state entity — `translation_key` first, the
+ * `unique_id` suffix as the fallback — but with no last-resort guess: an
+ * unrecognised entity would light up an update badge on a device that has no
+ * update, which is worse than showing none.
+ */
+export function findUpdateEntity(
+  entities: readonly EntityRegistryEntry[],
+  kind: MosDeviceKind,
+): EntityRegistryEntry | undefined {
+  const translationKey = KIND_INFO[kind].updateTranslationKey;
+
+  if (!translationKey) {
+    return undefined;
+  }
+
+  return (
+    entities.find((entity) => entity.translation_key === translationKey) ??
+    entities.find(
+      (entity) => entity.entity_id.startsWith('binary_sensor.') && entity.unique_id?.endsWith(UPDATE_KEY_SUFFIX),
+    )
+  );
 }
 
 /**
