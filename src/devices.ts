@@ -446,6 +446,85 @@ export function findUpdateEntity(
 }
 
 /**
+ * Name patterns deciding which rows a card lists.
+ *
+ * Matched against the name the row is *displayed* under, which is the name the
+ * user reads and would type. That is a deliberate exception to the rule that
+ * this card never matches on names: device *selection* is anchored on
+ * `model_id` and stays that way, and this filter narrows an already-selected
+ * list to the user's own taste. A renamed device therefore changes what this
+ * matches, which is correct — the user renamed the thing they are filtering on.
+ */
+export interface NameFilter {
+  include?: string | readonly string[];
+  exclude?: string | readonly string[];
+}
+
+const asPatterns = (value: string | readonly string[] | undefined): string[] => {
+  if (value === undefined) {
+    return [];
+  }
+
+  return (typeof value === 'string' ? [value] : value).map((pattern) => pattern.trim()).filter(Boolean);
+};
+
+/**
+ * Whether a name matches a glob pattern, case-insensitively.
+ *
+ * `*` and `?` only — the two wildcards someone types without being told the
+ * syntax. A pattern with neither is a substring match rather than an equality
+ * one, because "show me my arr containers" is what people mean when they type
+ * `arr`, and demanding `*arr*` for it is a syntax lesson nobody asked for.
+ */
+export function matchesPattern(name: string, pattern: string): boolean {
+  const subject = name.toLowerCase();
+  const glob = pattern.toLowerCase();
+
+  if (!glob.includes('*') && !glob.includes('?')) {
+    return subject.includes(glob);
+  }
+
+  const expression = glob
+    .split('')
+    .map((character) => {
+      if (character === '*') {
+        return '.*';
+      }
+      if (character === '?') {
+        return '.';
+      }
+
+      return character.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+    })
+    .join('');
+
+  return new RegExp(`^${expression}$`).test(subject);
+}
+
+/**
+ * Whether a row survives the configured name filter.
+ *
+ * An absent or empty `include` lets everything through, so a filter that only
+ * excludes does not have to name everything it keeps. `exclude` is applied
+ * after and wins, which is the order that lets "all the arr containers except
+ * the test one" be written the obvious way.
+ */
+export function passesFilter(name: string, filter: NameFilter | undefined): boolean {
+  if (!filter) {
+    return true;
+  }
+
+  const include = asPatterns(filter.include);
+  const exclude = asPatterns(filter.exclude);
+
+  if (include.length && !include.some((pattern) => matchesPattern(name, pattern))) {
+    return false;
+  }
+
+  return !exclude.some((pattern) => matchesPattern(name, pattern));
+}
+
+/**
  * The binary sensors on a device that could report a fault.
  *
  * Deliberately every one of them rather than a per-kind list: which of an

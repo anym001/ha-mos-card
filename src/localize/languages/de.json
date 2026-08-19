@@ -11,14 +11,16 @@
     "power_pending": "Warte auf den Server …",
     "confirm_stop": "{name} wirklich stoppen?",
     "update_available": "Update verfügbar",
-    "problem": "Problem gemeldet"
+    "problem": "Problem gemeldet",
+    "show_more": "{count} weitere anzeigen"
   },
   "errors": {
     "kinds_not_a_list": "'kinds' muss eine Liste sein",
     "no_kinds": "'kinds' darf nicht leer sein",
     "unknown_kind": "Unbekannte Geräteart",
     "unknown_sort": "Unbekannte Sortierung",
-    "unknown_secondary_info": "Unbekannte Zusatzangabe"
+    "unknown_secondary_info": "Unbekannte Zusatzangabe",
+    "bad_max_rows": "'max_rows' muss eine ganze Zahl ab 1 sein"
   },
   "kinds": {
     "docker_container": "Docker-Container",
@@ -34,6 +36,11 @@
     "all_servers": "Alle Server",
     "kinds": "Gerätearten",
     "kinds_hint": "Wird über die model_id des Geräts gematcht, damit die Liste Containern folgt, die kommen und gehen.",
+    "filter_include": "Nur diese Namen",
+    "filter_exclude": "Diese Namen ausnehmen",
+    "filter_hint": "Komma-getrennt. * und ? sind Platzhalter; ein einfaches Wort passt irgendwo im Namen.",
+    "max_rows": "Zeilen je Gruppe",
+    "max_rows_hint": "Der Rest klappt hinter einer Zeile zusammen, die ihn öffnet. Leer lassen für kein Limit.",
     "sort": "Sortieren nach",
     "sort_name": "Name",
     "sort_state": "Status, dann Name",

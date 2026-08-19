@@ -36,6 +36,7 @@ import {
   isMosDeviceKind,
   isUnavailableState,
   metricsForMode,
+  passesFilter,
   selectMosDevices,
   subscribeDeviceRegistry,
   subscribeEntityRegistry,
@@ -90,6 +91,10 @@ interface DeviceRow {
 interface RowGroup {
   kind: MosDeviceKind;
   rows: DeviceRow[];
+  /** How many rows the cap is hiding; zero when nothing is hidden. */
+  hidden: number;
+  /** Identifies the group across renders, so an opened one stays open. */
+  key: string;
 }
 
 /** Everything belonging to one MOS server. */
@@ -148,6 +153,14 @@ export class MosCard extends LitElement {
    */
   @state() private pending: ReadonlyMap<string, string> = new Map();
 
+  /**
+   * Groups the reader has opened past `max_rows`.
+   *
+   * Kept per group rather than per card, so opening the containers does not
+   * also unfold the disks. Replaced rather than mutated, so Lit sees it.
+   */
+  @state() private expanded: ReadonlySet<string> = new Set();
+
   private pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   private unsubscribe: UnsubscribeFunc[] = [];
@@ -183,6 +196,10 @@ export class MosCard extends LitElement {
 
     if (config.secondary_info !== undefined && !SECONDARY_INFO_MODES.includes(config.secondary_info)) {
       throw new Error(`${localize('errors.unknown_secondary_info')}: ${config.secondary_info}`);
+    }
+
+    if (config.max_rows !== undefined && (!Number.isInteger(config.max_rows) || config.max_rows < 1)) {
+      throw new Error(`${localize('errors.bad_max_rows')}: ${config.max_rows}`);
     }
 
     this.config = {
@@ -266,7 +283,8 @@ export class MosCard extends LitElement {
       changedProps.has('devices') ||
       changedProps.has('entities') ||
       changedProps.has('icons') ||
-      changedProps.has('pending')
+      changedProps.has('pending') ||
+      changedProps.has('expanded')
     ) {
       return true;
     }
@@ -466,11 +484,21 @@ export class MosCard extends LitElement {
               problemCandidates: this.config.show_problem ? findProblemCandidates(deviceEntities) : [],
             };
           })
+          .filter((row) => passesFilter(row.name, this.config.filter))
           .filter((row) => !this.config.hide_unavailable || !isUnavailableState(this.stateValue(row)))
           .sort((left, right) => this.compareRows(left, right));
 
         if (rows.length) {
-          groups.push({ kind, rows });
+          const key = `${serverId ?? ''}:${kind}`;
+          const cap = this.config.max_rows;
+          const capped = cap !== undefined && !this.expanded.has(key) && rows.length > cap;
+
+          groups.push({
+            kind,
+            key,
+            rows: capped ? rows.slice(0, cap) : rows,
+            hidden: capped ? rows.length - (cap as number) : 0,
+          });
         }
       }
 
@@ -598,7 +626,32 @@ export class MosCard extends LitElement {
     return html`
       ${this.config.group_by_kind ? html`<div class="kind-heading">${localize(`kinds.${group.kind}`)}</div>` : nothing}
       <div class="group">${group.rows.map((row) => this.renderRow(row))}</div>
+      ${this.renderMore(group)}
     `;
+  }
+
+  /**
+   * The line standing in for the rows `max_rows` folded away.
+   *
+   * A button rather than a note, because a count of what is hidden without a
+   * way to see it is worse than not capping at all. Opening is one-way for the
+   * life of the card: someone who asked to see the rest is not looking for a
+   * way to hide them again.
+   */
+  private renderMore(group: RowGroup): TemplateResult | typeof nothing {
+    if (!group.hidden) {
+      return nothing;
+    }
+
+    return html`
+      <button class="more" @click=${() => this.expandGroup(group.key)}>
+        ${localize('common.show_more', '{count}', String(group.hidden))}
+      </button>
+    `;
+  }
+
+  private expandGroup(key: string): void {
+    this.expanded = new Set(this.expanded).add(key);
   }
 
   private renderRow(row: DeviceRow): TemplateResult {
@@ -1064,6 +1117,32 @@ export class MosCard extends LitElement {
         display: flex;
         flex-direction: column;
         gap: 8px;
+      }
+
+      /* Opens the rows the cap folded away. Sized and coloured like the kind
+         headings rather than like a row, so it reads as part of the list's
+         furniture and not as another device. */
+      .more {
+        margin: 8px 4px 0;
+        padding: 4px 8px;
+        border: none;
+        border-radius: 8px;
+        background: none;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.8em;
+        font-weight: 500;
+        color: var(--secondary-text-color);
+      }
+
+      .more:hover {
+        color: var(--primary-color);
+        background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+      }
+
+      .more:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 1px;
       }
 
       /* Every row carries a tone class derived from its state; these map it onto

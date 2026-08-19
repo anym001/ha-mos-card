@@ -1,6 +1,6 @@
 import { ActionConfig, LovelaceCardConfig, LovelaceCardEditor } from 'custom-card-helpers';
 
-import type { MosDeviceKind, RowSort, SecondaryInfo } from './devices';
+import type { MosDeviceKind, NameFilter, RowSort, SecondaryInfo } from './devices';
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -33,6 +33,26 @@ export interface MosCardConfig extends LovelaceCardConfig {
 
   /** Group rows under a heading per kind. Default true. */
   group_by_kind?: boolean;
+
+  /**
+   * Narrow the list by name. Default: everything the kinds allow.
+   *
+   * `include` and `exclude` each take a pattern or a list of them, matched
+   * case-insensitively against the name shown on the row. `*` and `?` are
+   * wildcards; a pattern with neither matches anywhere in the name, so
+   * `arr` finds Sonarr and Radarr. `exclude` is applied last and wins.
+   */
+  filter?: NameFilter;
+
+  /**
+   * Cap how many rows each group lists. Default: no cap.
+   *
+   * The rest are folded behind a line that says how many there are and opens
+   * them in place. Counted per group, so a card grouped by kind keeps a few of
+   * each rather than filling itself with containers; with `group_by_kind: false`
+   * there is one group per server and this caps the card as a whole.
+   */
+  max_rows?: number;
 
   /**
    * The order rows are listed in within a group. Default `name`.

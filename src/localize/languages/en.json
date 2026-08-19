@@ -11,14 +11,16 @@
     "power_pending": "Waiting for the server…",
     "confirm_stop": "Stop {name}?",
     "update_available": "Update available",
-    "problem": "Problem reported"
+    "problem": "Problem reported",
+    "show_more": "Show {count} more"
   },
   "errors": {
     "kinds_not_a_list": "'kinds' must be a list",
     "no_kinds": "'kinds' must not be empty",
     "unknown_kind": "Unknown device kind",
     "unknown_sort": "Unknown sort order",
-    "unknown_secondary_info": "Unknown secondary info"
+    "unknown_secondary_info": "Unknown secondary info",
+    "bad_max_rows": "'max_rows' must be a whole number of at least 1"
   },
   "kinds": {
     "docker_container": "Docker containers",
@@ -34,6 +36,11 @@
     "all_servers": "All servers",
     "kinds": "Device kinds",
     "kinds_hint": "Matched on the device's model_id, so the list follows containers as they come and go.",
+    "filter_include": "Only these names",
+    "filter_exclude": "Except these names",
+    "filter_hint": "Comma-separated. * and ? are wildcards; a plain word matches anywhere in the name.",
+    "max_rows": "Rows per group",
+    "max_rows_hint": "The rest are folded behind a line that opens them. Leave empty for no limit.",
     "sort": "Sort by",
     "sort_name": "Name",
     "sort_state": "State, then name",
