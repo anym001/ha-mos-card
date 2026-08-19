@@ -35,6 +35,7 @@
     "show_link": "Link anzeigen",
     "show_power": "Start/Stopp-Knopf anzeigen",
     "hide_unavailable": "Nicht verfügbare Geräte ausblenden",
+    "actions_note": "Aktionen",
     "tap_action": "Aktion bei Tippen",
     "hold_action": "Aktion bei Gedrückthalten",
     "double_tap_action": "Aktion bei Doppeltippen",

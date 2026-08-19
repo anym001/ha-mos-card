@@ -35,6 +35,7 @@
     "show_link": "Show link",
     "show_power": "Show power button",
     "hide_unavailable": "Hide unavailable devices",
+    "actions_note": "Actions",
     "tap_action": "Tap action",
     "hold_action": "Hold action",
     "double_tap_action": "Double tap action",

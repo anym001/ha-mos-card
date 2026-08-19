@@ -26,13 +26,16 @@ const ACTIONS = [
 /** Localization keys for the fields that need a line of explanation under them. */
 const HELPERS: Readonly<Record<string, string>> = {
   kinds: 'editor.kinds_hint',
-  tap_action: 'editor.actions_hint',
 };
 
 /** One entry of an `ha-form` schema. Home Assistant types this internally. */
 interface FormSchema {
   name: string;
-  selector: Record<string, unknown>;
+  /** Absent on the `constant` rows, which render text rather than an input. */
+  selector?: Record<string, unknown>;
+  /** `constant` renders `label: value` as static text and collects no data. */
+  type?: 'constant';
+  value?: string;
 }
 
 @customElement('mos-card-editor')
@@ -121,6 +124,12 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
         },
       },
       ...TOGGLES.map((option) => ({ name: option, selector: { boolean: {} } })),
+      // A `constant` row rather than a helper on the tap field: Home Assistant
+      // renders a `ui_action` helper as a tooltip behind a "?", which hides a
+      // rule that applies to all three gestures — and hides it completely on
+      // touch, where there is nothing to hover. This row collects no data, so
+      // the name never reaches the config.
+      { name: 'actions_note', type: 'constant', value: localize('editor.actions_hint') },
       ...ACTIONS.map((action) => ({
         name: action.name,
         selector: { ui_action: { default_action: action.default } },
