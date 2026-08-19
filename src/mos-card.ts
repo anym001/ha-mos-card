@@ -202,6 +202,13 @@ export class MosCard extends LitElement {
       throw new Error(`${localize('errors.bad_max_rows')}: ${config.max_rows}`);
     }
 
+    if (
+      config.columns !== undefined &&
+      (!Number.isInteger(config.columns) || config.columns < 1 || config.columns > 4)
+    ) {
+      throw new Error(`${localize('errors.bad_columns')}: ${config.columns}`);
+    }
+
     this.config = {
       kinds: [...MOS_DEVICE_KINDS],
       group_by_kind: true,
@@ -214,6 +221,8 @@ export class MosCard extends LitElement {
       show_power: true,
       confirm_stop: false,
       show_problem: true,
+      columns: 1,
+      compact: false,
       show_update: true,
       hide_unavailable: false,
       tap_action: { action: 'more-info' },
@@ -625,7 +634,7 @@ export class MosCard extends LitElement {
   private renderGroup(group: RowGroup): TemplateResult {
     return html`
       ${this.config.group_by_kind ? html`<div class="kind-heading">${localize(`kinds.${group.kind}`)}</div>` : nothing}
-      <div class="group">${group.rows.map((row) => this.renderRow(row))}</div>
+      <div class="group cols-${this.config.columns ?? 1}">${group.rows.map((row) => this.renderRow(row))}</div>
       ${this.renderMore(group)}
     `;
   }
@@ -659,7 +668,12 @@ export class MosCard extends LitElement {
     const unavailable = isUnavailableState(stateObj?.state);
 
     return html`
-      <div class="row ${unavailable ? 'unavailable' : ''} tone-${this.tone(row.kind, stateObj)}">
+      <div
+        class="row ${unavailable ? 'unavailable' : ''} ${this.config.compact ? 'compact' : ''} tone-${this.tone(
+          row.kind,
+          stateObj,
+        )}"
+      >
         <div
           class="row-body"
           @action=${(ev: ActionHandlerEvent) => this.handleAction(ev, row)}
@@ -1074,6 +1088,10 @@ export class MosCard extends LitElement {
     return css`
       .card-content {
         padding: 4px 12px 12px;
+        /* The column layout below asks about the card's own width, not the
+           window's: the same card is wide in one dashboard column and narrow in
+           three, and only a container query can tell the difference. */
+        container-type: inline-size;
       }
 
       .notice {
@@ -1114,15 +1132,51 @@ export class MosCard extends LitElement {
       }
 
       .group {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: 1fr;
         gap: 8px;
+      }
+
+      .group.cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .group.cols-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .group.cols-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      /* A row needs roughly 220px before its name turns to ellipsis, so the
+         asked-for count is given up in steps rather than all at once. */
+      @container (max-width: 900px) {
+        .group.cols-4 {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @container (max-width: 680px) {
+        .group.cols-3,
+        .group.cols-4 {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @container (max-width: 440px) {
+        .group.cols-2,
+        .group.cols-3,
+        .group.cols-4 {
+          grid-template-columns: 1fr;
+        }
       }
 
       /* Opens the rows the cap folded away. Sized and coloured like the kind
          headings rather than like a row, so it reads as part of the list's
          furniture and not as another device. */
       .more {
+        justify-self: start;
         margin: 8px 4px 0;
         padding: 4px 8px;
         border: none;
@@ -1168,6 +1222,43 @@ export class MosCard extends LitElement {
         border-radius: 14px;
         box-sizing: border-box;
         background: var(--row-background);
+      }
+
+      /* Everything shrinks together, so the row keeps its proportions and does
+         not just look like a squashed version of itself. */
+      .row.compact {
+        gap: 8px;
+        padding: 4px 8px;
+        min-height: 40px;
+        border-radius: 10px;
+      }
+
+      .row.compact .icon {
+        width: 32px;
+        height: 32px;
+        padding: 5px;
+        border-radius: 9px;
+        --mdc-icon-size: 20px;
+      }
+
+      .row.compact .link,
+      .row.compact .power-button {
+        width: 28px;
+        height: 28px;
+        --mdc-icon-size: 16px;
+      }
+
+      .row.compact .update-badge,
+      .row.compact .problem-badge {
+        width: 14px;
+        height: 14px;
+        border-width: 1.5px;
+        --mdc-icon-size: 8px;
+      }
+
+      .row.compact .spinner {
+        width: 13px;
+        height: 13px;
       }
 
       .row.tone-active {

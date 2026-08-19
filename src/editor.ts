@@ -17,6 +17,7 @@ import { localize } from './localize/localize';
 /** The boolean options, each rendered as its own switch. */
 const TOGGLES = [
   'group_by_kind',
+  'compact',
   'show_server_summary',
   'show_icon',
   'show_state',
@@ -35,7 +36,12 @@ const TOGGLES = [
  * these adds friction, hides information or takes room, none of which is what
  * an untouched card should do.
  */
-const OFF_BY_DEFAULT: ReadonlySet<string> = new Set(['confirm_stop', 'hide_unavailable', 'show_server_summary']);
+const OFF_BY_DEFAULT: ReadonlySet<string> = new Set([
+  'compact',
+  'confirm_stop',
+  'hide_unavailable',
+  'show_server_summary',
+]);
 
 /**
  * The action options, paired with the action the card falls back to without them.
@@ -59,6 +65,7 @@ const HELPERS: Readonly<Record<string, string>> = {
   show_problem: 'editor.show_problem_hint',
   filter_include: 'editor.filter_hint',
   max_rows: 'editor.max_rows_hint',
+  columns: 'editor.columns_hint',
 };
 
 /** The filter's list form as one editable line, and back. */
@@ -169,6 +176,7 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
       { name: 'filter_include', selector: { text: {} } },
       { name: 'filter_exclude', selector: { text: {} } },
       { name: 'max_rows', selector: { number: { min: 1, max: 100, mode: 'box' } } },
+      { name: 'columns', selector: { number: { min: 1, max: 4, mode: 'slider' } } },
       {
         name: 'sort',
         selector: {
@@ -222,6 +230,7 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
       filter_include: patternsToText(config.filter?.include),
       filter_exclude: patternsToText(config.filter?.exclude),
       max_rows: config.max_rows,
+      columns: config.columns ?? 1,
     };
 
     for (const option of TOGGLES) {
