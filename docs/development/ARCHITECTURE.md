@@ -179,11 +179,34 @@ Rollup and Terser both target ES2022. Do not lower those targets: Lit 3 uses nat
 syntax, and transpiling to ES5 produces `TypeError: Class constructor cannot be invoked without
 'new'` at runtime.
 
+## Tests
+
+`yarn test` runs Vitest over `tests/`, in a plain node environment with no DOM.
+
+What is covered is `src/devices.ts`: the `model_id` selection, the two-step entity lookups, the
+per-kind metric map and the name filter. That is the part with a contract to keep — the one
+documented on the integration side — and it is all pure functions taking registry entries and
+returning registry entries.
+
+What is deliberately not covered is the component. Rendering `mos-card` needs a DOM shim, a `hass`
+stub and a Lit update cycle, and the resulting assertions are mostly that Lit works. The card's
+visible behaviour is verified against a live Home Assistant instead, which is what the pull requests
+record.
+
+`tests/fixtures.ts` builds registry entries in the shape a live instance sends: device names carry
+the server-and-kind prefix the integration writes, `unique_id`s carry the config entry id followed
+by the entity description key, and the server device has no `model_id`. Two habits matter when
+adding to them. Fixtures that drift from the real payload let tests pass on code that cannot read
+the real thing. And fixture _order_ can hide a bug: `findStateEntity` ends in a "first sensor on the
+device" last resort, so entities in registry order make the `unique_id` fallback untestable — the
+suite reverses them for exactly that case.
+
 ## Continuous Integration
 
 | Workflow               | What it proves                                                                 |
 | ---------------------- | ------------------------------------------------------------------------------ |
 | `lint.yml`             | ESLint, `tsc --noEmit`, markdownlint and `prettier --check` — the type gate    |
+| `test.yml`             | Vitest over `tests/` — the suites described above                              |
 | `build.yml`            | A clean checkout with `--immutable` dependencies still produces a bundle       |
 | `no-npm-lockfiles.yml` | No `package-lock.json` slipped in; this repository is Yarn-only                |
 | `validate.yml`         | `hacs/action` with `category: plugin`, nightly and on pull requests            |
