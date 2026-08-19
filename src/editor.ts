@@ -57,7 +57,19 @@ const HELPERS: Readonly<Record<string, string>> = {
   secondary_info: 'editor.secondary_info_hint',
   show_server_summary: 'editor.show_server_summary_hint',
   show_problem: 'editor.show_problem_hint',
+  filter_include: 'editor.filter_hint',
+  max_rows: 'editor.max_rows_hint',
 };
+
+/** The filter's list form as one editable line, and back. */
+const patternsToText = (value: string | readonly string[] | undefined): string =>
+  value === undefined ? '' : (typeof value === 'string' ? [value] : value).join(', ');
+
+const textToPatterns = (value: unknown): string[] =>
+  String(value ?? '')
+    .split(',')
+    .map((pattern) => pattern.trim())
+    .filter(Boolean);
 
 /** One entry of an `ha-form` schema. Home Assistant types this internally. */
 interface FormSchema {
@@ -154,6 +166,9 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
           },
         },
       },
+      { name: 'filter_include', selector: { text: {} } },
+      { name: 'filter_exclude', selector: { text: {} } },
+      { name: 'max_rows', selector: { number: { min: 1, max: 100, mode: 'box' } } },
       {
         name: 'sort',
         selector: {
@@ -202,6 +217,11 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
       kinds: config.kinds ?? [...MOS_DEVICE_KINDS],
       sort: config.sort ?? 'name',
       secondary_info: config.secondary_info ?? 'none',
+      // The filter is a list in the config and a comma-separated line in the
+      // form, because a repeating text field is not something `ha-form` offers.
+      filter_include: patternsToText(config.filter?.include),
+      filter_exclude: patternsToText(config.filter?.exclude),
+      max_rows: config.max_rows,
     };
 
     for (const option of TOGGLES) {
@@ -248,6 +268,28 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
 
     const value = ev.detail.value as Record<string, unknown>;
     const config: MosCardConfig = { ...this._config, ...value } as MosCardConfig;
+
+    // The two filter lines are the form's own fields, not config keys: they are
+    // folded back into one `filter` object, and the object is dropped entirely
+    // when both are empty so an untouched card keeps no filter at all.
+    const include = textToPatterns(value.filter_include);
+    const exclude = textToPatterns(value.filter_exclude);
+
+    delete (config as Record<string, unknown>).filter_include;
+    delete (config as Record<string, unknown>).filter_exclude;
+
+    if (include.length || exclude.length) {
+      config.filter = {
+        ...(include.length ? { include } : {}),
+        ...(exclude.length ? { exclude } : {}),
+      };
+    } else {
+      delete config.filter;
+    }
+
+    if (!value.max_rows) {
+      delete config.max_rows;
+    }
 
     // The form has to hand back a value for every key it renders, so the two
     // optional ones arrive as empty strings when cleared. Lovelace would write
