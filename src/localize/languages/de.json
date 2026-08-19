@@ -21,7 +21,7 @@
     "unknown_sort": "Unbekannte Sortierung",
     "unknown_secondary_info": "Unbekannte Zusatzangabe",
     "bad_max_rows": "'max_rows' muss eine ganze Zahl ab 1 sein",
-    "bad_columns": "'columns' muss eine ganze Zahl von 1 bis 4 sein"
+    "bad_columns": "'columns' muss 1 oder 2 sein"
   },
   "kinds": {
     "docker_container": "Docker-Container",
@@ -43,7 +43,7 @@
     "max_rows": "Zeilen je Gruppe",
     "max_rows_hint": "Der Rest klappt hinter einer Zeile zusammen, die ihn öffnet. Leer lassen für kein Limit.",
     "columns": "Spalten",
-    "columns_hint": "Home Assistant deckelt eine Karte bei etwa 500 px — das reicht für zwei Spalten und will kompakte Zeilen. Mehr braucht ein erhöhtes --ha-view-sections-column-max-width im Theme; die Karte fällt sonst auf das zurück, was passt.",
+    "columns_hint": "Zwei ist das Maximum: Home Assistant gibt einer Karte etwa 500 px, das sind zwei lesbare Zeilen nebeneinander — und zwei wollen kompakte Zeilen. Eine schmalere Karte fällt auf eine zurück.",
     "compact": "Kompakte Zeilen",
     "sort": "Sortieren nach",
     "sort_name": "Name",

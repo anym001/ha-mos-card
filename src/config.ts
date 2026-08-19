@@ -14,8 +14,16 @@ import type { NameFilter } from './devices';
 import type { MosCardConfig } from './types';
 import { localize } from './localize/localize';
 
-/** The largest `columns` the layout has styles for. */
-export const MAX_COLUMNS = 4;
+/**
+ * The largest `columns` the layout has styles for.
+ *
+ * Two, because Home Assistant gives a card about 500 px and no dashboard on a
+ * default install makes it wider — `--ha-view-sections-column-max-width`
+ * defaults to `500px` and masonry caps at the same figure. Three columns were
+ * offered once and could not be reached: they rendered as two, which is the
+ * responsive fallback working and an option that lies about what it does.
+ */
+export const MAX_COLUMNS = 2;
 
 /**
  * What the card does when the config says nothing.

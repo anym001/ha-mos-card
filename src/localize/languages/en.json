@@ -21,7 +21,7 @@
     "unknown_sort": "Unknown sort order",
     "unknown_secondary_info": "Unknown secondary info",
     "bad_max_rows": "'max_rows' must be a whole number of at least 1",
-    "bad_columns": "'columns' must be a whole number from 1 to 4"
+    "bad_columns": "'columns' must be 1 or 2"
   },
   "kinds": {
     "docker_container": "Docker containers",
@@ -43,7 +43,7 @@
     "max_rows": "Rows per group",
     "max_rows_hint": "The rest are folded behind a line that opens them. Leave empty for no limit.",
     "columns": "Columns",
-    "columns_hint": "Home Assistant caps a card at about 500 px, which fits two columns and wants compact rows. More needs --ha-view-sections-column-max-width raised in your theme; the card drops to what fits.",
+    "columns_hint": "Two is the ceiling: Home Assistant gives a card about 500 px, which is two readable rows across — and two wants compact rows. A narrower card falls back to one.",
     "compact": "Compact rows",
     "sort": "Sort by",
     "sort_name": "Name",
