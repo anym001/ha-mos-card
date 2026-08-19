@@ -7,7 +7,8 @@
     "no_state_entity": "Keine Status-Entität",
     "server": "MOS-Server",
     "open_link": "Weboberfläche öffnen",
-    "toggle_power": "Starten oder stoppen"
+    "toggle_power": "Starten oder stoppen",
+    "update_available": "Update verfügbar"
   },
   "errors": {
     "kinds_not_a_list": "'kinds' muss eine Liste sein",
@@ -34,6 +35,7 @@
     "show_state": "Status anzeigen",
     "show_link": "Link anzeigen",
     "show_power": "Start/Stopp-Knopf anzeigen",
+    "show_update": "Update-Markierung anzeigen",
     "hide_unavailable": "Nicht verfügbare Geräte ausblenden",
     "actions_note": "Aktionen",
     "tap_action": "Aktion bei Tippen",
