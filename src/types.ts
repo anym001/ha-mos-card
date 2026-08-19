@@ -1,6 +1,6 @@
 import { ActionConfig, LovelaceCardConfig, LovelaceCardEditor } from 'custom-card-helpers';
 
-import type { MosDeviceKind } from './devices';
+import type { MosDeviceKind, RowSort } from './devices';
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -33,6 +33,16 @@ export interface MosCardConfig extends LovelaceCardConfig {
 
   /** Group rows under a heading per kind. Default true. */
   group_by_kind?: boolean;
+
+  /**
+   * The order rows are listed in within a group. Default `name`.
+   *
+   * `state` puts what is running first, then what is paused, then what is
+   * stopped, alphabetically within each — the order that answers "what is up
+   * right now" without reading every row. Kinds whose state says nothing about
+   * running, disks and pools, stay alphabetical under both.
+   */
+  sort?: RowSort;
 
   /** Show the state entity's icon or MOS template picture. Default true. */
   show_icon?: boolean;

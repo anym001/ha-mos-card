@@ -44,6 +44,11 @@ export type MosDeviceKind = (typeof MOS_DEVICE_KINDS)[number];
 
 const MOS_DEVICE_KIND_SET: ReadonlySet<string> = new Set(MOS_DEVICE_KINDS);
 
+/** The order rows are listed in within a group. */
+export const ROW_SORTS = ['name', 'state'] as const;
+
+export type RowSort = (typeof ROW_SORTS)[number];
+
 export function isMosDeviceKind(value: unknown): value is MosDeviceKind {
   return typeof value === 'string' && MOS_DEVICE_KIND_SET.has(value);
 }

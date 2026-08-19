@@ -20,6 +20,7 @@ import {
   KIND_INFO,
   MOS_DEVICE_KINDS,
   MosDeviceKind,
+  ROW_SORTS,
   declaredIcon,
   deviceDisplayName,
   entitiesByDevice,
@@ -165,9 +166,14 @@ export class MosCard extends LitElement {
       }
     }
 
+    if (config.sort !== undefined && !ROW_SORTS.includes(config.sort)) {
+      throw new Error(`${localize('errors.unknown_sort')}: ${config.sort}`);
+    }
+
     this.config = {
       kinds: [...MOS_DEVICE_KINDS],
       group_by_kind: true,
+      sort: 'name',
       show_icon: true,
       show_state: true,
       show_link: true,
@@ -419,7 +425,7 @@ export class MosCard extends LitElement {
             };
           })
           .filter((row) => !this.config.hide_unavailable || !isUnavailableState(this.stateValue(row)))
-          .sort((left, right) => left.name.localeCompare(right.name));
+          .sort((left, right) => this.compareRows(left, right));
 
         if (rows.length) {
           groups.push({ kind, rows });
@@ -436,6 +442,33 @@ export class MosCard extends LitElement {
 
   private stateValue(row: DeviceRow): string | undefined {
     return row.stateEntity ? this.hass?.states[row.stateEntity.entity_id]?.state : undefined;
+  }
+
+  /**
+   * How two rows of the same kind are ordered.
+   *
+   * `state` ranks by the same tone the row is drawn in, so the sorted order and
+   * the colours tell the same story, and falls back to the name so that two
+   * rows in the same state keep a stable, readable order.
+   */
+  private compareRows(left: DeviceRow, right: DeviceRow): number {
+    if (this.config.sort === 'state') {
+      const rank = this.sortRank(left) - this.sortRank(right);
+
+      if (rank !== 0) {
+        return rank;
+      }
+    }
+
+    return left.name.localeCompare(right.name);
+  }
+
+  /** Where a row's tone places it under `sort: state`. */
+  private sortRank(row: DeviceRow): number {
+    const order = ['active', 'idle', 'neutral', 'inactive', 'unknown'];
+    const stateObj = row.stateEntity ? this.hass?.states[row.stateEntity.entity_id] : undefined;
+
+    return order.indexOf(this.tone(row.kind, stateObj));
   }
 
   protected render(): TemplateResult {
