@@ -70,3 +70,20 @@ export interface MosCardConfig extends LovelaceCardConfig {
   hold_action?: ActionConfig;
   double_tap_action?: ActionConfig;
 }
+
+/**
+ * What a card tells the sections view about the space it wants.
+ *
+ * Declared here rather than imported: `custom-card-helpers` predates the
+ * sections layout and types nothing for it, so this follows the frontend's own
+ * shape. `'full'` spans the section's twelve columns and `'auto'` lets the card
+ * take the height its content needs.
+ */
+export interface LovelaceGridOptions {
+  columns?: number | 'full';
+  rows?: number | 'auto';
+  min_columns?: number;
+  min_rows?: number;
+  max_columns?: number;
+  max_rows?: number;
+}
