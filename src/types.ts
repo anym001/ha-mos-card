@@ -50,6 +50,15 @@ export interface MosCardConfig extends LovelaceCardConfig {
   show_power?: boolean;
 
   /**
+   * Ask before stopping a running guest. Default false.
+   *
+   * Only the stop direction asks. Starting something is cheap and undone by a
+   * second click; stopping a VM someone is working in is neither, and the
+   * button sits right next to the link button.
+   */
+  confirm_stop?: boolean;
+
+  /**
    * Show a badge on rows whose device reports a waiting update. Default true.
    *
    * The badge sits on the row's icon, so it needs `show_icon` as well. Only
