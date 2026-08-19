@@ -12,7 +12,7 @@ import {
   computeStateDisplay,
 } from 'custom-card-helpers';
 
-import type { MosCardConfig } from './types';
+import type { LovelaceGridOptions, MosCardConfig } from './types';
 import {
   DeviceRegistryEntry,
   EntityRegistryEntry,
@@ -306,6 +306,24 @@ export class MosCard extends LitElement {
     );
 
     return Math.max(3, rows + 1);
+  }
+
+  /**
+   * The card's footprint in the sections view.
+   *
+   * `getCardSize` above answers for masonry; the sections layout asks this
+   * instead. Full width and content-driven height are what a card that answers
+   * nothing already falls back to today, so declaring them changes no existing
+   * dashboard — it states the card's shape rather than inheriting it from a
+   * frontend default that is free to move.
+   *
+   * `min_columns` is the part that does something on its own: a row carries an
+   * icon, a name, a state and up to two controls, and the frontend honours the
+   * floor when a dashboard asks for less, so the card can no longer be squeezed
+   * to a width where every name is ellipsis.
+   */
+  public getGridOptions(): LovelaceGridOptions {
+    return { columns: 12, rows: 'auto', min_columns: 6 };
   }
 
   /**
