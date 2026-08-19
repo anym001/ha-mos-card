@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.2.1](https://github.com/anym001/ha-mos-card/compare/v0.2.0...v0.2.1) (2026-08-19)
+
+
+### Features
+
+* **card:** badge devices reporting a fault ([76a66aa](https://github.com/anym001/ha-mos-card/commit/76a66aa074fda66df59ef7d7562d30be986fef33))
+* **card:** badge devices with a waiting update ([2e27aa5](https://github.com/anym001/ha-mos-card/commit/2e27aa57e643f5aee2776cb381c49b39368a23d8))
+* **card:** declare the card's footprint for the sections layout ([d71448a](https://github.com/anym001/ha-mos-card/commit/d71448a37046b19c17e13ed6db9b96e726417759))
+* **card:** filter rows by name and cap how many a group lists ([46b5cf9](https://github.com/anym001/ha-mos-card/commit/46b5cf9b26c6d3cdef8827896e10d548941ad242))
+* **card:** offer a confirmation before stopping a guest ([aa6a891](https://github.com/anym001/ha-mos-card/commit/aa6a8910ae647d65920908cf0256f67c4739365f))
+* **card:** offer compact rows and a multi-column layout ([c29202b](https://github.com/anym001/ha-mos-card/commit/c29202bea9a46db64af4146ece4b20fdeaa0d69e))
+* **card:** offer sorting rows by state ([0323600](https://github.com/anym001/ha-mos-card/commit/03236009b814280746b54cd513a5e469a98c01eb))
+* **card:** show a measurement beside each row's state ([d334a27](https://github.com/anym001/ha-mos-card/commit/d334a270125db5c2f0256d3b15e4ae390d4da5a6))
+* **card:** show the power button waiting for the server ([cd2d566](https://github.com/anym001/ha-mos-card/commit/cd2d566dc5d0efa9c2af1bde2d3a0c3b4a4181db))
+* **card:** summarise the server beside its name ([274b265](https://github.com/anym001/ha-mos-card/commit/274b26576c0b2e3b8b18b8f252bc8868005feb59))
+* **editor:** expose the tap, hold and double tap actions ([af714de](https://github.com/anym001/ha-mos-card/commit/af714de7284d852733c6cc023ab6784bdea38fe3))
+* **editor:** show the action note as a visible line ([740cde8](https://github.com/anym001/ha-mos-card/commit/740cde831704c864d9347f6b1e553d16d01868dd))
+
+
+### Bug Fixes
+
+* **card:** cap columns at two, the widest a card ever gets ([0a0de42](https://github.com/anym001/ha-mos-card/commit/0a0de42de2f80035d8e9aa609b64d4bbbd939e5b))
+* **card:** toggle the power switch, not the state sensor ([4fd92ca](https://github.com/anym001/ha-mos-card/commit/4fd92ca56c96dcdf153781562739238ee9812aae))
+
 ## [0.2.0](https://github.com/anym001/ha-mos-card/compare/v0.1.2...v0.2.0) (2026-08-18)
 
 
