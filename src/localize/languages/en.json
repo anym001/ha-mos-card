@@ -16,7 +16,8 @@
     "kinds_not_a_list": "'kinds' must be a list",
     "no_kinds": "'kinds' must not be empty",
     "unknown_kind": "Unknown device kind",
-    "unknown_sort": "Unknown sort order"
+    "unknown_sort": "Unknown sort order",
+    "unknown_secondary_info": "Unknown secondary info"
   },
   "kinds": {
     "docker_container": "Docker containers",
@@ -35,6 +36,12 @@
     "sort": "Sort by",
     "sort_name": "Name",
     "sort_state": "State, then name",
+    "secondary_info": "Extra value",
+    "secondary_info_hint": "Shown beside the state. A value the server cannot report right now is left out.",
+    "secondary_info_none": "None",
+    "secondary_info_auto": "Automatic per kind",
+    "secondary_info_cpu": "CPU usage",
+    "secondary_info_memory": "Memory usage",
     "display": "Display",
     "group_by_kind": "Group by kind",
     "show_icon": "Show icon",

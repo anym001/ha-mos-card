@@ -8,6 +8,7 @@ import {
   DeviceRegistryEntry,
   MOS_DEVICE_KINDS,
   ROW_SORTS,
+  SECONDARY_INFO_MODES,
   findServerDevices,
   subscribeDeviceRegistry,
 } from './devices';
@@ -51,6 +52,7 @@ const ACTIONS = [
 const HELPERS: Readonly<Record<string, string>> = {
   kinds: 'editor.kinds_hint',
   confirm_stop: 'editor.confirm_stop_hint',
+  secondary_info: 'editor.secondary_info_hint',
 };
 
 /** One entry of an `ha-form` schema. Home Assistant types this internally. */
@@ -157,6 +159,18 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
           },
         },
       },
+      {
+        name: 'secondary_info',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: SECONDARY_INFO_MODES.map((mode) => ({
+              value: mode,
+              label: localize(`editor.secondary_info_${mode}`),
+            })),
+          },
+        },
+      },
       ...TOGGLES.map((option) => ({ name: option, selector: { boolean: {} } })),
       // A `constant` row rather than a helper on the tap field: Home Assistant
       // renders a `ui_action` helper as a tooltip behind a "?", which hides a
@@ -183,6 +197,7 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
       server: config.server ?? '',
       kinds: config.kinds ?? [...MOS_DEVICE_KINDS],
       sort: config.sort ?? 'name',
+      secondary_info: config.secondary_info ?? 'none',
     };
 
     for (const option of TOGGLES) {

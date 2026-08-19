@@ -66,6 +66,52 @@ export function isMosDeviceKind(value: unknown): value is MosDeviceKind {
  * as a fallback when the entity registry does not hand us a `translation_key`
  * (older Home Assistant cores omit it from the websocket payload).
  */
+/**
+ * Which measurement a row shows beside its state.
+ *
+ * `auto` is per kind — see `KindMetrics.auto`. The two explicit modes only
+ * resolve on the kinds that have such a number; a disk asked for CPU shows
+ * nothing rather than something else.
+ */
+export const SECONDARY_INFO_MODES = ['none', 'auto', 'cpu', 'memory'] as const;
+
+export type SecondaryInfo = (typeof SECONDARY_INFO_MODES)[number];
+
+/**
+ * How to find one measurement on a device.
+ *
+ * The same two-step lookup the state entity uses: `translationKey` is the
+ * integration's own name for the entity and survives renames, `keySuffix` is
+ * the entity description key the `unique_id` ends with and covers the cores
+ * that do not serialize a translation key into the registry payload.
+ */
+export interface MetricRef {
+  readonly translationKey: string;
+  readonly keySuffix: string;
+}
+
+/** The measurements a kind can show beside its state. */
+interface KindMetrics {
+  readonly cpu?: MetricRef;
+  readonly memory?: MetricRef;
+  /**
+   * What `auto` shows for this kind, in order.
+   *
+   * Chosen per kind rather than uniformly, because the interesting number is
+   * not the same everywhere: a guest is busy or idle, a disk is warm or cool,
+   * a pool is full or empty. For the three guest kinds this is CPU and memory;
+   * the other three have one number each and no CPU or memory to speak of.
+   */
+  readonly auto: readonly MetricRef[];
+}
+
+const guestMetrics = (prefix: string): KindMetrics => {
+  const cpu = { translationKey: `${prefix}_cpu_usage`, keySuffix: 'cpu_usage' };
+  const memory = { translationKey: `${prefix}_memory_usage`, keySuffix: 'memory_usage' };
+
+  return { cpu, memory, auto: [cpu, memory] };
+};
+
 interface KindInfo {
   /** Fallback icon, used when the state entity has no `entity_picture`. */
   readonly icon: string;
@@ -81,6 +127,8 @@ interface KindInfo {
    * that carry no update information at all.
    */
   readonly updateTranslationKey?: string;
+  /** The measurements this kind can show beside its state. */
+  readonly metrics: KindMetrics;
 }
 
 /**
@@ -98,36 +146,42 @@ export const KIND_INFO: Readonly<Record<MosDeviceKind, KindInfo>> = {
     stateKeySuffix: 'state',
     hasPower: true,
     updateTranslationKey: 'docker_update_available',
+    metrics: guestMetrics('docker'),
   },
   lxc_container: {
     icon: 'mdi:linux',
     stateTranslationKey: 'lxc_state',
     stateKeySuffix: 'state',
     hasPower: true,
+    metrics: guestMetrics('lxc'),
   },
   virtual_machine: {
     icon: 'mdi:server',
     stateTranslationKey: 'vm_state',
     stateKeySuffix: 'state',
     hasPower: true,
+    metrics: guestMetrics('vm'),
   },
   disk: {
     icon: 'mdi:harddisk',
     stateTranslationKey: 'disk_power_status',
     stateKeySuffix: 'power_status',
     hasPower: false,
+    metrics: { auto: [{ translationKey: 'disk_temperature', keySuffix: 'temperature' }] },
   },
   storage_pool: {
     icon: 'mdi:database',
     stateTranslationKey: 'pool_usage',
     stateKeySuffix: 'usage',
     hasPower: false,
+    metrics: { auto: [{ translationKey: 'pool_free_space', keySuffix: 'free_space' }] },
   },
   ups: {
     icon: 'mdi:power-plug',
     stateTranslationKey: 'ups_status',
     stateKeySuffix: 'ups_status',
     hasPower: false,
+    metrics: { auto: [{ translationKey: 'ups_load', keySuffix: 'ups_load' }] },
   },
 };
 
@@ -389,6 +443,43 @@ export function findUpdateEntity(
       (entity) => entity.entity_id.startsWith('binary_sensor.') && entity.unique_id?.endsWith(UPDATE_KEY_SUFFIX),
     )
   );
+}
+
+/**
+ * The entity carrying one measurement on a device, if it has one.
+ *
+ * Same two-step lookup as the state entity, and the same deliberate absence of
+ * a last-resort guess: a wrong entity here would print a number that means
+ * something else entirely, which is worse than printing nothing.
+ */
+export function findMetricEntity(
+  entities: readonly EntityRegistryEntry[],
+  metric: MetricRef,
+): EntityRegistryEntry | undefined {
+  return (
+    entities.find((entity) => entity.translation_key === metric.translationKey) ??
+    entities.find(
+      (entity) => entity.entity_id.startsWith('sensor.') && entity.unique_id?.endsWith(`_${metric.keySuffix}`),
+    )
+  );
+}
+
+/**
+ * The measurements a row shows for the requested mode.
+ *
+ * `none` is the default and resolves to nothing at all, which is what keeps the
+ * card's out-of-the-box appearance unchanged.
+ */
+export function metricsForMode(kind: MosDeviceKind, mode: SecondaryInfo): readonly MetricRef[] {
+  const metrics = KIND_INFO[kind].metrics;
+
+  if (mode === 'auto') {
+    return metrics.auto;
+  }
+
+  const chosen = mode === 'cpu' ? metrics.cpu : mode === 'memory' ? metrics.memory : undefined;
+
+  return chosen ? [chosen] : [];
 }
 
 /**

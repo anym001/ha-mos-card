@@ -21,16 +21,19 @@ import {
   MOS_DEVICE_KINDS,
   MosDeviceKind,
   ROW_SORTS,
+  SECONDARY_INFO_MODES,
   declaredIcon,
   deviceDisplayName,
   entitiesByDevice,
   fetchIntegrationIcons,
+  findMetricEntity,
   findPowerEntity,
   findServerDevices,
   findStateEntity,
   findUpdateEntity,
   isMosDeviceKind,
   isUnavailableState,
+  metricsForMode,
   selectMosDevices,
   subscribeDeviceRegistry,
   subscribeEntityRegistry,
@@ -75,6 +78,8 @@ interface DeviceRow {
   stateEntity?: EntityRegistryEntry;
   powerEntity?: EntityRegistryEntry;
   updateEntity?: EntityRegistryEntry;
+  /** The measurements to show beside the state, in the order they are shown. */
+  metricEntities: EntityRegistryEntry[];
 }
 
 /** Rows of one kind, under one server. */
@@ -170,10 +175,15 @@ export class MosCard extends LitElement {
       throw new Error(`${localize('errors.unknown_sort')}: ${config.sort}`);
     }
 
+    if (config.secondary_info !== undefined && !SECONDARY_INFO_MODES.includes(config.secondary_info)) {
+      throw new Error(`${localize('errors.unknown_secondary_info')}: ${config.secondary_info}`);
+    }
+
     this.config = {
       kinds: [...MOS_DEVICE_KINDS],
       group_by_kind: true,
       sort: 'name',
+      secondary_info: 'none',
       show_icon: true,
       show_state: true,
       show_link: true,
@@ -301,6 +311,9 @@ export class MosCard extends LitElement {
         if (powerEntity) {
           ids.push(powerEntity.entity_id);
         }
+        for (const metric of this.rowMetricEntities(deviceEntities, kind)) {
+          ids.push(metric.entity_id);
+        }
       }
     }
 
@@ -422,6 +435,7 @@ export class MosCard extends LitElement {
               stateEntity: findStateEntity(deviceEntities, kind),
               powerEntity: findPowerEntity(deviceEntities, kind),
               updateEntity: findUpdateEntity(deviceEntities, kind),
+              metricEntities: this.rowMetricEntities(deviceEntities, kind),
             };
           })
           .filter((row) => !this.config.hide_unavailable || !isUnavailableState(this.stateValue(row)))
@@ -442,6 +456,19 @@ export class MosCard extends LitElement {
 
   private stateValue(row: DeviceRow): string | undefined {
     return row.stateEntity ? this.hass?.states[row.stateEntity.entity_id]?.state : undefined;
+  }
+
+  /** The measurement entities one row shows, in the order they are shown. */
+  private rowMetricEntities(entities: readonly EntityRegistryEntry[], kind: MosDeviceKind): EntityRegistryEntry[] {
+    const mode = this.config.secondary_info ?? 'none';
+
+    if (mode === 'none') {
+      return [];
+    }
+
+    return metricsForMode(kind, mode)
+      .map((metric) => findMetricEntity(entities, metric))
+      .filter((entity): entity is EntityRegistryEntry => entity !== undefined);
   }
 
   /**
@@ -543,7 +570,7 @@ export class MosCard extends LitElement {
           ${this.config.show_icon ? this.renderIcon(row, stateObj) : nothing}
           <div class="text">
             <span class="name" title=${row.name}>${row.name}</span>
-            ${this.config.show_state ? html`<span class="state">${this.renderState(stateObj)}</span>` : nothing}
+            ${this.renderSecondary(row, stateObj)}
           </div>
         </div>
         ${this.config.show_link ? this.renderLink(row, stateObj) : nothing}
@@ -647,6 +674,49 @@ export class MosCard extends LitElement {
         <ha-icon icon="mdi:arrow-up"></ha-icon>
       </div>
     `;
+  }
+
+  /**
+   * The line under the name: the state, the measurements, or both.
+   *
+   * They share one line rather than stacking, so a row keeps its height and the
+   * card its density however many numbers are asked for. With nothing to say
+   * the line is left out entirely instead of rendering empty.
+   */
+  private renderSecondary(row: DeviceRow, stateObj?: HassEntity): TemplateResult | typeof nothing {
+    const parts: string[] = [];
+
+    if (this.config.show_state) {
+      parts.push(this.renderState(stateObj));
+    }
+
+    const metrics = this.formatMetrics(row.metricEntities);
+
+    if (metrics) {
+      parts.push(metrics);
+    }
+
+    if (!parts.length) {
+      return nothing;
+    }
+
+    return html`<span class="state ${metrics ? 'with-metrics' : ''}">${parts.join(' · ')}</span>`;
+  }
+
+  /**
+   * Measurements as one string, in the reading the rest of Home Assistant uses.
+   *
+   * A measurement the server cannot currently report — a stopped container has
+   * no CPU figure, a virtualised disk no temperature — is left out rather than
+   * printed as "unknown", which would fill the line with non-answers on exactly
+   * the rows that have least to say.
+   */
+  private formatMetrics(entities: readonly EntityRegistryEntry[]): string {
+    return entities
+      .map((entity) => this.hass?.states[entity.entity_id])
+      .filter((stateObj): stateObj is HassEntity => !!stateObj && !isUnavailableState(stateObj.state))
+      .map((stateObj) => this.renderState(stateObj))
+      .join(' · ');
   }
 
   private renderState(stateObj?: HassEntity): string {
@@ -1033,6 +1103,17 @@ export class MosCard extends LitElement {
         font-size: 0.85em;
         line-height: 1.3;
         color: var(--tone-color);
+      }
+
+      /* A state on its own is a word that can be cut without losing much; a
+         measurement cut in half is the one thing the reader asked for and did
+         not get. So a line carrying numbers wraps instead, to at most two lines
+         — which only happens on a card too narrow to hold them side by side. */
+      .state.with-metrics {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
       }
 
       /* Controls sit in matching round wells so the row ends in a consistent
