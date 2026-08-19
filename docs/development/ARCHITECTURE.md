@@ -192,8 +192,10 @@ What is covered is the three files that hold logic rather than rendering:
   the stored `filter` key. `CARD_DEFAULTS` is read by both the card's `setConfig` and the editor's
   form data, so the two cannot disagree about what an untouched option does, and `TOGGLES` sits
   beside it so a boolean without a switch fails a test.
-- `src/rows.ts` — the tone a row is drawn in, the order rows come in, the row cap, and which
-  waiting power buttons the incoming states have answered.
+- `src/rows.ts` — the tone a row is drawn in, the order rows come in, the row cap, which waiting
+  power buttons the incoming states have answered, and the timeouts that end a wait nobody did.
+  The timers are tested with `vi.useFakeTimers()`, which is the only exercise that path gets: on a
+  live instance every start and stop came back well inside the window.
 
 The last two exist because that logic used to sit on the component, where the only way to check it
 was to render a card against a live Home Assistant.

@@ -131,3 +131,58 @@ export function settledPending(
 
   return settled;
 }
+
+/**
+ * The timeouts that end a wait nobody answered.
+ *
+ * Split from the map of waiting switches because the two fail differently: the
+ * map is state Lit has to see change, while these are side effects that have to
+ * be cancelled — on an answer, and on the card being torn down, which happens
+ * on every dashboard edit. A leaked timeout fires against a detached element.
+ */
+export class PendingTimers {
+  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  constructor(private readonly timeoutMs: number) {}
+
+  /** How many waits are still armed. Exposed for tests and assertions. */
+  get size(): number {
+    return this.timers.size;
+  }
+
+  /**
+   * Arm a timeout for one switch, replacing any it already had.
+   *
+   * Replacing rather than stacking: two timeouts for one switch would fire
+   * twice, and the second would end a wait the caller had already restarted.
+   */
+  start(entityId: string, onExpire: (entityId: string) => void): void {
+    this.stop(entityId);
+    this.timers.set(
+      entityId,
+      setTimeout(() => {
+        this.timers.delete(entityId);
+        onExpire(entityId);
+      }, this.timeoutMs),
+    );
+  }
+
+  /** Cancel one wait. Silent when there is none, so callers need not check. */
+  stop(entityId: string): void {
+    const timer = this.timers.get(entityId);
+
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.timers.delete(entityId);
+    }
+  }
+
+  /** Cancel everything. The teardown path, and safe to call twice. */
+  stopAll(): void {
+    for (const timer of this.timers.values()) {
+      clearTimeout(timer);
+    }
+
+    this.timers.clear();
+  }
+}
