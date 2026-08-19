@@ -15,7 +15,8 @@
   "errors": {
     "kinds_not_a_list": "'kinds' muss eine Liste sein",
     "no_kinds": "'kinds' darf nicht leer sein",
-    "unknown_kind": "Unbekannte Geräteart"
+    "unknown_kind": "Unbekannte Geräteart",
+    "unknown_sort": "Unbekannte Sortierung"
   },
   "kinds": {
     "docker_container": "Docker-Container",
@@ -31,6 +32,9 @@
     "all_servers": "Alle Server",
     "kinds": "Gerätearten",
     "kinds_hint": "Wird über die model_id des Geräts gematcht, damit die Liste Containern folgt, die kommen und gehen.",
+    "sort": "Sortieren nach",
+    "sort_name": "Name",
+    "sort_state": "Status, dann Name",
     "display": "Anzeige",
     "group_by_kind": "Nach Geräteart gruppieren",
     "show_icon": "Symbol anzeigen",

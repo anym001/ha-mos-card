@@ -4,7 +4,13 @@ import { HomeAssistant, LovelaceCardEditor, fireEvent } from 'custom-card-helper
 import type { UnsubscribeFunc } from 'home-assistant-js-websocket';
 
 import type { MosCardConfig } from './types';
-import { DeviceRegistryEntry, MOS_DEVICE_KINDS, findServerDevices, subscribeDeviceRegistry } from './devices';
+import {
+  DeviceRegistryEntry,
+  MOS_DEVICE_KINDS,
+  ROW_SORTS,
+  findServerDevices,
+  subscribeDeviceRegistry,
+} from './devices';
 import { localize } from './localize/localize';
 
 /** The boolean options, each rendered as its own switch. */
@@ -142,6 +148,15 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
           },
         },
       },
+      {
+        name: 'sort',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: ROW_SORTS.map((sort) => ({ value: sort, label: localize(`editor.sort_${sort}`) })),
+          },
+        },
+      },
       ...TOGGLES.map((option) => ({ name: option, selector: { boolean: {} } })),
       // A `constant` row rather than a helper on the tap field: Home Assistant
       // renders a `ui_action` helper as a tooltip behind a "?", which hides a
@@ -167,6 +182,7 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
       title: config.title ?? '',
       server: config.server ?? '',
       kinds: config.kinds ?? [...MOS_DEVICE_KINDS],
+      sort: config.sort ?? 'name',
     };
 
     for (const option of TOGGLES) {

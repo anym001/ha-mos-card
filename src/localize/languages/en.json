@@ -15,7 +15,8 @@
   "errors": {
     "kinds_not_a_list": "'kinds' must be a list",
     "no_kinds": "'kinds' must not be empty",
-    "unknown_kind": "Unknown device kind"
+    "unknown_kind": "Unknown device kind",
+    "unknown_sort": "Unknown sort order"
   },
   "kinds": {
     "docker_container": "Docker containers",
@@ -31,6 +32,9 @@
     "all_servers": "All servers",
     "kinds": "Device kinds",
     "kinds_hint": "Matched on the device's model_id, so the list follows containers as they come and go.",
+    "sort": "Sort by",
+    "sort_name": "Name",
+    "sort_state": "State, then name",
     "display": "Display",
     "group_by_kind": "Group by kind",
     "show_icon": "Show icon",
