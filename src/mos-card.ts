@@ -39,7 +39,7 @@ import {
   subscribeEntityRegistry,
 } from './devices';
 import { normalizeConfig } from './config';
-import { capRows, compareRows, settledPending, toneFor } from './rows';
+import { PendingTimers, capRows, compareRows, settledPending, toneFor } from './rows';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
 import { localize } from './localize/localize';
@@ -160,7 +160,7 @@ export class MosCard extends LitElement {
    */
   @state() private expanded: ReadonlySet<string> = new Set();
 
-  private pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly pendingTimers = new PendingTimers(PENDING_TIMEOUT_MS);
 
   private unsubscribe: UnsubscribeFunc[] = [];
 
@@ -880,19 +880,11 @@ export class MosCard extends LitElement {
   /** Start waiting on a switch, with a timeout so the wait always ends. */
   private markPending(entityId: string, state: string | undefined): void {
     this.pending = new Map(this.pending).set(entityId, state ?? '');
-    this.pendingTimers.set(
-      entityId,
-      setTimeout(() => this.clearPending(entityId), PENDING_TIMEOUT_MS),
-    );
+    this.pendingTimers.start(entityId, (id) => this.clearPending(id));
   }
 
   private clearPending(entityId: string): void {
-    const timer = this.pendingTimers.get(entityId);
-
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      this.pendingTimers.delete(entityId);
-    }
+    this.pendingTimers.stop(entityId);
 
     if (this.pending.has(entityId)) {
       const next = new Map(this.pending);
@@ -902,10 +894,7 @@ export class MosCard extends LitElement {
   }
 
   private clearPendingTimers(): void {
-    for (const timer of this.pendingTimers.values()) {
-      clearTimeout(timer);
-    }
-    this.pendingTimers.clear();
+    this.pendingTimers.stopAll();
     this.pending = new Map();
   }
 
