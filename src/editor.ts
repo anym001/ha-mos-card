@@ -23,6 +23,7 @@ const TOGGLES = [
   'show_link',
   'show_power',
   'confirm_stop',
+  'show_problem',
   'show_update',
   'hide_unavailable',
 ] as const;
@@ -55,6 +56,7 @@ const HELPERS: Readonly<Record<string, string>> = {
   confirm_stop: 'editor.confirm_stop_hint',
   secondary_info: 'editor.secondary_info_hint',
   show_server_summary: 'editor.show_server_summary_hint',
+  show_problem: 'editor.show_problem_hint',
 };
 
 /** One entry of an `ha-form` schema. Home Assistant types this internally. */

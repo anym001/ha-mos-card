@@ -29,6 +29,7 @@ import {
   fetchIntegrationIcons,
   findMetricEntity,
   findPowerEntity,
+  findProblemCandidates,
   findServerDevices,
   findStateEntity,
   findUpdateEntity,
@@ -81,6 +82,8 @@ interface DeviceRow {
   updateEntity?: EntityRegistryEntry;
   /** The measurements to show beside the state, in the order they are shown. */
   metricEntities: EntityRegistryEntry[];
+  /** Binary sensors that could carry a fault; which do is read off the state. */
+  problemCandidates: EntityRegistryEntry[];
 }
 
 /** Rows of one kind, under one server. */
@@ -193,6 +196,7 @@ export class MosCard extends LitElement {
       show_link: true,
       show_power: true,
       confirm_stop: false,
+      show_problem: true,
       show_update: true,
       hide_unavailable: false,
       tap_action: { action: 'more-info' },
@@ -317,6 +321,11 @@ export class MosCard extends LitElement {
         }
         for (const metric of this.rowMetricEntities(deviceEntities, kind)) {
           ids.push(metric.entity_id);
+        }
+        if (this.config.show_problem) {
+          for (const candidate of findProblemCandidates(deviceEntities)) {
+            ids.push(candidate.entity_id);
+          }
         }
       }
 
@@ -454,6 +463,7 @@ export class MosCard extends LitElement {
               powerEntity: findPowerEntity(deviceEntities, kind),
               updateEntity: findUpdateEntity(deviceEntities, kind),
               metricEntities: this.rowMetricEntities(deviceEntities, kind),
+              problemCandidates: this.config.show_problem ? findProblemCandidates(deviceEntities) : [],
             };
           })
           .filter((row) => !this.config.hide_unavailable || !isUnavailableState(this.stateValue(row)))
@@ -655,7 +665,62 @@ export class MosCard extends LitElement {
 
   /** The icon and whatever is badged onto it. */
   private renderIcon(row: DeviceRow, stateObj?: HassEntity): TemplateResult {
-    return html`<div class="icon-wrap">${this.renderArtwork(row, stateObj)}${this.renderUpdateBadge(row)}</div>`;
+    return html`
+      <div class="icon-wrap">
+        ${this.renderArtwork(row, stateObj)}${this.renderProblemBadge(row)}${this.renderUpdateBadge(row)}
+      </div>
+    `;
+  }
+
+  /**
+   * The mark on a device that is reporting a fault.
+   *
+   * Which of a device's binary sensors count is the integration's call, not
+   * this card's: it sets Home Assistant's `problem` device class on exactly
+   * those, and everything with that class and an outright "on" is badged. The
+   * same rule as the update badge applies to the state — unknown and
+   * unavailable mean the integration cannot currently say, which is not a
+   * fault.
+   *
+   * It sits at the top of the icon where the update badge sits at the bottom,
+   * so a container that is both unhealthy and out of date shows both.
+   */
+  private renderProblemBadge(row: DeviceRow): TemplateResult | typeof nothing {
+    if (!this.config.show_problem) {
+      return nothing;
+    }
+
+    const problems = row.problemCandidates
+      .map((entity) => this.hass.states[entity.entity_id])
+      .filter((stateObj) => stateObj?.attributes.device_class === 'problem' && stateObj.state === 'on');
+
+    if (!problems.length) {
+      return nothing;
+    }
+
+    // The entity's own name says what broke — "SMART warning", "Overload" —
+    // where a generic word would only repeat what the colour already says. It
+    // arrives prefixed with the device name, which the row is already headed
+    // with, so that half is dropped.
+    const label =
+      problems
+        .map((stateObj) => this.problemName(row, stateObj))
+        .filter(Boolean)
+        .join(', ') || localize('common.problem');
+
+    return html`
+      <div class="problem-badge" role="img" aria-label=${label} title=${label}>
+        <ha-icon icon="mdi:alert"></ha-icon>
+      </div>
+    `;
+  }
+
+  /** A problem entity's name with the device name it is prefixed with removed. */
+  private problemName(row: DeviceRow, stateObj: HassEntity): string {
+    const full = (stateObj.attributes.friendly_name as string | undefined) ?? '';
+    const device = row.device.name_by_user || row.device.name || '';
+
+    return device && full.startsWith(`${device} `) ? full.slice(device.length + 1) : full;
   }
 
   /**
@@ -1105,10 +1170,10 @@ export class MosCard extends LitElement {
         display: inline-flex;
       }
 
-      .update-badge {
+      .update-badge,
+      .problem-badge {
         position: absolute;
         right: -3px;
-        bottom: -3px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -1120,8 +1185,20 @@ export class MosCard extends LitElement {
            icon instead of letting it merge into the corner of a dark logo. */
         border: 2px solid var(--row-background);
         color: var(--text-primary-color, #fff);
-        background: var(--warning-color, #ffa726);
         --mdc-icon-size: 10px;
+      }
+
+      .update-badge {
+        bottom: -3px;
+        background: var(--warning-color, #ffa726);
+      }
+
+      /* Opposite corner from the update badge, so a container that is both
+         unhealthy and out of date shows both without them overlapping. Error
+         rather than warning: this one is not a suggestion. */
+      .problem-badge {
+        top: -3px;
+        background: var(--error-color, #db4437);
       }
 
       /* Artwork gets a neutral well and more room: it brings its own colours,

@@ -10,7 +10,8 @@
     "toggle_power": "Start or stop",
     "power_pending": "Waiting for the server…",
     "confirm_stop": "Stop {name}?",
-    "update_available": "Update available"
+    "update_available": "Update available",
+    "problem": "Problem reported"
   },
   "errors": {
     "kinds_not_a_list": "'kinds' must be a list",
@@ -52,6 +53,8 @@
     "show_power": "Show power button",
     "confirm_stop": "Confirm before stopping",
     "confirm_stop_hint": "Only stopping asks. Starting is a second click away from being undone.",
+    "show_problem": "Show problem badge",
+    "show_problem_hint": "Badges a device the integration reports a fault on — a SMART warning, an unhealthy container, a degraded pool.",
     "show_update": "Show update badge",
     "hide_unavailable": "Hide unavailable devices",
     "actions_note": "Actions",
