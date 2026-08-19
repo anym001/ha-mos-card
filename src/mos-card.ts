@@ -56,6 +56,16 @@ interface WindowWithCustomCards extends Window {
   description: 'Containers, VMs, disks, pools and the UPS of a MOS NAS server',
 });
 
+/**
+ * How long a power button stays in its waiting state before giving up on it.
+ *
+ * The switch normally settles well inside this: the integration flips its own
+ * state optimistically as soon as the MOS call returns. The timeout is only
+ * there so a request that never comes back leaves a usable button behind
+ * rather than a permanently spinning one.
+ */
+const PENDING_TIMEOUT_MS = 20000;
+
 /** One rendered line: a device plus the entities the row is built from. */
 interface DeviceRow {
   device: DeviceRegistryEntry;
@@ -114,6 +124,20 @@ export class MosCard extends LitElement {
    */
   @state() private icons?: IntegrationIcons;
 
+  /**
+   * Power switches with a request in flight, each mapped to the state it had
+   * when the button was pressed.
+   *
+   * Starting or stopping a guest is not instant — MOS has to do it and the
+   * integration has to hear back — and without a mark the row looks like the
+   * click did nothing, so people press again. The recorded state is what tells
+   * the card the request landed: when the switch reports something else, the
+   * wait is over. Replaced rather than mutated, so Lit sees the change.
+   */
+  @state() private pending: ReadonlyMap<string, string> = new Map();
+
+  private pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   private unsubscribe: UnsubscribeFunc[] = [];
 
   private trackedCache?: {
@@ -163,6 +187,26 @@ export class MosCard extends LitElement {
   public disconnectedCallback(): void {
     super.disconnectedCallback();
     this.unsubscribeRegistries();
+    this.clearPendingTimers();
+  }
+
+  /**
+   * Drop any wait that the incoming states have answered.
+   *
+   * Runs before the render rather than after it, so the button that is about to
+   * be drawn is already the settled one and never flickers through a frame of
+   * spinner it no longer needs.
+   */
+  protected willUpdate(changedProps: PropertyValues): void {
+    if (!changedProps.has('hass') || !this.pending.size) {
+      return;
+    }
+
+    for (const [entityId, before] of this.pending) {
+      if ((this.hass.states[entityId]?.state ?? '') !== before) {
+        this.clearPending(entityId);
+      }
+    }
   }
 
   protected updated(changedProps: PropertyValues): void {
@@ -196,7 +240,8 @@ export class MosCard extends LitElement {
       changedProps.has('config') ||
       changedProps.has('devices') ||
       changedProps.has('entities') ||
-      changedProps.has('icons')
+      changedProps.has('icons') ||
+      changedProps.has('pending')
     ) {
       return true;
     }
@@ -622,19 +667,27 @@ export class MosCard extends LitElement {
     }
 
     const on = switchObj.state === 'on';
-    const disabled = isUnavailableState(switchObj.state);
+    const waiting = this.pending.has(row.powerEntity.entity_id);
+    const disabled = isUnavailableState(switchObj.state) || waiting;
+    const label = localize(waiting ? 'common.power_pending' : 'common.toggle_power');
 
     // A toggle reads as a setting that is either on or off; a guest is a thing
     // that is doing something right now. So the control is a button showing the
-    // action it performs — start what is stopped, stop what is running.
+    // action it performs — start what is stopped, stop what is running — and,
+    // while the server works on it, that the press was heard.
     return html`
       <button
-        class="power-button"
+        class="power-button ${waiting ? 'pending' : ''}"
         ?disabled=${disabled}
-        title=${localize('common.toggle_power')}
+        title=${label}
+        aria-label=${label}
         @click=${(ev: Event) => this.togglePower(ev, row)}
       >
-        <ha-icon icon=${on ? 'mdi:stop' : 'mdi:play'}></ha-icon>
+        ${
+          waiting
+            ? html`<span class="spinner" role="progressbar"></span>`
+            : html`<ha-icon icon=${on ? 'mdi:stop' : 'mdi:play'}></ha-icon>`
+        }
       </button>
     `;
   }
@@ -646,14 +699,54 @@ export class MosCard extends LitElement {
       return;
     }
 
+    const entityId = row.powerEntity.entity_id;
+
+    if (this.pending.has(entityId)) {
+      return;
+    }
+
     // Derived from the entity rather than from the widget, because the two
     // controls report differently: the switch has already flipped its own
     // `checked` by the time this fires, a button has no such state at all.
-    const current = this.hass.states[row.powerEntity.entity_id]?.state;
+    const current = this.hass.states[entityId]?.state;
 
-    this.hass.callService('switch', current === 'on' ? 'turn_off' : 'turn_on', {
-      entity_id: row.powerEntity.entity_id,
-    });
+    this.markPending(entityId, current);
+
+    this.hass
+      .callService('switch', current === 'on' ? 'turn_off' : 'turn_on', { entity_id: entityId })
+      .catch(() => this.clearPending(entityId));
+  }
+
+  /** Start waiting on a switch, with a timeout so the wait always ends. */
+  private markPending(entityId: string, state: string | undefined): void {
+    this.pending = new Map(this.pending).set(entityId, state ?? '');
+    this.pendingTimers.set(
+      entityId,
+      setTimeout(() => this.clearPending(entityId), PENDING_TIMEOUT_MS),
+    );
+  }
+
+  private clearPending(entityId: string): void {
+    const timer = this.pendingTimers.get(entityId);
+
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.pendingTimers.delete(entityId);
+    }
+
+    if (this.pending.has(entityId)) {
+      const next = new Map(this.pending);
+      next.delete(entityId);
+      this.pending = next;
+    }
+  }
+
+  private clearPendingTimers(): void {
+    for (const timer of this.pendingTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.pendingTimers.clear();
+    this.pending = new Map();
   }
 
   /** The action the config names for one of the three gestures. */
@@ -944,6 +1037,37 @@ export class MosCard extends LitElement {
       .power-button:disabled {
         cursor: default;
         opacity: 0.5;
+      }
+
+      /* A waiting button is disabled so it cannot be pressed twice, but it is
+         not dimmed like an unavailable one — it is the row's liveliest thing
+         at that moment, and fading it says the opposite. */
+      .power-button.pending {
+        opacity: 1;
+      }
+
+      .spinner {
+        width: 16px;
+        height: 16px;
+        box-sizing: border-box;
+        border-radius: 50%;
+        border: 2px solid color-mix(in srgb, var(--tone-color) 25%, transparent);
+        border-top-color: var(--tone-color);
+        animation: mos-spin 0.8s linear infinite;
+      }
+
+      @keyframes mos-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Slowed rather than stopped: a spinner that does not turn says nothing
+         at all, which is the one thing this element exists to avoid. */
+      @media (prefers-reduced-motion: reduce) {
+        .spinner {
+          animation-duration: 2.4s;
+        }
       }
     `;
   }

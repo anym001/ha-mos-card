@@ -8,6 +8,7 @@
     "server": "MOS-Server",
     "open_link": "Weboberfläche öffnen",
     "toggle_power": "Starten oder stoppen",
+    "power_pending": "Warte auf den Server …",
     "update_available": "Update verfügbar"
   },
   "errors": {
