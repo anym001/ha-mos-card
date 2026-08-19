@@ -17,6 +17,7 @@ import { localize } from './localize/localize';
 /** The boolean options, each rendered as its own switch. */
 const TOGGLES = [
   'group_by_kind',
+  'show_server_summary',
   'show_icon',
   'show_state',
   'show_link',
@@ -29,11 +30,11 @@ const TOGGLES = [
 /**
  * The toggles that default to off.
  *
- * Every other one defaults to on, so this is the shorter list to keep. Both
- * of these add friction or hide information, which is not what an untouched
- * card should do.
+ * Every other one defaults to on, so this is the shorter list to keep. Each of
+ * these adds friction, hides information or takes room, none of which is what
+ * an untouched card should do.
  */
-const OFF_BY_DEFAULT: ReadonlySet<string> = new Set(['confirm_stop', 'hide_unavailable']);
+const OFF_BY_DEFAULT: ReadonlySet<string> = new Set(['confirm_stop', 'hide_unavailable', 'show_server_summary']);
 
 /**
  * The action options, paired with the action the card falls back to without them.
@@ -53,6 +54,7 @@ const HELPERS: Readonly<Record<string, string>> = {
   kinds: 'editor.kinds_hint',
   confirm_stop: 'editor.confirm_stop_hint',
   secondary_info: 'editor.secondary_info_hint',
+  show_server_summary: 'editor.show_server_summary_hint',
 };
 
 /** One entry of an `ha-form` schema. Home Assistant types this internally. */

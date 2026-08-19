@@ -44,6 +44,8 @@
     "secondary_info_memory": "Speicherauslastung",
     "display": "Anzeige",
     "group_by_kind": "Nach Geräteart gruppieren",
+    "show_server_summary": "Server-Zusammenfassung anzeigen",
+    "show_server_summary_hint": "Zeigt die Auslastung des Servers neben seinem Namen — und diesen Namen auch bei nur einem Server.",
     "show_icon": "Symbol anzeigen",
     "show_state": "Status anzeigen",
     "show_link": "Link anzeigen",

@@ -483,6 +483,19 @@ export function metricsForMode(kind: MosDeviceKind, mode: SecondaryInfo): readon
 }
 
 /**
+ * What the MOS server itself reports about its load.
+ *
+ * Read off the server device, which carries no `model_id` and is therefore
+ * never a row — these are for the heading above the rows. Anything the server
+ * cannot measure reports unknown and is left out rather than printed.
+ */
+export const SERVER_METRICS: readonly MetricRef[] = [
+  { translationKey: 'cpu_load', keySuffix: 'cpu_load' },
+  { translationKey: 'memory_usage', keySuffix: 'memory_usage' },
+  { translationKey: 'cpu_temperature', keySuffix: 'cpu_temperature' },
+];
+
+/**
  * The display name for a device row.
  *
  * The user's own name wins, then the registry name. The integration prefixes
