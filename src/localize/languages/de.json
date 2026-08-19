@@ -10,7 +10,8 @@
     "toggle_power": "Starten oder stoppen",
     "power_pending": "Warte auf den Server …",
     "confirm_stop": "{name} wirklich stoppen?",
-    "update_available": "Update verfügbar"
+    "update_available": "Update verfügbar",
+    "problem": "Problem gemeldet"
   },
   "errors": {
     "kinds_not_a_list": "'kinds' muss eine Liste sein",
@@ -52,6 +53,8 @@
     "show_power": "Start/Stopp-Knopf anzeigen",
     "confirm_stop": "Vor dem Stoppen nachfragen",
     "confirm_stop_hint": "Nur das Stoppen fragt nach. Ein Start ist mit einem zweiten Klick wieder rückgängig.",
+    "show_problem": "Problem-Markierung anzeigen",
+    "show_problem_hint": "Markiert Geräte, für die die Integration einen Fehler meldet — SMART-Warnung, ungesunder Container, beschädigter Pool.",
     "show_update": "Update-Markierung anzeigen",
     "hide_unavailable": "Nicht verfügbare Geräte ausblenden",
     "actions_note": "Aktionen",

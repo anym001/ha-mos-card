@@ -88,6 +88,19 @@ export interface MosCardConfig extends LovelaceCardConfig {
   confirm_stop?: boolean;
 
   /**
+   * Badge rows whose device reports a fault. Default true.
+   *
+   * A fault is whatever the integration marks with Home Assistant's `problem`
+   * device class — a SMART warning on a disk, an unhealthy container, a
+   * degraded pool, a UPS on bypass or overloaded. The badge sits on the row's
+   * icon, so it needs `show_icon` as well.
+   *
+   * On by default because a failing disk outranks the waiting update that is
+   * already badged by default. Turning it off is one key.
+   */
+  show_problem?: boolean;
+
+  /**
    * Show a badge on rows whose device reports a waiting update. Default true.
    *
    * The badge sits on the row's icon, so it needs `show_icon` as well. Only

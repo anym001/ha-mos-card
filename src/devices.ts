@@ -446,6 +446,23 @@ export function findUpdateEntity(
 }
 
 /**
+ * The binary sensors on a device that could report a fault.
+ *
+ * Deliberately every one of them rather than a per-kind list: which of an
+ * integration's binary sensors mean "something is wrong" is not this card's
+ * judgement to make, and Home Assistant already has a word for it — the
+ * `problem` device class, which the integration sets on exactly those. That
+ * word lives on the state and not in the registry, though, so the registry can
+ * only narrow the field to the candidates and the caller does the rest.
+ *
+ * The consequence is worth stating: a fault the integration adds later is
+ * badged without this card being taught about it.
+ */
+export function findProblemCandidates(entities: readonly EntityRegistryEntry[]): EntityRegistryEntry[] {
+  return entities.filter((entity) => entity.entity_id.startsWith('binary_sensor.'));
+}
+
+/**
  * The entity carrying one measurement on a device, if it has one.
  *
  * Same two-step lookup as the state entity, and the same deliberate absence of
