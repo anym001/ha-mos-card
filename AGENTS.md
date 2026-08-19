@@ -30,6 +30,8 @@ yarn lint:format # prettier --check
 - `src/devices.ts` — device registry subscription, `model_id` filtering, per-kind facts
 - `src/editor.ts` — visual editor (`LovelaceCardEditor`)
 - `src/types.ts` — card config and type definitions
+- `src/config.ts` — defaults, validation and the editor's filter conversions, shared by both
+- `src/rows.ts` — tone, ordering, row capping and the pending power buttons
 - `src/const.ts` — `CARD_VERSION`, bumped by release-please
 - `src/action-handler-directive.ts` — tap/hold/double-tap directive
 - `src/localize/localize.ts` — localization helper
@@ -122,9 +124,17 @@ listed and merely reports unavailable. Do not add manual refresh logic that figh
   `@rollup/plugin-typescript` reports type errors as warnings and still emits a bundle, so
   `yarn build` exits 0 on code that does not type-check. `yarn typecheck` is the only command
   that fails on one, which is why the Lint workflow runs it separately from the Build workflow.
-- Cover new pure logic with a test. What is testable here is device selection, entity resolution
-  and name filtering — no DOM, no `hass`, no Lit. Component tests are deliberately absent: they
-  would need a DOM shim and would mostly assert that Lit works.
+- Cover new pure logic with a test. Logic that does not need a DOM, a `hass` or a render belongs in
+  `src/devices.ts`, `src/config.ts` or `src/rows.ts` rather than on the component, where it could
+  only be checked by driving a live card. Component tests are deliberately absent: they would need
+  a DOM shim and would mostly assert that Lit works.
+- Defaults live once, in `CARD_DEFAULTS`. The card and the editor both read it, so a switch cannot
+  show off while the card behaves as on — and `TOGGLES` sits beside it so a new boolean without a
+  switch fails a test rather than shipping.
+- Check a new test by breaking the code it covers and confirming it fails. Two tests in this
+  repository passed against deliberately broken code before this was done: one because the fixture
+  order let a fallback stand in for the branch under test, one because the expected value was read
+  after the mutation and compared with itself.
 - Write fixtures that match what Home Assistant actually sends, and check the shape of a test
   before trusting it. `findStateEntity` ends in a "first sensor on the device" last resort, so a
   fixture in registry order lets a test pass with the `unique_id` step deleted — the suite reverses
