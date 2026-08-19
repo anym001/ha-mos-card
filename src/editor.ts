@@ -10,6 +10,25 @@ import { localize } from './localize/localize';
 /** The boolean options, each rendered as its own switch. */
 const TOGGLES = ['group_by_kind', 'show_icon', 'show_state', 'show_link', 'show_power', 'hide_unavailable'] as const;
 
+/**
+ * The action options, paired with the action the card falls back to without them.
+ *
+ * The fallback is handed to the selector rather than written into the config, so
+ * an untouched action stays absent from the YAML and the card's own default in
+ * `setConfig` remains the single source of truth for it.
+ */
+const ACTIONS = [
+  { name: 'tap_action', default: 'more-info' },
+  { name: 'hold_action', default: 'none' },
+  { name: 'double_tap_action', default: 'none' },
+] as const;
+
+/** Localization keys for the fields that need a line of explanation under them. */
+const HELPERS: Readonly<Record<string, string>> = {
+  kinds: 'editor.kinds_hint',
+  tap_action: 'editor.actions_hint',
+};
+
 /** One entry of an `ha-form` schema. Home Assistant types this internally. */
 interface FormSchema {
   name: string;
@@ -102,6 +121,10 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
         },
       },
       ...TOGGLES.map((option) => ({ name: option, selector: { boolean: {} } })),
+      ...ACTIONS.map((action) => ({
+        name: action.name,
+        selector: { ui_action: { default_action: action.default } },
+      })),
     ];
   }
 
@@ -121,6 +144,10 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
     for (const option of TOGGLES) {
       const value = config[option];
       data[option] = typeof value === 'boolean' ? value : option !== 'hide_unavailable';
+    }
+
+    for (const action of ACTIONS) {
+      data[action.name] = config[action.name];
     }
 
     return data;
@@ -145,8 +172,11 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
 
   private _computeLabel = (schema: FormSchema): string => localize(`editor.${schema.name}`);
 
-  private _computeHelper = (schema: FormSchema): string =>
-    schema.name === 'kinds' ? localize('editor.kinds_hint') : '';
+  private _computeHelper = (schema: FormSchema): string => {
+    const key = HELPERS[schema.name];
+
+    return key ? localize(key) : '';
+  };
 
   private _valueChanged(ev: CustomEvent): void {
     if (!this._config) {
@@ -164,6 +194,14 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
     }
     if (!value.server) {
       delete config.server;
+    }
+
+    // Same for an action the user cleared: removing the key lets the card apply
+    // its own default again, where storing an empty object would suppress it.
+    for (const action of ACTIONS) {
+      if (!value[action.name]) {
+        delete config[action.name];
+      }
     }
 
     fireEvent(this, 'config-changed', { config });

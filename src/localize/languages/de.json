@@ -34,6 +34,10 @@
     "show_state": "Status anzeigen",
     "show_link": "Link anzeigen",
     "show_power": "Start/Stopp-Knopf anzeigen",
-    "hide_unavailable": "Nicht verfügbare Geräte ausblenden"
+    "hide_unavailable": "Nicht verfügbare Geräte ausblenden",
+    "tap_action": "Aktion bei Tippen",
+    "hold_action": "Aktion bei Gedrückthalten",
+    "double_tap_action": "Aktion bei Doppeltippen",
+    "actions_hint": "Wird auf die Status-Entität der jeweiligen Kachel angewendet. Navigations- und URL-Ziele sind für alle Kacheln gleich."
   }
 }

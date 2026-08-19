@@ -34,6 +34,10 @@
     "show_state": "Show state",
     "show_link": "Show link",
     "show_power": "Show power button",
-    "hide_unavailable": "Hide unavailable devices"
+    "hide_unavailable": "Hide unavailable devices",
+    "tap_action": "Tap action",
+    "hold_action": "Hold action",
+    "double_tap_action": "Double tap action",
+    "actions_hint": "Applied to each tile's own state entity. Navigation and URL targets are the same for every tile."
   }
 }
