@@ -183,15 +183,31 @@ syntax, and transpiling to ES5 produces `TypeError: Class constructor cannot be 
 
 `yarn test` runs Vitest over `tests/`, in a plain node environment with no DOM.
 
-What is covered is `src/devices.ts`: the `model_id` selection, the two-step entity lookups, the
-per-kind metric map and the name filter. That is the part with a contract to keep — the one
-documented on the integration side — and it is all pure functions taking registry entries and
-returning registry entries.
+What is covered is the three files that hold logic rather than rendering:
+
+- `src/devices.ts` — the `model_id` selection, the two-step entity lookups, the per-kind metric map
+  and the name filter. This is the part with a contract to keep, the one documented on the
+  integration side.
+- `src/config.ts` — validation, defaults, and the conversions between the editor's filter lines and
+  the stored `filter` key. `CARD_DEFAULTS` is read by both the card's `setConfig` and the editor's
+  form data, so the two cannot disagree about what an untouched option does, and `TOGGLES` sits
+  beside it so a boolean without a switch fails a test.
+- `src/rows.ts` — the tone a row is drawn in, the order rows come in, the row cap, and which
+  waiting power buttons the incoming states have answered.
+
+The last two exist because that logic used to sit on the component, where the only way to check it
+was to render a card against a live Home Assistant.
 
 What is deliberately not covered is the component. Rendering `mos-card` needs a DOM shim, a `hass`
 stub and a Lit update cycle, and the resulting assertions are mostly that Lit works. The card's
 visible behaviour is verified against a live Home Assistant instead, which is what the pull requests
 record.
+
+Check a new test by breaking the code it covers and confirming it fails. Two tests here passed
+against deliberately broken code before that was done — see the fixture note below for one, and for
+the other: `expect(second.kinds).toHaveLength(MOS_DEVICE_KINDS.length)` reads the expected length
+_after_ the mutation, so a shared array is compared with itself and the test passes. Capture what
+you expect before you disturb anything.
 
 `tests/fixtures.ts` builds registry entries in the shape a live instance sends: device names carry
 the server-and-kind prefix the integration writes, `unique_id`s carry the config entry id followed
