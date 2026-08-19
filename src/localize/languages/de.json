@@ -16,7 +16,8 @@
     "kinds_not_a_list": "'kinds' muss eine Liste sein",
     "no_kinds": "'kinds' darf nicht leer sein",
     "unknown_kind": "Unbekannte Geräteart",
-    "unknown_sort": "Unbekannte Sortierung"
+    "unknown_sort": "Unbekannte Sortierung",
+    "unknown_secondary_info": "Unbekannte Zusatzangabe"
   },
   "kinds": {
     "docker_container": "Docker-Container",
@@ -35,6 +36,12 @@
     "sort": "Sortieren nach",
     "sort_name": "Name",
     "sort_state": "Status, dann Name",
+    "secondary_info": "Zusatzwert",
+    "secondary_info_hint": "Wird neben dem Status angezeigt. Ein Wert, den der Server gerade nicht liefert, bleibt weg.",
+    "secondary_info_none": "Keiner",
+    "secondary_info_auto": "Automatisch je Geräteart",
+    "secondary_info_cpu": "CPU-Auslastung",
+    "secondary_info_memory": "Speicherauslastung",
     "display": "Anzeige",
     "group_by_kind": "Nach Geräteart gruppieren",
     "show_icon": "Symbol anzeigen",

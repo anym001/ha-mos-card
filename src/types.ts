@@ -1,6 +1,6 @@
 import { ActionConfig, LovelaceCardConfig, LovelaceCardEditor } from 'custom-card-helpers';
 
-import type { MosDeviceKind, RowSort } from './devices';
+import type { MosDeviceKind, RowSort, SecondaryInfo } from './devices';
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -43,6 +43,17 @@ export interface MosCardConfig extends LovelaceCardConfig {
    * running, disks and pools, stay alphabetical under both.
    */
   sort?: RowSort;
+
+  /**
+   * A measurement to show beside each row's state. Default `none`.
+   *
+   * `auto` picks per kind: CPU and memory for a guest, temperature for a disk,
+   * free space for a pool, load for the UPS. `cpu` and `memory` ask for one
+   * specific number and resolve to nothing on the kinds that have no such
+   * thing. A measurement the server cannot currently report is left out rather
+   * than printed as unknown.
+   */
+  secondary_info?: SecondaryInfo;
 
   /** Show the state entity's icon or MOS template picture. Default true. */
   show_icon?: boolean;
