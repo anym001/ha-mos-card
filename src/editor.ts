@@ -14,9 +14,19 @@ const TOGGLES = [
   'show_state',
   'show_link',
   'show_power',
+  'confirm_stop',
   'show_update',
   'hide_unavailable',
 ] as const;
+
+/**
+ * The toggles that default to off.
+ *
+ * Every other one defaults to on, so this is the shorter list to keep. Both
+ * of these add friction or hide information, which is not what an untouched
+ * card should do.
+ */
+const OFF_BY_DEFAULT: ReadonlySet<string> = new Set(['confirm_stop', 'hide_unavailable']);
 
 /**
  * The action options, paired with the action the card falls back to without them.
@@ -34,6 +44,7 @@ const ACTIONS = [
 /** Localization keys for the fields that need a line of explanation under them. */
 const HELPERS: Readonly<Record<string, string>> = {
   kinds: 'editor.kinds_hint',
+  confirm_stop: 'editor.confirm_stop_hint',
 };
 
 /** One entry of an `ha-form` schema. Home Assistant types this internally. */
@@ -160,7 +171,7 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
 
     for (const option of TOGGLES) {
       const value = config[option];
-      data[option] = typeof value === 'boolean' ? value : option !== 'hide_unavailable';
+      data[option] = typeof value === 'boolean' ? value : !OFF_BY_DEFAULT.has(option);
     }
 
     for (const action of ACTIONS) {

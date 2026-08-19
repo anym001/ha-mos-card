@@ -172,6 +172,7 @@ export class MosCard extends LitElement {
       show_state: true,
       show_link: true,
       show_power: true,
+      confirm_stop: false,
       show_update: true,
       hide_unavailable: false,
       tap_action: { action: 'more-info' },
@@ -709,11 +710,20 @@ export class MosCard extends LitElement {
     // controls report differently: the switch has already flipped its own
     // `checked` by the time this fires, a button has no such state at all.
     const current = this.hass.states[entityId]?.state;
+    const stopping = current === 'on';
+
+    // `confirm` rather than a Home Assistant dialog: the dialog has to be
+    // imported from the frontend to be opened, which a card loaded as a
+    // resource cannot do. It is also what `custom-card-helpers` uses for the
+    // `confirmation` option on an action, so the two read the same.
+    if (stopping && this.config.confirm_stop && !confirm(localize('common.confirm_stop', '{name}', row.name))) {
+      return;
+    }
 
     this.markPending(entityId, current);
 
     this.hass
-      .callService('switch', current === 'on' ? 'turn_off' : 'turn_on', { entity_id: entityId })
+      .callService('switch', stopping ? 'turn_off' : 'turn_on', { entity_id: entityId })
       .catch(() => this.clearPending(entityId));
   }
 
