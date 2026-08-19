@@ -38,6 +38,6 @@
     "tap_action": "Tap action",
     "hold_action": "Hold action",
     "double_tap_action": "Double tap action",
-    "actions_hint": "Applied to each tile's own state entity. Navigation and URL targets are the same for every tile."
+    "actions_hint": "Applied to each tile's own state entity, except Toggle, which uses the tile's start/stop switch. Navigation and URL targets are the same for every tile."
   }
 }

@@ -128,6 +128,10 @@ hold_action:
 | `hold_action`       | object  | Action for a 500 ms hold.                                                | `action: none`      |
 | `double_tap_action` | object  | Action for a double tap.                                                 | `action: none`      |
 
+`toggle` is the one action that does not use the tile's state entity: that entity only reports a
+state, so the action is applied to the tile's start/stop switch instead. Tiles without one — disks,
+storage pools, the UPS — have nothing to toggle and ignore the action.
+
 Valid values for `kinds`: `docker_container`, `lxc_container`, `virtual_machine`, `disk`,
 `storage_pool`, `ups`. Anything else is a configuration error and the card says so, rather than
 silently rendering an empty list.

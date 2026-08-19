@@ -5,6 +5,7 @@ import type { UnsubscribeFunc } from 'home-assistant-js-websocket';
 import {
   HomeAssistant,
   hasAction,
+  ActionConfig,
   ActionHandlerEvent,
   handleAction,
   LovelaceCardEditor,
@@ -598,15 +599,41 @@ export class MosCard extends LitElement {
     });
   }
 
+  /** The action the config names for one of the three gestures. */
+  private configuredAction(action: string): ActionConfig | undefined {
+    if (action === 'hold') {
+      return this.config?.hold_action;
+    }
+
+    if (action === 'double_tap') {
+      return this.config?.double_tap_action;
+    }
+
+    return this.config?.tap_action;
+  }
+
   /**
    * Route a row action.
    *
    * The configured actions are card-wide, but each row applies them to its own
    * state entity — so a single `tap_action: more-info` opens the dialog for
    * whichever container was tapped.
+   *
+   * `toggle` is the one action that cannot mean the state entity: that entity
+   * is a sensor, and Home Assistant would go looking for `sensor.turn_off`.
+   * What someone picking `toggle` means is the switch the row already offers as
+   * its power button, so the action is pointed at that instead. A row without
+   * one — a disk, a pool, the UPS — has nothing to toggle and does nothing,
+   * rather than reporting an entity Home Assistant cannot act on.
    */
   private handleAction(ev: ActionHandlerEvent, row: DeviceRow): void {
     if (!this.hass || !this.config || !ev.detail?.action) {
+      return;
+    }
+
+    const toggling = this.configuredAction(ev.detail.action)?.action === 'toggle';
+
+    if (toggling && !row.powerEntity) {
       return;
     }
 
@@ -614,7 +641,7 @@ export class MosCard extends LitElement {
       this,
       this.hass,
       {
-        entity: row.stateEntity?.entity_id,
+        entity: toggling ? row.powerEntity?.entity_id : row.stateEntity?.entity_id,
         tap_action: this.config.tap_action,
         hold_action: this.config.hold_action,
         double_tap_action: this.config.double_tap_action,
