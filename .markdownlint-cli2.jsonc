@@ -7,5 +7,7 @@
     ".yarn/**",
     // Auto-generated release file
     "CHANGELOG.md",
+    // Agent scratch state, git-excluded and not part of the repository's docs
+    ".claude/**",
   ],
 }

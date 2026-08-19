@@ -10,5 +10,8 @@ yarn.lock
 # that owns it. Keep in sync with the ignores in .markdownlint-cli2.jsonc.
 CHANGELOG.md
 
+# Agent scratch state, git-excluded and not part of the repository's docs
+.claude/
+
 # Ignore-style files (no recognized extension — Prettier would misparse them)
 *ignore
