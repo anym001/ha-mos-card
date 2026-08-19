@@ -55,6 +55,18 @@ export interface MosCardConfig extends LovelaceCardConfig {
   max_rows?: number;
 
   /**
+   * Lay each group out in this many columns. Default 1.
+   *
+   * Falls back to fewer columns on a card too narrow to hold them, so a
+   * dashboard that is wide on a desktop and narrow on a phone stays readable
+   * without a second card.
+   */
+  columns?: number;
+
+  /** Draw shorter rows with smaller controls. Default false. */
+  compact?: boolean;
+
+  /**
    * The order rows are listed in within a group. Default `name`.
    *
    * `state` puts what is running first, then what is paused, then what is

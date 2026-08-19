@@ -20,7 +20,8 @@
     "unknown_kind": "Unknown device kind",
     "unknown_sort": "Unknown sort order",
     "unknown_secondary_info": "Unknown secondary info",
-    "bad_max_rows": "'max_rows' must be a whole number of at least 1"
+    "bad_max_rows": "'max_rows' must be a whole number of at least 1",
+    "bad_columns": "'columns' must be a whole number from 1 to 4"
   },
   "kinds": {
     "docker_container": "Docker containers",
@@ -41,6 +42,9 @@
     "filter_hint": "Comma-separated. * and ? are wildcards; a plain word matches anywhere in the name.",
     "max_rows": "Rows per group",
     "max_rows_hint": "The rest are folded behind a line that opens them. Leave empty for no limit.",
+    "columns": "Columns",
+    "columns_hint": "Home Assistant caps a card at about 500 px, which fits two columns and wants compact rows. More needs --ha-view-sections-column-max-width raised in your theme; the card drops to what fits.",
+    "compact": "Compact rows",
     "sort": "Sort by",
     "sort_name": "Name",
     "sort_state": "State, then name",
