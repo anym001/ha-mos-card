@@ -55,6 +55,14 @@ export interface MosCardConfig extends LovelaceCardConfig {
    */
   secondary_info?: SecondaryInfo;
 
+  /**
+   * Show what the MOS server itself reports under its name. Default false.
+   *
+   * Turning this on also shows the server heading for a single server, which
+   * the card otherwise omits as noise — there would be nowhere to put the line.
+   */
+  show_server_summary?: boolean;
+
   /** Show the state entity's icon or MOS template picture. Default true. */
   show_icon?: boolean;
 

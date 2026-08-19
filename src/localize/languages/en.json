@@ -44,6 +44,8 @@
     "secondary_info_memory": "Memory usage",
     "display": "Display",
     "group_by_kind": "Group by kind",
+    "show_server_summary": "Show server summary",
+    "show_server_summary_hint": "Puts the server's load next to its name, and shows that name even with a single server.",
     "show_icon": "Show icon",
     "show_state": "Show state",
     "show_link": "Show link",

@@ -22,6 +22,7 @@ import {
   MosDeviceKind,
   ROW_SORTS,
   SECONDARY_INFO_MODES,
+  SERVER_METRICS,
   declaredIcon,
   deviceDisplayName,
   entitiesByDevice,
@@ -92,6 +93,8 @@ interface RowGroup {
 interface ServerSection {
   server?: DeviceRegistryEntry;
   groups: RowGroup[];
+  /** What the server reports about itself, when the config asks for it. */
+  serverMetrics: EntityRegistryEntry[];
 }
 
 @customElement('mos-card')
@@ -184,6 +187,7 @@ export class MosCard extends LitElement {
       group_by_kind: true,
       sort: 'name',
       secondary_info: 'none',
+      show_server_summary: false,
       show_icon: true,
       show_state: true,
       show_link: true,
@@ -313,6 +317,20 @@ export class MosCard extends LitElement {
         }
         for (const metric of this.rowMetricEntities(deviceEntities, kind)) {
           ids.push(metric.entity_id);
+        }
+      }
+
+      // The server's own entities, which no row is built from and which are
+      // therefore not reached by the loop above.
+      if (this.config.show_server_summary) {
+        for (const server of findServerDevices(this.devices)) {
+          for (const metric of SERVER_METRICS) {
+            const entity = findMetricEntity(entityIndex.get(server.id) ?? [], metric);
+
+            if (entity) {
+              ids.push(entity.entity_id);
+            }
+          }
         }
       }
     }
@@ -447,7 +465,16 @@ export class MosCard extends LitElement {
       }
 
       if (groups.length) {
-        sections.push({ server, groups });
+        sections.push({
+          server,
+          groups,
+          serverMetrics:
+            this.config.show_server_summary && server
+              ? SERVER_METRICS.map((metric) => findMetricEntity(entityIndex.get(server.id) ?? [], metric)).filter(
+                  (entity): entity is EntityRegistryEntry => entity !== undefined,
+                )
+              : [],
+        });
       }
     }
 
@@ -537,9 +564,22 @@ export class MosCard extends LitElement {
     const heading = section.server
       ? section.server.name_by_user || section.server.name || localize('common.server')
       : localize('common.server');
+    const summary = this.formatMetrics(section.serverMetrics);
 
+    // The heading is otherwise omitted for a single server, where it only
+    // repeats the card's own title — but a summary has to hang off something,
+    // so asking for one brings the name back with it.
     return html`
-      ${showServerHeading ? html`<div class="server-heading">${heading}</div>` : nothing}
+      ${
+        showServerHeading || summary
+          ? html`
+              <div class="server-heading">
+                <span>${heading}</span>
+                ${summary ? html`<span class="server-summary">${summary}</span>` : nothing}
+              </div>
+            `
+          : nothing
+      }
       ${section.groups.map((group) => this.renderGroup(group))}
     `;
   }
@@ -925,9 +965,25 @@ export class MosCard extends LitElement {
       }
 
       .server-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
         margin: 14px 4px 6px;
         font-weight: 500;
         color: var(--primary-text-color);
+      }
+
+      /* Right of the name and quieter than it: the server's load is context for
+         the rows below, not a heading of its own. */
+      .server-summary {
+        flex: 0 1 auto;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.85em;
+        font-weight: 400;
+        color: var(--secondary-text-color);
       }
 
       .kind-heading {
