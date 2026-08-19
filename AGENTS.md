@@ -16,8 +16,10 @@ yarn setup       # dependencies + pre-commit hooks (one-command bootstrap)
 yarn check       # everything below except `start`, in one command
 yarn start
 yarn build
-yarn lint        # ESLint
+yarn lint        # ESLint, over src and tests
 yarn typecheck   # tsc --noEmit
+yarn test        # Vitest, once
+yarn test:watch  # Vitest, watching
 yarn lint:md     # markdownlint
 yarn lint:format # prettier --check
 ```
@@ -32,6 +34,8 @@ yarn lint:format # prettier --check
 - `src/action-handler-directive.ts` — tap/hold/double-tap directive
 - `src/localize/localize.ts` — localization helper
 - `src/localize/languages/de.json` and `src/localize/languages/en.json` — translation files
+- `tests/` — Vitest suites over the pure logic in `src/devices.ts`, with `tests/fixtures.ts`
+  holding registry entries shaped like the ones a live instance sends
 - `rollup.config.js` and `rollup.config.dev.js` — production and dev build config
 - `docs/development/ARCHITECTURE.md` — this card's technical documentation; the README is for users
 
@@ -118,6 +122,13 @@ listed and merely reports unavailable. Do not add manual refresh logic that figh
   `@rollup/plugin-typescript` reports type errors as warnings and still emits a bundle, so
   `yarn build` exits 0 on code that does not type-check. `yarn typecheck` is the only command
   that fails on one, which is why the Lint workflow runs it separately from the Build workflow.
+- Cover new pure logic with a test. What is testable here is device selection, entity resolution
+  and name filtering — no DOM, no `hass`, no Lit. Component tests are deliberately absent: they
+  would need a DOM shim and would mostly assert that Lit works.
+- Write fixtures that match what Home Assistant actually sends, and check the shape of a test
+  before trusting it. `findStateEntity` ends in a "first sensor on the device" last resort, so a
+  fixture in registry order lets a test pass with the `unique_id` step deleted — the suite reverses
+  the order on purpose to close that hole.
 - Do not introduce unrelated refactors in focused changes.
 - If updating build tooling, keep dev and prod Rollup configs consistent.
 - The build stays on **Rollup**. Vite's hot reload buys nothing here: Home Assistant loads the
