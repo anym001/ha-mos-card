@@ -120,6 +120,10 @@ hold_action:
 | `server`              | string  | Device id of the MOS server to show. Omit to show every server, grouped. | all servers         |
 | `kinds`               | list    | Which device kinds to render (see below).                                | all six             |
 | `group_by_kind`       | boolean | Show a heading above each kind.                                          | `true`              |
+| `filter`              | object  | `include` / `exclude` name patterns (see below).                         | none                |
+| `max_rows`            | number  | Cap rows per group; the rest fold behind a line that opens them.         | no cap              |
+| `columns`             | number  | Lay each group out in 1–4 columns.                                       | `1`                 |
+| `compact`             | boolean | Shorter rows with smaller controls.                                      | `false`             |
 | `sort`                | string  | Row order within a group: `name` or `state`.                             | `name`              |
 | `secondary_info`      | string  | Extra value beside the state: `none`, `auto`, `cpu` or `memory`.         | `none`              |
 | `show_server_summary` | boolean | Show the server's own load beside its name.                              | `false`             |
@@ -141,6 +145,26 @@ storage pools, the UPS — have nothing to toggle and ignore the action.
 
 While the server works on a start or a stop, the button shows that it is waiting rather than its
 usual icon, and ignores further presses until the device reports its new state.
+
+`filter` narrows the list by name — the name shown on the row, which is the one you would type:
+
+```yaml
+type: custom:mos-card
+filter:
+  include: ['*arr', plex]
+  exclude: '-test'
+```
+
+`*` and `?` are wildcards. A pattern with neither matches anywhere in the name, so `arr` finds both
+Sonarr and Radarr. Matching ignores case, `exclude` is applied last and wins, and a group left with
+no rows disappears along with its heading. This is the one place the card matches on a name;
+_which_ devices exist is still decided by `model_id` alone.
+
+`columns` is capped by the width Home Assistant gives a card, which is about 500 px by default —
+enough for two columns, and only comfortably with `compact: true`. Wider layouts need
+`--ha-view-sections-column-max-width` raised in your theme. The card drops to however many columns
+fit rather than squeezing them, so a dashboard that is wide on a desktop and narrow on a phone needs
+no second card.
 
 A fault is whatever the integration marks with Home Assistant's `problem` device class: a SMART
 warning on a disk, an unhealthy container, a degraded storage pool, a UPS on bypass or overloaded.
