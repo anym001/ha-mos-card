@@ -1016,33 +1016,10 @@ export class MosCard extends LitElement {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .group.cols-3 {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-
-      .group.cols-4 {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-      }
-
-      /* A row needs roughly 220px before its name turns to ellipsis, so the
-         asked-for count is given up in steps rather than all at once. */
-      @container (max-width: 900px) {
-        .group.cols-4 {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-      }
-
-      @container (max-width: 680px) {
-        .group.cols-3,
-        .group.cols-4 {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-      }
-
+      /* A row needs roughly 220px before its name turns to ellipsis, so a card
+         too narrow for two of them gets one rather than two unreadable ones. */
       @container (max-width: 440px) {
-        .group.cols-2,
-        .group.cols-3,
-        .group.cols-4 {
+        .group.cols-2 {
           grid-template-columns: 1fr;
         }
       }

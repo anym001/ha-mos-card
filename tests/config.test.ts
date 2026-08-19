@@ -65,6 +65,14 @@ describe('normalizeConfig validation', () => {
       expect(() => normalizeConfig({ ...base, columns })).not.toThrow();
     }
   });
+
+  it('stops at two columns, the widest a card ever gets being about 500 px', () => {
+    // Three was offered once and rendered as two, which is an option lying
+    // about what it does. Pinned so it does not come back by way of a bigger
+    // MAX_COLUMNS without the styles and the measurement behind it.
+    expect(MAX_COLUMNS).toBe(2);
+    expect(() => normalizeConfig({ ...base, columns: 3 })).toThrow(/columns/i);
+  });
 });
 
 describe('normalizeConfig defaults', () => {

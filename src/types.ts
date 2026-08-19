@@ -55,11 +55,12 @@ export interface MosCardConfig extends LovelaceCardConfig {
   max_rows?: number;
 
   /**
-   * Lay each group out in this many columns. Default 1.
+   * Lay each group out in one or two columns. Default 1.
    *
-   * Falls back to fewer columns on a card too narrow to hold them, so a
-   * dashboard that is wide on a desktop and narrow on a phone stays readable
-   * without a second card.
+   * Two is the ceiling because Home Assistant gives a card about 500 px, which
+   * is two readable rows across and wants `compact` with them. A card too
+   * narrow for two falls back to one, so a dashboard that is wide on a desktop
+   * and narrow on a phone needs no second card.
    */
   columns?: number;
 

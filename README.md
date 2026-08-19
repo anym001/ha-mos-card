@@ -122,7 +122,7 @@ hold_action:
 | `group_by_kind`       | boolean | Show a heading above each kind.                                          | `true`              |
 | `filter`              | object  | `include` / `exclude` name patterns (see below).                         | none                |
 | `max_rows`            | number  | Cap rows per group; the rest fold behind a line that opens them.         | no cap              |
-| `columns`             | number  | Lay each group out in 1–4 columns.                                       | `1`                 |
+| `columns`             | number  | Lay each group out in one or two columns.                                | `1`                 |
 | `compact`             | boolean | Shorter rows with smaller controls.                                      | `false`             |
 | `sort`                | string  | Row order within a group: `name` or `state`.                             | `name`              |
 | `secondary_info`      | string  | Extra value beside the state: `none`, `auto`, `cpu` or `memory`.         | `none`              |
@@ -160,11 +160,11 @@ Sonarr and Radarr. Matching ignores case, `exclude` is applied last and wins, an
 no rows disappears along with its heading. This is the one place the card matches on a name;
 _which_ devices exist is still decided by `model_id` alone.
 
-`columns` is capped by the width Home Assistant gives a card, which is about 500 px by default —
-enough for two columns, and only comfortably with `compact: true`. Wider layouts need
-`--ha-view-sections-column-max-width` raised in your theme. The card drops to however many columns
-fit rather than squeezing them, so a dashboard that is wide on a desktop and narrow on a phone needs
-no second card.
+`columns` stops at two, because that is what fits: Home Assistant gives a card about 500 px on a
+default install — `--ha-view-sections-column-max-width` defaults to `500px` and masonry caps at the
+same figure — which is two readable rows across. Two also wants `compact: true`, or the device names
+run out of room. A card too narrow for two falls back to one, so a dashboard that is wide on a
+desktop and narrow on a phone needs no second card.
 
 A fault is whatever the integration marks with Home Assistant's `problem` device class: a SMART
 warning on a disk, an unhealthy container, a degraded storage pool, a UPS on bypass or overloaded.
