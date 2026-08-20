@@ -9,6 +9,8 @@ This document describes the technical architecture of `ha-mos-card`, the Lovelac
 src/
 ├── mos-card.ts                  # Main card element — LitElement subclass
 ├── devices.ts                   # Device registry subscription and model_id filtering
+├── config.ts                    # Defaults, validation, editor/config conversions
+├── rows.ts                      # Tone, order, row cap, waiting power buttons
 ├── editor.ts                    # Visual editor — implements LovelaceCardEditor
 ├── types.ts                     # Card config interface
 ├── const.ts                     # CARD_VERSION (bumped by release-please)
@@ -18,9 +20,15 @@ src/
     └── languages/
         ├── de.json              # German strings
         └── en.json              # English strings
+tests/                           # Vitest suites over the three logic modules
 dist/
 └── mos-card.js                  # Build output — the file HACS ships
 ```
+
+`config.ts` and `rows.ts` hold the logic that needs no DOM, no `hass` and no render. It sits there
+rather than on the component for two reasons: `CARD_DEFAULTS` is read by both `setConfig` and the
+editor's form data, so the card and its editor cannot disagree about what an untouched option does,
+and pure functions can be tested without driving a live Home Assistant.
 
 ## The `model_id` Contract
 
@@ -48,7 +56,7 @@ does not. The card matches neither, ever.
 
 **Lifecycle comes for free.** The integration adds and removes these devices at runtime through
 `async_setup_dynamic_entities`, so following the registry means a deleted container disappears from
-the card, a new one shows up, and a container behind a failing MOS endpoint keeps its tile and
+the card, a new one shows up, and a container behind a failing MOS endpoint keeps its row and
 merely reports unavailable. There is nothing to refresh by hand, and no manual refresh logic should
 be added that fights this.
 
@@ -57,10 +65,17 @@ device that is the `via_device_id` parent of a device with a MOS kind is by defi
 server. That is what `findServerDevices()` does, and it is why the card can scope a dashboard to
 one server without the integration having to label the server.
 
-## How a Tile Is Composed
+The `filter` option is the one deliberate exception to matching on `model_id` alone. It matches the
+name a row is _displayed_ under — which `deviceDisplayName()` derives by trimming the
+server-and-kind prefix the integration writes, since a card already grouped by server and kind
+repeats it — and it narrows an already-selected list rather than deciding what is on it. A renamed
+device therefore changes what the filter matches, which is correct: the user renamed the thing they
+are filtering on.
 
-Each tile is built from a single entity per device — the state sensor the integration documents for
-exactly this purpose.
+## How a Row Is Composed
+
+A row is anchored on one entity — the state sensor the integration documents for exactly this
+purpose — and picks up the rest from the other entities on the same device.
 
 - **Icon** — resolved in the order Home Assistant itself uses: the state sensor's `entity_picture`
   (for Docker, LXC and VM guests, the icon MOS shows), then its `icon` attribute, then what the
@@ -84,6 +99,46 @@ exactly this purpose.
   exactly one, so matching the domain is enough and does not depend on the switch's name. It is
   drawn as a start/stop button rather than a toggle: a toggle states a setting, and what a guest is
   doing right now is not one.
+- **Measurements** — the sensors named per kind in `KIND_INFO.metrics`, shown beside the state when
+  `secondary_info` asks for them. `auto` takes the kind's own list, `cpu` and `memory` take one
+  named metric and resolve to nothing on the kinds that have none. A metric reporting unavailable
+  is dropped rather than printed.
+- **Badges** — a fault badge and an update badge, both drawn on the icon. The update badge reads
+  the kind's `update_available` binary sensor; only Docker containers have one. The fault badge is
+  not looked up by name at all: `findProblemCandidates()` returns every binary sensor on the
+  device and the caller keeps those whose state carries Home Assistant's `problem` device class.
+  Which of an integration's binary sensors mean "something is wrong" is not this card's judgement
+  to make, and the consequence is that a fault the integration adds later is badged without the
+  card being taught about it.
+- **Server summary** — `SERVER_METRICS` read off the server device, which carries no `model_id` and
+  is therefore never a row. These belong to the heading above the rows, not to any row.
+
+### Waiting for the server
+
+A start or a stop is answered by the NAS, not by the click, so the button records the switch's
+state at the moment it was pressed and draws itself as waiting until something else arrives.
+`settledPending()` ends a wait as soon as the switch reports anything different — including
+unavailable, which is an answer of a kind — and `willUpdate` runs it before the render so the
+button never flickers through a frame of spinner it no longer needs.
+
+`PendingTimers` ends a wait nobody answered after 20 seconds. It is separate from the map of
+waiting switches because the two fail differently: the map is state Lit has to see change, while a
+timeout is a side effect that has to be cancelled — on an answer, and on the card being torn down,
+which happens on every dashboard edit. A leaked timeout fires against a detached element.
+
+### Layout
+
+`getCardSize()` answers the masonry view in grid units — one per row plus one for the card's own
+chrome, with a floor of 3 while the registry is still in flight so the card does not visibly jump.
+The sections view asks `getGridOptions()` instead, which declares full width and content-driven
+height. Only `min_columns: 6` does something on its own: it stops a dashboard from squeezing the
+card to a width where every name is ellipsis.
+
+`columns: 2` is a container query on the card's own width, not the window's — the same card is wide
+in one dashboard column and narrow in three, and only a container query can tell the difference.
+Below 440 px it falls back to one column. Two is the ceiling because Home Assistant gives a card
+about 500 px on a default install; three were offered once and rendered as two, which is an option
+that lies about what it does.
 
 ## Styling
 
@@ -92,9 +147,9 @@ only CSS custom properties inherit across the boundary. Every card therefore shi
 the convention that matters is not _how much_ but _which values_: shape and layout belong to the
 card, colours and surfaces come from the theme.
 
-So every colour here is a `var(--…)` against a Home Assistant theme variable, and the two literal
-hex values in the file are the last link of a fallback chain. Those chains are not decorative:
-`--ha-card-background` is unset in a stock install, and the card would render transparent tiles
+So every colour here is a `var(--…)` against a Home Assistant theme variable, and every literal hex
+value in the file is the last link of a fallback chain. Those chains are not decorative:
+`--ha-card-background` is unset in a stock install, and the card would render transparent rows
 without the `--card-background-color` fallback behind it.
 
 Tints are computed with `color-mix()` on the resolved colour rather than through the `--rgb-*`
@@ -103,10 +158,14 @@ install reports `--primary-text-color: #141414` alongside `--rgb-primary-text-co
 
 ### Tones
 
-Each tile carries a `tone-*` class that the CSS maps onto a theme variable, so a state nobody
-anticipated lands on the neutral one instead of on nothing. Only kinds whose state says something
-about _running_ are coloured: a disk reporting `active` is naming its ATA power mode and a pool
-reports how full it is, and colouring those drowns out the containers.
+Each row carries a `tone-*` class that the CSS maps onto a theme variable, so a state nobody
+anticipated lands on the neutral one instead of on nothing. `TONES` is declared in the order
+`sort: state` lists them in — one list rather than two, so what reads as "up" is what sorts to the
+top.
+
+Only kinds whose state says something about _running_ are coloured: a disk reporting `active` is
+naming its ATA power mode and a pool reports how full it is, and colouring those drowns out the
+containers.
 
 Home Assistant's own tile internals (`ha-tile-icon`, `ha-tile-info`, `state-badge`) are registered
 globally and would have saved this CSS. They are deliberately not used: they are internal elements
@@ -129,12 +188,23 @@ Only the long-stable public elements — `ha-card`, `ha-icon`, `ha-switch` — a
 **Which branch actually fires has not been observed against a live instance.** Only the first has
 been reasoned about against the integration source.
 
+`findMetricEntity()` and `findUpdateEntity()` use the same first two steps and deliberately stop
+there. The last resort is right for the state entity, where a wrong guess costs a row that renders
+something instead of nothing; it is wrong for these, where it would print a number that means
+something else, or light up an update badge on a device that has no update.
+
 ### Re-render gating
 
 `hass` is replaced on every state change anywhere in Home Assistant. `shouldUpdate()` therefore
 compares only the entities this card displays, collected by `trackedEntityIds()` from the
 registries and the config — deliberately not from the rendered rows, because `hide_unavailable`
 drops rows based on state and a hidden row's entity still has to be watched for it to come back.
+
+The set grows with the config: each row's state sensor and power switch always, its metric sensors
+when `secondary_info` asks for one, its binary sensors when `show_problem` is on, and the server's
+own metrics when `show_server_summary` is. It is memoized on the identity of the two registries and
+the config, all of which are replaced wholesale rather than mutated, so a reference check is enough
+to know the list still holds.
 
 ## Build Setup
 
