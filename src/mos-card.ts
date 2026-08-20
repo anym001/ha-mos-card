@@ -42,7 +42,7 @@ import { normalizeConfig } from './config';
 import { PendingTimers, capRows, compareRows, settledPending, toneFor } from './rows';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
-import { localize } from './localize/localize';
+import { localize, setLanguage } from './localize/localize';
 
 console.info(
   `%c  MOS-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
@@ -187,13 +187,19 @@ export class MosCard extends LitElement {
   }
 
   /**
-   * Drop any wait that the incoming states have answered.
+   * Mirror the frontend's language, and drop any wait the incoming states have
+   * answered.
    *
-   * Runs before the render rather than after it, so the button that is about to
-   * be drawn is already the settled one and never flickers through a frame of
+   * Both run before the render rather than after it: the language has to be set
+   * before a single string is resolved, and the button that is about to be drawn
+   * should already be the settled one rather than flickering through a frame of
    * spinner it no longer needs.
    */
   protected willUpdate(changedProps: PropertyValues): void {
+    if (changedProps.has('hass')) {
+      setLanguage(this.hass?.locale?.language);
+    }
+
     if (!changedProps.has('hass') || !this.pending.size) {
       return;
     }
@@ -248,6 +254,14 @@ export class MosCard extends LitElement {
     const oldHass = changedProps.get('hass') as HomeAssistant | undefined;
 
     if (!oldHass) {
+      return true;
+    }
+
+    // A language, unit or format change re-renders every state the card shows
+    // without any of those states changing, so the entity check below cannot
+    // see it. `locale` carries the language and the number, date and time
+    // formats; `localize` is replaced when the translations themselves reload.
+    if (oldHass.locale !== this.hass.locale || oldHass.localize !== this.hass.localize) {
       return true;
     }
 
