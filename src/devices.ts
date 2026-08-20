@@ -359,6 +359,30 @@ export function selectMosDevices(
   );
 }
 
+/**
+ * Container devices that hang off none of the given servers.
+ *
+ * A container device is tied to its server by `via_device_id`. One whose link
+ * is missing, or points at a device this registry does not have, belongs under
+ * no server and would otherwise be selected by nothing at all — a row silently
+ * absent is the worst way for a card to be wrong, because there is nothing left
+ * to notice. Collected here so the caller can list them rather than lose them.
+ *
+ * `null` is not a member of the set either, so a device with no link at all
+ * falls out of the same check as one with a dangling one. With no servers to
+ * compare against every selected device is unassigned, which is exactly the
+ * fallback a registry with no resolvable server needs.
+ */
+export function selectUnassignedMosDevices(
+  devices: DeviceRegistryEntry[],
+  kinds: readonly MosDeviceKind[],
+  serverIds: readonly string[],
+): DeviceRegistryEntry[] {
+  const known: ReadonlySet<string | null> = new Set<string | null>(serverIds);
+
+  return selectMosDevices(devices, kinds).filter((device) => !known.has(device.via_device_id));
+}
+
 /** Index the entity registry by device, dropping entities that cannot render. */
 export function entitiesByDevice(entities: EntityRegistryEntry[]): Map<string, EntityRegistryEntry[]> {
   const index = new Map<string, EntityRegistryEntry[]>();

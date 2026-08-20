@@ -35,6 +35,7 @@ import {
   metricsForMode,
   passesFilter,
   selectMosDevices,
+  selectUnassignedMosDevices,
   subscribeDeviceRegistry,
   subscribeEntityRegistry,
 } from './devices';
@@ -447,18 +448,32 @@ export class MosCard extends LitElement {
       ? this.devices.filter((device) => device.id === this.config.server)
       : findServerDevices(this.devices);
 
+    // Devices that hang off none of the servers above — a missing or dangling
+    // `via_device_id`, or a registry with no resolvable server at all. Without
+    // a section of their own they belong to no server id and are selected by
+    // nothing, which drops the row and says nothing about having dropped it.
+    // Not collected for a card scoped to one server: there the question is not
+    // "which server" but "this one or not".
+    const unassigned = this.config.server
+      ? []
+      : selectUnassignedMosDevices(
+          this.devices,
+          kinds,
+          servers.map((server) => server.id),
+        );
+
     // A configured server id that no longer resolves still deserves its
     // devices: fall back to filtering by via_device_id alone.
-    const serverIds: Array<string | undefined> = servers.length
-      ? servers.map((server) => server.id)
-      : [this.config.server];
+    const serverIds: Array<string | undefined> = this.config.server
+      ? [this.config.server]
+      : [...servers.map((server) => server.id), ...(unassigned.length ? [undefined] : [])];
 
     const sections: ServerSection[] = [];
 
     for (const serverId of serverIds) {
       const server = servers.find((candidate) => candidate.id === serverId);
       const serverName = server ? server.name_by_user || server.name || undefined : undefined;
-      const devices = selectMosDevices(this.devices, kinds, serverId);
+      const devices = serverId === undefined ? unassigned : selectMosDevices(this.devices, kinds, serverId);
       const groups: RowGroup[] = [];
 
       for (const kind of kinds) {
