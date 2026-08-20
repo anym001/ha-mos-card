@@ -99,8 +99,9 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
     }
   }
 
+  /** Same shape, and the same `isConnected` guard, as the card's own. */
   private _subscribe(): void {
-    if (this._unsubscribe || !this.hass?.connection) {
+    if (this._unsubscribe || !this.isConnected || !this.hass?.connection) {
       return;
     }
 
