@@ -216,8 +216,8 @@ export class MosCard extends LitElement {
    *
    * `hass` is replaced on every state change anywhere in Home Assistant, which
    * on a busy instance is many times a second. The card is interested in a
-   * small, known set of entities — the state sensor and power switch of each
-   * device it renders — so everything else is filtered out here.
+   * small, known set of entities — the ones `trackedEntityIds()` collects — so
+   * everything else is filtered out here.
    */
   protected shouldUpdate(changedProps: PropertyValues): boolean {
     if (!this.config) {
@@ -291,6 +291,13 @@ export class MosCard extends LitElement {
         }
         for (const metric of this.rowMetricEntities(deviceEntities, kind)) {
           ids.push(metric.entity_id);
+        }
+        if (this.config.show_update) {
+          const updateEntity = findUpdateEntity(deviceEntities, kind);
+
+          if (updateEntity) {
+            ids.push(updateEntity.entity_id);
+          }
         }
         if (this.config.show_problem) {
           for (const candidate of findProblemCandidates(deviceEntities)) {
