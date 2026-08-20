@@ -88,3 +88,33 @@ describe('language selection', () => {
     expect(localize('common.made_up_key')).toBe('common.made_up_key');
   });
 });
+
+describe('substitution', () => {
+  it('replaces the placeholder', () => {
+    setLanguage('en');
+
+    expect(localize('common.confirm_stop', '{name}', 'PushBits')).toBe('Stop PushBits?');
+  });
+
+  it('does not read a device name as a replacement pattern', () => {
+    setLanguage('en');
+
+    // `$&` in a string replacement means "the matched text" — here that would
+    // put `{name}` back into the sentence it was meant to leave.
+    expect(localize('common.confirm_stop', '{name}', 'Foo$&Bar')).toBe('Stop Foo$&Bar?');
+    expect(localize('common.confirm_stop', '{name}', "A$'B")).toBe("Stop A$'B?");
+  });
+
+  it('substitutes an empty value rather than leaving the placeholder', () => {
+    setLanguage('en');
+
+    expect(localize('common.confirm_stop', '{name}', '')).toBe('Stop ?');
+  });
+
+  it('leaves the string alone when nothing is to be replaced', () => {
+    setLanguage('en');
+
+    expect(localize('common.loading')).toBe(localize('common.loading'));
+    expect(localize('common.loading')).not.toContain('{');
+  });
+});

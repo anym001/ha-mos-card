@@ -98,8 +98,11 @@ export function localize(string: string, search = '', replace = ''): string {
     translated = string;
   }
 
-  if (search !== '' && replace !== '') {
-    translated = translated.replace(search, replace);
+  if (search !== '') {
+    // A function replacer rather than a string one: `String.replace` reads `$&`,
+    // `$'` and friends in a string replacement as patterns, and the value here
+    // is a device name someone else chose.
+    translated = translated.replace(search, () => replace);
   }
 
   return translated;
