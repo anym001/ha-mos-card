@@ -100,15 +100,28 @@ kinds:
   - storage_pool
   - ups
 group_by_kind: true
+filter:
+  include: ['*arr', plex]
+  exclude: '-test'
+max_rows: 5
+columns: 2
+compact: true
+sort: state
+secondary_info: auto
+show_server_summary: true
 show_icon: true
 show_state: true
 show_link: true
 show_power: true
+confirm_stop: true
+show_problem: true
 show_update: true
 hide_unavailable: false
 tap_action:
   action: more-info
 hold_action:
+  action: none
+double_tap_action:
   action: none
 ```
 
