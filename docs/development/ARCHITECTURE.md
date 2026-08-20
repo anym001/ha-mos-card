@@ -65,6 +65,13 @@ device that is the `via_device_id` parent of a device with a MOS kind is by defi
 server. That is what `findServerDevices()` does, and it is why the card can scope a dashboard to
 one server without the integration having to label the server.
 
+A device whose `via_device_id` names no such server — because the link is missing, or points at a
+device the registry no longer has — belongs under no server heading. `selectUnassignedMosDevices()`
+collects exactly those, and the card gives them a section of their own rather than dropping them:
+a row that is silently absent is the worst way for the card to be wrong, because there is nothing
+left to notice. With no server resolvable at all every device is unassigned, which is the same
+single unheaded section the card showed before.
+
 The `filter` option is the one deliberate exception to matching on `model_id` alone. It matches the
 name a row is _displayed_ under — which `deviceDisplayName()` derives by trimming the
 server-and-kind prefix the integration writes, since a card already grouped by server and kind

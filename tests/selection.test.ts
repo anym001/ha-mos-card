@@ -15,6 +15,7 @@ import {
   isMosDeviceKind,
   isUnavailableState,
   selectMosDevices,
+  selectUnassignedMosDevices,
 } from '../src/devices';
 import { DISK, DOCKER, DOCKER_ENTITIES, LXC, POOL, SERVER, SERVER_TWO, device, entity } from './fixtures';
 
@@ -120,5 +121,57 @@ describe('isUnavailableState', () => {
 
   it.each(['running', 'exited', 'off', ''])('treats %o as a reading', (state) => {
     expect(isUnavailableState(state)).toBe(false);
+  });
+});
+
+describe('selectUnassignedMosDevices', () => {
+  const KINDS = [...MOS_DEVICE_KINDS];
+
+  it('collects a device whose via_device_id names no known server', () => {
+    const stray = device({
+      id: 'dev-stray',
+      name: 'Pluto Docker stray',
+      model_id: 'docker_container',
+      via_device_id: 'a-server-that-was-removed',
+    });
+
+    expect(selectUnassignedMosDevices([...ALL, stray], KINDS, [SERVER.id])).toEqual([stray]);
+  });
+
+  it('collects a device with no via_device_id at all', () => {
+    const unlinked = device({
+      id: 'dev-unlinked',
+      name: 'Docker unlinked',
+      model_id: 'docker_container',
+    });
+
+    expect(selectUnassignedMosDevices([...ALL, unlinked], KINDS, [SERVER.id])).toEqual([unlinked]);
+  });
+
+  it('leaves the devices of a known server alone', () => {
+    expect(selectUnassignedMosDevices(ALL, KINDS, [SERVER.id])).toEqual([]);
+  });
+
+  it('treats every device as unassigned when no server resolves', () => {
+    expect(selectUnassignedMosDevices(ALL, KINDS, [])).toEqual([DOCKER, LXC, DISK, POOL]);
+  });
+
+  it('still honours the requested kinds', () => {
+    expect(selectUnassignedMosDevices(ALL, ['storage_pool'], [])).toEqual([POOL]);
+  });
+
+  it('still leaves out a disabled device', () => {
+    const disabled = device({
+      id: 'dev-off',
+      name: 'Docker off',
+      model_id: 'docker_container',
+      disabled_by: 'user',
+    });
+
+    expect(selectUnassignedMosDevices([...ALL, disabled], KINDS, [SERVER.id])).toEqual([]);
+  });
+
+  it('does not collect the server device itself, which carries no model_id', () => {
+    expect(selectUnassignedMosDevices([SERVER, SERVER_TWO], KINDS, [])).toEqual([]);
   });
 });
