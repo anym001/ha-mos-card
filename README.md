@@ -2,7 +2,7 @@
 
 A Lovelace card for the [MOS NAS integration](https://github.com/anym001/ha-mos) (domain `mos`).
 It renders the containers, virtual machines, disks, storage pools and UPS of a MOS server as a
-stack of tiles, and follows them as they come and go.
+list of rows, and follows them as they come and go.
 
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]](LICENSE)
@@ -17,18 +17,21 @@ stack of tiles, and follows them as they come and go.
 
 - **Six device kinds**, each switchable on or off: Docker containers, LXC containers, virtual
   machines, disks, storage pools and the UPS.
-- **Tiles build themselves.** Each tile shows the icon, the name, the state, a link to the thing's
+- **Rows build themselves.** Each row shows the icon, the name, the state, a link to the thing's
   own web interface where it has one, and a start/stop button for the guests that can be
-  controlled. A Docker container with a newer image waiting gets a badge on its icon.
+  controlled. A device reporting a fault or a waiting update gets a badge on its icon.
 - **The state is visible before it is read.** A running guest gets a coloured ring around its icon
   and its state in the same colour; a stopped one stays neutral. Disks and pools are left neutral
   on purpose — a disk reporting `Active` is naming its power mode, not reporting good news.
 - **The list stays current.** A container you delete on the NAS disappears from the card and a new
   one shows up on its own — no editing the card, no manual refresh.
-- **Renaming is safe.** The card never matches devices by name, so you can rename a container in
-  Home Assistant without breaking anything.
+- **Renaming is safe.** Which devices the card shows is never decided by their name, so you can
+  rename a container in Home Assistant without breaking anything. Only the optional `filter` reads
+  names, and it reads the one you see.
+- **The list is yours to shape.** Filter rows by name, sort them by state, cap how many each group
+  lists, and lay them out in two columns — all optional, none of it needed to get a useful card.
 - **A broken endpoint does not empty the card.** Devices behind a failing MOS endpoint keep their
-  tiles and go unavailable, which is a different thing from being gone.
+  rows and go unavailable, which is a different thing from being gone.
 
 ---
 
@@ -126,21 +129,21 @@ hold_action:
 | `compact`             | boolean | Shorter rows with smaller controls.                                      | `false`             |
 | `sort`                | string  | Row order within a group: `name` or `state`.                             | `name`              |
 | `secondary_info`      | string  | Extra value beside the state: `none`, `auto`, `cpu` or `memory`.         | `none`              |
-| `show_server_summary` | boolean | Show the server's own load beside its name.                              | `false`             |
-| `show_icon`           | boolean | Show the tile icon.                                                      | `true`              |
-| `show_state`          | boolean | Show the state value on each tile.                                       | `true`              |
+| `show_server_summary` | boolean | Show the server's own load beside its name (see below).                  | `false`             |
+| `show_icon`           | boolean | Show the row icon.                                                       | `true`              |
+| `show_state`          | boolean | Show the state value on each row.                                        | `true`              |
 | `show_link`           | boolean | Show a link button where the device has a URL.                           | `true`              |
-| `show_power`          | boolean | Show the start/stop button on guest tiles.                               | `true`              |
+| `show_power`          | boolean | Show the start/stop button on guest rows.                                | `true`              |
 | `confirm_stop`        | boolean | Ask before stopping a running guest. Starting never asks.                | `false`             |
-| `show_problem`        | boolean | Badge tiles whose device reports a fault (needs `show_icon`).            | `true`              |
-| `show_update`         | boolean | Badge tiles whose device reports a waiting update (needs `show_icon`).   | `true`              |
-| `hide_unavailable`    | boolean | Hide tiles whose state is unavailable or unknown.                        | `false`             |
-| `tap_action`          | object  | Action for a tap on the tile body, applied to that tile's state entity.  | `action: more-info` |
+| `show_problem`        | boolean | Badge rows whose device reports a fault (needs `show_icon`).             | `true`              |
+| `show_update`         | boolean | Badge rows whose device reports a waiting update (needs `show_icon`).    | `true`              |
+| `hide_unavailable`    | boolean | Hide rows whose state is unavailable or unknown.                         | `false`             |
+| `tap_action`          | object  | Action for a tap on the row body, applied to that row's state entity.    | `action: more-info` |
 | `hold_action`         | object  | Action for a 500 ms hold.                                                | `action: none`      |
 | `double_tap_action`   | object  | Action for a double tap.                                                 | `action: none`      |
 
-`toggle` is the one action that does not use the tile's state entity: that entity only reports a
-state, so the action is applied to the tile's start/stop switch instead. Tiles without one — disks,
+`toggle` is the one action that does not use the row's state entity: that entity only reports a
+state, so the action is applied to the row's start/stop switch instead. Rows without one — disks,
 storage pools, the UPS — have nothing to toggle and ignore the action.
 
 While the server works on a start or a stop, the button shows that it is waiting rather than its
@@ -171,6 +174,10 @@ warning on a disk, an unhealthy container, a degraded storage pool, a UPS on byp
 The badge names what it found, in Home Assistant's own wording, so a disk reads "SMART warning" and
 not just "problem". A device with both a fault and a waiting update shows both badges.
 
+`show_server_summary` puts the server's CPU load, memory usage and CPU temperature next to its
+name, and shows that name even when there is only one server — without it a single server gets no
+heading at all. A value the server does not report is left out.
+
 `sort: state` lists what is running first, then what is paused, then what is stopped, alphabetically
 within each. Disks and storage pools stay alphabetical either way — their state says nothing about
 whether something is running.
@@ -184,6 +191,10 @@ shown as unknown.
 Valid values for `kinds`: `docker_container`, `lxc_container`, `virtual_machine`, `disk`,
 `storage_pool`, `ups`. Anything else is a configuration error and the card says so, rather than
 silently rendering an empty list.
+
+In a sections dashboard the card asks for the full width of the section and for at least half of
+it, so a row keeps enough space for its name next to the icon, the state and the buttons. Resizing
+it narrower than that is refused; height always follows the number of rows.
 
 Every option is in the visual editor, so the YAML above is only needed if you prefer it. The
 preview beside it is the real card, updating as you change things.
@@ -218,10 +229,11 @@ Check that the MOS integration is set up and that its devices are not disabled i
 each device is.
 
 **A container is missing**
-Check whether its device is disabled, and whether its kind is enabled in the card's `kinds` option.
-Tiles are never matched by name, so renaming is not the cause.
+Check whether its device is disabled, whether its kind is enabled in the card's `kinds` option, and
+whether a `filter` or `max_rows` is holding it back. Renaming is not the cause unless a `filter` is
+set: without one, no device is selected by name.
 
-**Tiles show as unavailable**
+**Rows show as unavailable**
 That is the intended signal for a MOS endpoint that is failing: the devices stay, their entities go
 unavailable. Check the integration's own diagnostics.
 
