@@ -178,12 +178,19 @@ export class MosCard extends LitElement {
   public connectedCallback(): void {
     super.connectedCallback();
     this.subscribeRegistries();
+    this.resumePendingTimers();
   }
 
   public disconnectedCallback(): void {
     super.disconnectedCallback();
     this.unsubscribeRegistries();
-    this.clearPendingTimers();
+    // The timeouts go — one firing against a detached element is exactly what
+    // splitting them off was for — but the waits themselves stay. The request a
+    // wait stands for is still in flight, and a card is detached and reattached
+    // routinely while one is: a conditional card hiding it, a switch to another
+    // view. Dropping the waits there left the button back with no sign that
+    // anything was happening.
+    this.pendingTimers.stopAll();
   }
 
   /**
@@ -927,9 +934,18 @@ export class MosCard extends LitElement {
     }
   }
 
-  private clearPendingTimers(): void {
-    this.pendingTimers.stopAll();
-    this.pending = new Map();
+  /**
+   * Re-arm the timeouts for waits that survived a detach.
+   *
+   * The clock starts over rather than resuming where it left off, which is the
+   * safe direction: a wait always ends. It rarely runs out in practice, because
+   * the first `hass` a reattached card is handed usually already answers the
+   * request and `willUpdate` clears the wait before the timeout matters.
+   */
+  private resumePendingTimers(): void {
+    for (const entityId of this.pending.keys()) {
+      this.pendingTimers.start(entityId, (id) => this.clearPending(id));
+    }
   }
 
   /** The action the config names for one of the three gestures. */
