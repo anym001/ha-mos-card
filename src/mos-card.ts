@@ -231,8 +231,11 @@ export class MosCard extends LitElement {
     }
 
     // The registry subscription is established in updated(), which only runs
-    // after a render, so the first updates have to be let through unfiltered.
-    if (!this.unsubscribe.length) {
+    // after a render, so updates have to be let through unfiltered until it
+    // stands. Narrowed to a connected element: a detached one will not
+    // subscribe, and letting its updates through would re-render it on every
+    // state change in the instance for as long as something holds a reference.
+    if (!this.unsubscribe.length && this.isConnected) {
       return true;
     }
 
@@ -340,8 +343,18 @@ export class MosCard extends LitElement {
     return ids;
   }
 
+  /**
+   * Mirror both registries, once, for as long as the card is on screen.
+   *
+   * The `isConnected` guard is what keeps that promise. `updated()` calls this
+   * on a `hass` change, and a card element that has been detached can still be
+   * handed a `hass` — at which point it would subscribe again with no
+   * `disconnectedCallback` left to come and tear the subscription down. The
+   * collection holds the callback, the callback holds this element, and the
+   * card is re-rendered off screen for as long as something keeps a reference.
+   */
   private subscribeRegistries(): void {
-    if (this.unsubscribe.length || !this.hass?.connection) {
+    if (this.unsubscribe.length || !this.isConnected || !this.hass?.connection) {
       return;
     }
 
