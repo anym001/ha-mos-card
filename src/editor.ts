@@ -1,4 +1,4 @@
-import { LitElement, html, TemplateResult, css, CSSResultGroup, nothing } from 'lit';
+import { LitElement, html, TemplateResult, css, CSSResultGroup, nothing, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant, LovelaceCardEditor, fireEvent } from 'custom-card-helpers';
 import type { UnsubscribeFunc } from 'home-assistant-js-websocket';
@@ -13,7 +13,7 @@ import {
   subscribeDeviceRegistry,
 } from './devices';
 import { CARD_DEFAULTS, MAX_COLUMNS, TOGGLES, foldFilter, patternsToText } from './config';
-import { localize } from './localize/localize';
+import { localize, setLanguage } from './localize/localize';
 
 /**
  * The action options, paired with the action the card falls back to without them.
@@ -81,7 +81,19 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
     this._unsubscribe = undefined;
   }
 
-  protected updated(changedProps: Map<string, unknown>): void {
+  /**
+   * Mirror the frontend's language before anything is labelled.
+   *
+   * `ha-form` asks for every label and helper while it renders, so the language
+   * has to be current by then. Same source as the card uses — see `setLanguage`.
+   */
+  protected willUpdate(changedProps: PropertyValues): void {
+    if (changedProps.has('hass')) {
+      setLanguage(this.hass?.locale?.language);
+    }
+  }
+
+  protected updated(changedProps: PropertyValues): void {
     if (changedProps.has('hass')) {
       this._subscribe();
     }
