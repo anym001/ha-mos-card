@@ -101,7 +101,10 @@ purpose — and picks up the rest from the other entities on the same device.
 - **Link** — the Docker state sensor's `web_ui_url` attribute, falling back to the device's
   configuration URL. The integration omits the attribute entirely for containers without a web
   interface, so its presence is the test; a container without one gets no button rather than a
-  dead one.
+  dead one. `isLinkableUrl()` then checks the scheme against the same set Home Assistant validates
+  `configuration_url` against — `http`, `https`, `homeassistant`, with a host. `web_ui_url` is an
+  ordinary state attribute that nothing validates on the way, and a `javascript:` URL in an `href`
+  runs in the dashboard's own context when clicked.
 - **Power** — the single `switch` entity on the device. Each of the three guest kinds contributes
   exactly one, so matching the domain is enough and does not depend on the switch's name. It is
   drawn as a start/stop button rather than a toggle: a toggle states a setting, and what a guest is
