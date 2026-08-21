@@ -1,6 +1,7 @@
 /**
  * Row-level logic: what colour a row is, what order rows come in, how many of
- * them are shown, and which power buttons are still waiting.
+ * them are shown, which power buttons are still waiting, and whether a row's
+ * link is one a browser should be handed.
  *
  * All of it takes plain values and returns plain values. It lives here rather
  * than on the component because none of it needs a DOM, a `hass` or a render —
@@ -57,6 +58,44 @@ export function toneFor(kind: MosDeviceKind, state: string | undefined): Tone {
   }
 
   return IDLE_STATES.has(value) ? 'idle' : 'inactive';
+}
+
+/**
+ * The URL schemes a row's link button may point at.
+ *
+ * The same set Home Assistant's own device registry validates
+ * `configuration_url` against, so a link the core would accept on the device
+ * page is a link this card draws. `homeassistant:` is in it because the
+ * companion app uses it for deep links.
+ */
+const LINK_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:', 'homeassistant:']);
+
+/**
+ * Whether a URL is one to put behind the link button.
+ *
+ * A row's link comes from `web_ui_url` on the state sensor, which is a plain
+ * state attribute the MOS server fills in and nothing validates on the way —
+ * unlike `configuration_url`, which Home Assistant checks when the device is
+ * registered. A `javascript:` URL in an `href` runs in the dashboard's own
+ * context the moment someone clicks it, so the scheme is checked here rather
+ * than assumed. Anything else is treated as no link at all, which is what a row
+ * without a web interface already renders.
+ *
+ * Parsed without a base, so a value that is not an absolute URL is rejected
+ * too. Home Assistant requires a host for the same reason.
+ */
+export function isLinkableUrl(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(url);
+
+    return LINK_SCHEMES.has(parsed.protocol) && parsed.host !== '';
+  } catch {
+    return false;
+  }
 }
 
 /** The minimum a row has to carry to be ordered. */

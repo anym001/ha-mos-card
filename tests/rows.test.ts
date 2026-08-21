@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { MOS_DEVICE_KINDS } from '../src/devices';
 import type { MosDeviceKind } from '../src/devices';
-import { TONES, capRows, compareRows, settledPending, toneFor } from '../src/rows';
+import { TONES, capRows, compareRows, isLinkableUrl, settledPending, toneFor } from '../src/rows';
 
 describe('toneFor', () => {
   it.each(['running', 'on', 'active', 'ol', 'online', 'RUNNING', 'On'])('reads %s as active', (state) => {
@@ -171,5 +171,43 @@ describe('settledPending', () => {
 
   it('reports nothing for an empty wait', () => {
     expect(settledPending(new Map(), stateOf)).toEqual([]);
+  });
+});
+
+describe('isLinkableUrl', () => {
+  it.each([
+    'http://10.0.1.30:8080/',
+    'https://nas.example.org',
+    'http://192.168.1.5',
+    'homeassistant://navigate/lovelace/0',
+  ])('accepts %s', (url) => {
+    expect(isLinkableUrl(url)).toBe(true);
+  });
+
+  it('rejects a javascript: URL, which would run on click', () => {
+    expect(isLinkableUrl('javascript:alert(1)')).toBe(false);
+    expect(isLinkableUrl('JavaScript:alert(1)')).toBe(false);
+  });
+
+  it.each(['data:text/html,<script>1</script>', 'vbscript:msgbox', 'file:///etc/passwd'])('rejects %s', (url) => {
+    expect(isLinkableUrl(url)).toBe(false);
+  });
+
+  it('rejects a scheme with no host, which is not a web interface', () => {
+    // `https:///path` is deliberately not in here: the WHATWG parser reads the
+    // extra slash away and resolves it to `https://path/`, host and all, which
+    // is exactly what a browser would follow.
+    expect(isLinkableUrl('http://')).toBe(false);
+    expect(isLinkableUrl('homeassistant:')).toBe(false);
+  });
+
+  it('rejects something that is not a URL at all', () => {
+    expect(isLinkableUrl('not a url')).toBe(false);
+    expect(isLinkableUrl('/local/page.html')).toBe(false);
+  });
+
+  it('treats an absent URL as no link', () => {
+    expect(isLinkableUrl(undefined)).toBe(false);
+    expect(isLinkableUrl('')).toBe(false);
   });
 });

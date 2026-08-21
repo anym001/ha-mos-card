@@ -40,7 +40,7 @@ import {
   subscribeEntityRegistry,
 } from './devices';
 import { normalizeConfig } from './config';
-import { PendingTimers, capRows, compareRows, settledPending, toneFor } from './rows';
+import { PendingTimers, capRows, compareRows, isLinkableUrl, settledPending, toneFor } from './rows';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
 import { localize, setLanguage } from './localize/localize';
@@ -851,7 +851,7 @@ export class MosCard extends LitElement {
   private renderLink(row: DeviceRow, stateObj?: HassEntity): TemplateResult | typeof nothing {
     const url = (stateObj?.attributes.web_ui_url as string | undefined) || row.device.configuration_url || undefined;
 
-    if (!url) {
+    if (!isLinkableUrl(url)) {
       return nothing;
     }
 
