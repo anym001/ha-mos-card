@@ -309,7 +309,3 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
     `;
   }
 }
-
-if (!customElements.get('mos-card-editor')) {
-  customElements.define('mos-card-editor', MosCardEditor);
-}
