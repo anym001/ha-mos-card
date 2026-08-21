@@ -40,7 +40,16 @@ import {
   subscribeEntityRegistry,
 } from './devices';
 import { normalizeConfig } from './config';
-import { PendingTimers, capRows, compareRows, fillPlaceholders, isLinkableUrl, settledPending, toneFor } from './rows';
+import {
+  PendingTimers,
+  capRows,
+  compareRows,
+  fillPlaceholders,
+  isLinkableUrl,
+  moreInfoEntity,
+  settledPending,
+  toneFor,
+} from './rows';
 import type { PlaceholderValues } from './rows';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
@@ -990,25 +999,32 @@ export class MosCard extends LitElement {
    * its power button, so the action is pointed at that instead. A row without
    * one — a disk, a pool, the UPS — has nothing to toggle and does nothing,
    * rather than reporting an entity Home Assistant cannot act on.
+   *
+   * A `more-info` action may name an entity of its own instead — `[[power]]`
+   * to open the row's switch rather than its sensor. `handleAction` only ever
+   * opens the entity it is handed here, so that one is lifted out of the action
+   * config on the way in; see `moreInfoEntity`.
    */
   private handleAction(ev: ActionHandlerEvent, row: DeviceRow): void {
     if (!this.hass || !this.config || !ev.detail?.action) {
       return;
     }
 
-    const toggling = this.configuredAction(ev.detail.action)?.action === 'toggle';
+    const configured = this.configuredAction(ev.detail.action);
+    const toggling = configured?.action === 'toggle';
 
     if (toggling && !row.powerEntity) {
       return;
     }
 
     const values = this.placeholderValues(row);
+    const rowEntity = toggling ? row.powerEntity?.entity_id : row.stateEntity?.entity_id;
 
     handleAction(
       this,
       this.hass,
       {
-        entity: toggling ? row.powerEntity?.entity_id : row.stateEntity?.entity_id,
+        entity: moreInfoEntity(configured, values) ?? rowEntity,
         tap_action: fillPlaceholders(this.config.tap_action, values),
         hold_action: fillPlaceholders(this.config.hold_action, values),
         double_tap_action: fillPlaceholders(this.config.double_tap_action, values),

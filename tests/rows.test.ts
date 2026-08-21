@@ -6,10 +6,20 @@
  * reasoned about rather than observed when it did.
  */
 import { describe, expect, it } from 'vitest';
+import type { ActionConfig } from 'custom-card-helpers';
 
 import { MOS_DEVICE_KINDS } from '../src/devices';
 import type { MosDeviceKind } from '../src/devices';
-import { TONES, capRows, compareRows, fillPlaceholders, isLinkableUrl, settledPending, toneFor } from '../src/rows';
+import {
+  TONES,
+  capRows,
+  compareRows,
+  fillPlaceholders,
+  isLinkableUrl,
+  moreInfoEntity,
+  settledPending,
+  toneFor,
+} from '../src/rows';
 
 describe('toneFor', () => {
   it.each(['running', 'on', 'active', 'ol', 'online', 'RUNNING', 'On'])('reads %s as active', (state) => {
@@ -285,5 +295,51 @@ describe('fillPlaceholders', () => {
       confirmation: true,
       size: 3,
     });
+  });
+});
+
+describe('moreInfoEntity', () => {
+  const values = {
+    entity: 'sensor.immich_cli',
+    power: 'switch.immich_cli',
+    device_id: 'dev-1',
+    name: 'immich-cli',
+    kind: 'lxc_container',
+  };
+
+  it('lifts the entity a more-info action names, substituted', () => {
+    expect(moreInfoEntity({ action: 'more-info', entity: '[[power]]' }, values)).toBe('switch.immich_cli');
+  });
+
+  it('takes a literal entity as written', () => {
+    expect(moreInfoEntity({ action: 'more-info', entity: 'sensor.fixed' }, values)).toBe('sensor.fixed');
+  });
+
+  it('has nothing to lift from a more-info action without an entity', () => {
+    expect(moreInfoEntity({ action: 'more-info' }, values)).toBeUndefined();
+    expect(moreInfoEntity(undefined, values)).toBeUndefined();
+  });
+
+  // An `entity` inside a `fire-dom-event` payload belongs to whatever the popup
+  // does with it, and opening a more-info dialog is not that.
+  it('leaves an entity in another action where it is', () => {
+    expect(
+      moreInfoEntity({ action: 'fire-dom-event', entity: '[[power]]' } as unknown as ActionConfig, values),
+    ).toBeUndefined();
+    expect(
+      moreInfoEntity({ action: 'toggle', entity: '[[power]]' } as unknown as ActionConfig, values),
+    ).toBeUndefined();
+  });
+
+  // A row that has no switch — a disk, a pool, the UPS. The caller falls back
+  // to the row's own entity, so the tap opens its dialog instead of none.
+  it('reports nothing when the placeholder empties', () => {
+    expect(
+      moreInfoEntity({ action: 'more-info', entity: '[[power]]' }, { ...values, power: undefined }),
+    ).toBeUndefined();
+  });
+
+  it('keeps an unknown key, so a typo opens a dialog that names it', () => {
+    expect(moreInfoEntity({ action: 'more-info', entity: '[[entty]]' }, values)).toBe('[[entty]]');
   });
 });

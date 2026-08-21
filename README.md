@@ -193,6 +193,20 @@ tap_action:
 Quote a placeholder that stands alone as a value — `- '[[entity]]'` — or YAML reads the brackets as
 a nested list.
 
+A `more-info` action takes an entity of its own, so the dialog does not have to be the row's default
+one:
+
+```yaml
+type: custom:mos-card
+tap_action:
+  action: more-info
+  entity: '[[power]]'
+```
+
+That opens the start/stop switch of the row that was tapped instead of its state entity. On a row
+that has no switch — a disk, a pool, the UPS — the placeholder empties and the row's own dialog
+opens, as it would without the line.
+
 Substitution is textual, in the sense `[[ ]]` has in decluttering-card: nothing is evaluated, so
 Jinja such as `{{ states('sensor.x') }}` and JavaScript expressions do not work here. A key that
 does not exist is left as written rather than emptied, so a typo is visible in whatever it opened. A
