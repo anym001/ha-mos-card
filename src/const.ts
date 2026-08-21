@@ -2,4 +2,4 @@
 // mismatch between the built bundle and the installed release is visible
 // without digging. Bumped by release-please together with package.json —
 // the trailing annotation is what tells it to rewrite this line.
-export const CARD_VERSION = '0.2.1'; // x-release-please-version
+export const CARD_VERSION = '0.2.2'; // x-release-please-version

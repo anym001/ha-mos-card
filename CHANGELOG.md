@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.2](https://github.com/anym001/ha-mos-card/compare/v0.2.1...v0.2.2) (2026-08-21)
+
+
+### Features
+
+* **card:** substitute row values into action configs ([ccf8960](https://github.com/anym001/ha-mos-card/commit/ccf89607f683e2d479dad2cae94824511dab3f9e))
+
+
+### Bug Fixes
+
+* **card:** keep a waiting power button across a detach ([cbad690](https://github.com/anym001/ha-mos-card/commit/cbad690722a4e012df34e5940fd7a90651452a9d))
+* **card:** never subscribe or re-render on a detached element ([d39f37a](https://github.com/anym001/ha-mos-card/commit/d39f37a9e87401419011efe8f4aab875bfac0eb8))
+* **card:** only link out to a URL a browser should follow ([6a63307](https://github.com/anym001/ha-mos-card/commit/6a633071fab4f46d02edfe98c5a4b9058e1f987b))
+* **card:** open the entity a more-info action names ([aa5141e](https://github.com/anym001/ha-mos-card/commit/aa5141ea12acd535083637547bf04b4bf33ef518))
+* **card:** re-render when an update badge appears or clears ([df62ac0](https://github.com/anym001/ha-mos-card/commit/df62ac0732b656b86e7cb8b002b78c92c7801170))
+* **devices:** list devices that hang off no known server ([ae8a0af](https://github.com/anym001/ha-mos-card/commit/ae8a0afa00938e8e0820fd3d36d8e600bbe2c281))
+* **editor:** correct what the hint says about action targets ([edffed2](https://github.com/anym001/ha-mos-card/commit/edffed2b9eb18cb4146a9793e070ccb55e76c46d))
+* **editor:** drop the kinds key instead of writing an empty list ([b3fe61e](https://github.com/anym001/ha-mos-card/commit/b3fe61e18a8a199cfecf58621680383030c9efe8))
+* **localize:** call them rows in the action hint ([b01e89f](https://github.com/anym001/ha-mos-card/commit/b01e89ffd4cb049dd12f9312e18a01a486665321))
+* **localize:** follow Home Assistant's language, not localStorage ([f637534](https://github.com/anym001/ha-mos-card/commit/f637534f89de59d50c6d7affcc7ad9c6a624bc2a))
+* **localize:** stop reading a device name as a replacement pattern ([d2fd6b9](https://github.com/anym001/ha-mos-card/commit/d2fd6b94c8566800ca28da8935794d8de3057abf))
+
 ## [0.2.1](https://github.com/anym001/ha-mos-card/compare/v0.2.0...v0.2.1) (2026-08-19)
 
 
