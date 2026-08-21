@@ -72,6 +72,6 @@
     "tap_action": "Aktion bei Tippen",
     "hold_action": "Aktion bei Gedrückthalten",
     "double_tap_action": "Aktion bei Doppeltippen",
-    "actions_hint": "Wird auf die Status-Entität der jeweiligen Zeile angewendet — außer „Umschalten“, das den Start/Stopp-Schalter der Zeile verwendet. Navigations- und URL-Ziele sind für alle Zeilen gleich."
+    "actions_hint": "Wird auf die Status-Entität der jeweiligen Zeile angewendet — außer „Umschalten“, das den Start/Stopp-Schalter der Zeile verwendet. Im YAML steht ein Platzhalter wie [[name]] oder [[entity]] an jeder Stelle einer Aktion für die angetippte Zeile."
   }
 }

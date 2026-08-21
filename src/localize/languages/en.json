@@ -72,6 +72,6 @@
     "tap_action": "Tap action",
     "hold_action": "Hold action",
     "double_tap_action": "Double tap action",
-    "actions_hint": "Applied to each row's own state entity, except Toggle, which uses the row's start/stop switch. Navigation and URL targets are the same for every row."
+    "actions_hint": "Applied to each row's own state entity, except Toggle, which uses the row's start/stop switch. In YAML, a placeholder such as [[name]] or [[entity]] anywhere in an action stands for the row that was tapped."
   }
 }

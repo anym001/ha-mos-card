@@ -207,6 +207,10 @@ That opens the start/stop switch of the row that was tapped instead of its state
 that has no switch — a disk, a pool, the UPS — the placeholder empties and the row's own dialog
 opens, as it would without the line.
 
+The visual editor has no field for any of this: Home Assistant's action editor offers an entity for
+no action, and a picker could not hold a placeholder anyway. Pick the action in the editor if you
+like, then write the rest in YAML.
+
 Substitution is textual, in the sense `[[ ]]` has in decluttering-card: nothing is evaluated, so
 Jinja such as `{{ states('sensor.x') }}` and JavaScript expressions do not work here. A key that
 does not exist is left as written rather than emptied, so a typo is visible in whatever it opened. A
