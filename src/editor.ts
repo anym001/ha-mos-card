@@ -271,6 +271,15 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
       delete config.max_rows;
     }
 
+    // Clearing the multi-select is a step on the way to picking something else,
+    // not a request for a card showing no kinds — which is what the card
+    // rejects. Dropping the key lets it fall back to all of them, rather than
+    // throwing "'kinds' must not be empty" into the live preview while someone
+    // is still choosing.
+    if (Array.isArray(value.kinds) && !value.kinds.length) {
+      delete config.kinds;
+    }
+
     // The form has to hand back a value for every key it renders, so the two
     // optional ones arrive as empty strings when cleared. Lovelace would write
     // those into the YAML as empty keys, so they are dropped rather than stored.
