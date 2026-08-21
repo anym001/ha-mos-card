@@ -7,6 +7,7 @@
  * than on the component because none of it needs a DOM, a `hass` or a render —
  * and because on the component it could only be checked by driving the card.
  */
+import type { ActionConfig } from 'custom-card-helpers';
 import { isUnavailableState } from './devices';
 import type { MosDeviceKind, RowSort } from './devices';
 
@@ -274,4 +275,27 @@ export function fillPlaceholders<T>(value: T, values: PlaceholderValues): T {
   }
 
   return value;
+}
+
+/**
+ * The entity a `more-info` action wants opened, if it names one of its own.
+ *
+ * `handleAction` reads the entity for `more-info` off the object the card hands
+ * it, never off the action config, so an `entity` written inside the action
+ * would otherwise be dropped in silence — with or without a placeholder in it.
+ * Lifting it out here is what lets `entity: '[[power]]'` open the row's switch
+ * instead of its state entity. Home Assistant's own frontend resolves the same
+ * way round, `actionConfig.entity || config.entity`.
+ *
+ * Returns `undefined` for every other action, so a `fire-dom-event` payload
+ * that happens to carry an `entity` stays the payload's own, and for a
+ * placeholder the row has no value for — `[[power]]` on a disk — so that a tap
+ * opens the row's usual dialog rather than none at all.
+ */
+export function moreInfoEntity(action: ActionConfig | undefined, values: PlaceholderValues): string | undefined {
+  if (action?.action !== 'more-info' || !action.entity) {
+    return undefined;
+  }
+
+  return fillPlaceholders(action.entity, values) || undefined;
 }
