@@ -162,6 +162,42 @@ storage pools, the UPS — have nothing to toggle and ignore the action.
 While the server works on a start or a stop, the button shows that it is waiting rather than its
 usual icon, and ignores further presses until the device reports its new state.
 
+The three actions are configured once and used by every row, so a `[[key]]` anywhere inside one is
+replaced with the value belonging to the row that was tapped:
+
+| Placeholder     | Value                                                     |
+| --------------- | --------------------------------------------------------- |
+| `[[entity]]`    | the row's state entity — the one `more-info` opens        |
+| `[[power]]`     | the row's start/stop switch, on the kinds that have one   |
+| `[[device_id]]` | the row's device id in the Home Assistant registry        |
+| `[[name]]`      | the name shown on the row                                 |
+| `[[kind]]`      | `docker_container`, `lxc_container`, `virtual_machine`, … |
+
+This is what lets a popup open on the container that was actually tapped, rather than on a fixed
+one:
+
+```yaml
+type: custom:mos-card
+tap_action:
+  action: fire-dom-event
+  browser_mod:
+    service: browser_mod.popup
+    data:
+      title: '[[name]]'
+      content:
+        type: entities
+        entities:
+          - '[[entity]]'
+```
+
+Quote a placeholder that stands alone as a value — `- '[[entity]]'` — or YAML reads the brackets as
+a nested list.
+
+Substitution is textual, in the sense `[[ ]]` has in decluttering-card: nothing is evaluated, so
+Jinja such as `{{ states('sensor.x') }}` and JavaScript expressions do not work here. A key that
+does not exist is left as written rather than emptied, so a typo is visible in whatever it opened. A
+key the row has no value for — `[[power]]` on a disk — becomes an empty string.
+
 `filter` narrows the list by name — the name shown on the row, which is the one you would type:
 
 ```yaml

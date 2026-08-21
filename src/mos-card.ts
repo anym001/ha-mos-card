@@ -40,7 +40,8 @@ import {
   subscribeEntityRegistry,
 } from './devices';
 import { normalizeConfig } from './config';
-import { PendingTimers, capRows, compareRows, isLinkableUrl, settledPending, toneFor } from './rows';
+import { PendingTimers, capRows, compareRows, fillPlaceholders, isLinkableUrl, settledPending, toneFor } from './rows';
+import type { PlaceholderValues } from './rows';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
 import { localize, setLanguage } from './localize/localize';
@@ -1001,17 +1002,35 @@ export class MosCard extends LitElement {
       return;
     }
 
+    const values = this.placeholderValues(row);
+
     handleAction(
       this,
       this.hass,
       {
         entity: toggling ? row.powerEntity?.entity_id : row.stateEntity?.entity_id,
-        tap_action: this.config.tap_action,
-        hold_action: this.config.hold_action,
-        double_tap_action: this.config.double_tap_action,
+        tap_action: fillPlaceholders(this.config.tap_action, values),
+        hold_action: fillPlaceholders(this.config.hold_action, values),
+        double_tap_action: fillPlaceholders(this.config.double_tap_action, values),
       },
       ev.detail.action,
     );
+  }
+
+  /**
+   * What a `[[key]]` in an action config stands for on this row.
+   *
+   * `entity` and `power` are the same split `toggle` makes above: the first
+   * only reports a state, and acting on a row means acting on the second.
+   */
+  private placeholderValues(row: DeviceRow): PlaceholderValues {
+    return {
+      entity: row.stateEntity?.entity_id,
+      power: row.powerEntity?.entity_id,
+      device_id: row.device.id,
+      name: row.name,
+      kind: row.kind,
+    };
   }
   static get styles(): CSSResultGroup {
     return css`
