@@ -225,3 +225,53 @@ export class PendingTimers {
     this.timers.clear();
   }
 }
+
+/**
+ * What a placeholder in an action config stands for on one row.
+ *
+ * A key missing from this map is left in place rather than emptied, so a typo
+ * shows up as `[[entty]]` in the dialog it opened instead of silently opening
+ * an empty one. A key that is present but has no value on this row — the power
+ * switch of a disk, which has none — substitutes to nothing.
+ */
+export type PlaceholderValues = Readonly<Record<string, string | undefined>>;
+
+/**
+ * `[[key]]`, the spelling decluttering-card established for plain substitution.
+ *
+ * Deliberately not `{{ }}`: in Home Assistant those are Jinja, rendered in the
+ * backend, and someone who reads them here would reasonably expect
+ * `{{ states('sensor.x') }}` to work. Nothing here evaluates anything.
+ */
+const PLACEHOLDER = /\[\[(\w+)\]\]/g;
+
+/**
+ * Put the row's own values into an action config written once for every row.
+ *
+ * The card renders its rows itself rather than as Home Assistant entity rows,
+ * so the usual templating cards have no per-row element to hang a template on
+ * and a `fire-dom-event` popup would open on the same entity from whichever row
+ * was tapped. Substituting on the way to the action handler is what gives that
+ * one config a row.
+ *
+ * Walks strings, arrays and plain objects, and returns everything else — the
+ * numbers and booleans of an action config — untouched. Values stay strings: a
+ * placeholder is text substitution, not a typed lookup.
+ */
+export function fillPlaceholders<T>(value: T, values: PlaceholderValues): T {
+  if (typeof value === 'string') {
+    return value.replace(PLACEHOLDER, (placeholder, key: string) =>
+      Object.hasOwn(values, key) ? (values[key] ?? '') : placeholder,
+    ) as T;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => fillPlaceholders(item, values)) as T;
+  }
+
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, fillPlaceholders(item, values)])) as T;
+  }
+
+  return value;
+}

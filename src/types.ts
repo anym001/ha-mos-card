@@ -149,7 +149,13 @@ export interface MosCardConfig extends LovelaceCardConfig {
    */
   hide_unavailable?: boolean;
 
-  /** Action for a tap on the row body. Default `more-info` on the state entity. */
+  /**
+   * Action for a tap on the row body. Default `more-info` on the state entity.
+   *
+   * One config serves every row, so anywhere inside it a `[[key]]` placeholder
+   * stands for the row that was tapped — `entity`, `power`, `device_id`, `name`
+   * and `kind`. Text substitution only, nothing is evaluated.
+   */
   tap_action?: ActionConfig;
   hold_action?: ActionConfig;
   double_tap_action?: ActionConfig;

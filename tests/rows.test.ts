@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { MOS_DEVICE_KINDS } from '../src/devices';
 import type { MosDeviceKind } from '../src/devices';
-import { TONES, capRows, compareRows, isLinkableUrl, settledPending, toneFor } from '../src/rows';
+import { TONES, capRows, compareRows, fillPlaceholders, isLinkableUrl, settledPending, toneFor } from '../src/rows';
 
 describe('toneFor', () => {
   it.each(['running', 'on', 'active', 'ol', 'online', 'RUNNING', 'On'])('reads %s as active', (state) => {
@@ -209,5 +209,81 @@ describe('isLinkableUrl', () => {
   it('treats an absent URL as no link', () => {
     expect(isLinkableUrl(undefined)).toBe(false);
     expect(isLinkableUrl('')).toBe(false);
+  });
+});
+
+describe('fillPlaceholders', () => {
+  const values = {
+    entity: 'sensor.immich_cli',
+    power: undefined,
+    device_id: 'dev-1',
+    name: 'immich-cli',
+    kind: 'lxc_container',
+  };
+
+  it('replaces a placeholder that is the whole string', () => {
+    expect(fillPlaceholders('[[entity]]', values)).toBe('sensor.immich_cli');
+  });
+
+  it('replaces every occurrence inside a longer string', () => {
+    expect(fillPlaceholders('[[name]] ([[kind]]) → [[name]]', values)).toBe('immich-cli (lxc_container) → immich-cli');
+  });
+
+  it('reaches placeholders nested in objects and arrays', () => {
+    const config = {
+      action: 'fire-dom-event',
+      browser_mod: {
+        service: 'browser_mod.popup',
+        data: {
+          title: '[[name]]',
+          content: { type: 'entities', entities: ['[[entity]]', 'sensor.fixed'] },
+        },
+      },
+    };
+
+    expect(fillPlaceholders(config, values)).toEqual({
+      action: 'fire-dom-event',
+      browser_mod: {
+        service: 'browser_mod.popup',
+        data: {
+          title: 'immich-cli',
+          content: { type: 'entities', entities: ['sensor.immich_cli', 'sensor.fixed'] },
+        },
+      },
+    });
+  });
+
+  // The config object is the card's, shared by every row. Substituting into it
+  // would give the second row the first row's entity, and permanently: the
+  // placeholder is gone from the config after the first tap.
+  it('leaves the config it was given untouched', () => {
+    const config = { action: 'navigate', navigation_path: '/lovelace/[[name]]' };
+    const filled = fillPlaceholders(config, values);
+
+    expect(config.navigation_path).toBe('/lovelace/[[name]]');
+    expect(filled.navigation_path).toBe('/lovelace/immich-cli');
+  });
+
+  it('leaves a key it does not know in place, so a typo is visible', () => {
+    expect(fillPlaceholders('[[entty]]', values)).toBe('[[entty]]');
+  });
+
+  // Inherited properties are not values: `[[constructor]]` is a typo like any
+  // other, not a placeholder that happens to resolve against Object.prototype.
+  it('leaves an inherited property name in place', () => {
+    expect(fillPlaceholders('[[constructor]]', values)).toBe('[[constructor]]');
+  });
+
+  it('empties a key the row has no value for', () => {
+    expect(fillPlaceholders({ entity: '[[power]]' }, values)).toEqual({ entity: '' });
+  });
+
+  it('returns what it cannot substitute into unchanged', () => {
+    expect(fillPlaceholders(undefined, values)).toBeUndefined();
+    expect(fillPlaceholders({ action: 'toggle', confirmation: true, size: 3 }, values)).toEqual({
+      action: 'toggle',
+      confirmation: true,
+      size: 3,
+    });
   });
 });
