@@ -1,8 +1,8 @@
 # MOS NAS Card
 
 A Lovelace card for the [MOS NAS integration](https://github.com/anym001/ha-mos) (domain `mos`).
-It lists the containers, virtual machines, disks, storage pools and UPS of a MOS server as rows and
-follows them as they come and go.
+It lists the containers, Compose stacks, virtual machines, disks, storage pools and UPS of a MOS
+server as rows and follows them as they come and go.
 
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]](LICENSE)
@@ -15,8 +15,8 @@ follows them as they come and go.
 
 ## Features
 
-- **Six device kinds**, each switchable on or off: Docker containers, LXC containers, virtual
-  machines, disks, storage pools and the UPS.
+- **Seven device kinds**, each switchable on or off: Docker containers, Docker Compose stacks, LXC
+  containers, virtual machines, disks, storage pools and the UPS.
 - **Every row** carries the icon, the name, the state, a link to the device's own web interface and
   a start/stop button for the guests that can be controlled. A fault or a waiting update adds a
   badge on the icon.
@@ -95,7 +95,7 @@ the form is the real card.
 | `type`                | string  | **Required.** `custom:mos-card`                                       |                     |
 | `title`               | string  | Card heading. Omit for no heading.                                    | none                |
 | `server`              | string  | Device id of the MOS server to show. Omit for every server, grouped.  | all servers         |
-| `kinds`               | list    | Which device kinds to render.                                         | all six             |
+| `kinds`               | list    | Which device kinds to render.                                         | all seven           |
 | `group_by_kind`       | boolean | Show a heading above each kind.                                       | `true`              |
 | `filter`              | object  | `include` / `exclude` name patterns.                                  | none                |
 | `max_rows`            | number  | Cap rows per group; the rest fold behind a line that opens them.      | no cap              |
@@ -116,15 +116,20 @@ the form is the real card.
 | `hold_action`         | object  | Action for a 500 ms hold.                                             | `action: none`      |
 | `double_tap_action`   | object  | Action for a double tap.                                              | `action: none`      |
 
-Valid values for `kinds`: `docker_container`, `lxc_container`, `virtual_machine`, `disk`,
-`storage_pool`, `ups`. Anything else is a configuration error and the card says so.
+Valid values for `kinds`: `docker_container`, `compose_stack`, `lxc_container`, `virtual_machine`,
+`disk`, `storage_pool`, `ups`. Anything else is a configuration error and the card says so.
+
+A Compose stack is one row covering all of its services, and the containers those services run keep
+their own Docker rows — the integration reports both. Drop `compose_stack` or `docker_container`
+from `kinds` to see only one of the two.
 
 Notes on individual options:
 
 - `sort: state` lists running first, then paused, then stopped, alphabetically within each. Disks
   and pools stay alphabetical either way.
-- `secondary_info: auto` picks per kind: CPU and memory for a container or VM, temperature for a
-  disk, free space for a pool, load for the UPS. A value the server cannot report is left out.
+- `secondary_info: auto` picks per kind: CPU and memory for a container or VM, how many of a
+  Compose stack's containers are up (`3/5`), temperature for a disk, free space for a pool, load
+  for the UPS. A value the server cannot report is left out.
 - `show_server_summary` also shows the server name when there is only one server.
 - A fault is what the integration marks with Home Assistant's `problem` device class — a SMART
   warning, an unhealthy container, a degraded pool, a UPS on bypass. The badge names what it found.
@@ -156,7 +161,7 @@ replaced with the value of the row it fires on:
 | `[[power]]`     | the row's start/stop switch, on the kinds that have one   |
 | `[[device_id]]` | the row's device id in the Home Assistant registry        |
 | `[[name]]`      | the name shown on the row                                 |
-| `[[kind]]`      | `docker_container`, `lxc_container`, `virtual_machine`, … |
+| `[[kind]]`      | `docker_container`, `compose_stack`, `virtual_machine`, … |
 
 ```yaml
 type: custom:mos-card

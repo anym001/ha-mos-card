@@ -17,9 +17,9 @@ import {
   selectMosDevices,
   selectUnassignedMosDevices,
 } from '../src/devices';
-import { DISK, DOCKER, DOCKER_ENTITIES, LXC, POOL, SERVER, SERVER_TWO, device, entity } from './fixtures';
+import { COMPOSE, DISK, DOCKER, DOCKER_ENTITIES, LXC, POOL, SERVER, SERVER_TWO, device, entity } from './fixtures';
 
-const ALL = [SERVER, SERVER_TWO, DOCKER, LXC, DISK, POOL];
+const ALL = [SERVER, SERVER_TWO, DOCKER, COMPOSE, LXC, DISK, POOL];
 
 describe('isMosDeviceKind', () => {
   it.each([...MOS_DEVICE_KINDS])('accepts the released kind %s', (kind) => {
@@ -60,6 +60,11 @@ describe('findServerDevices', () => {
 describe('selectMosDevices', () => {
   it('takes only the requested kinds', () => {
     expect(selectMosDevices(ALL, ['docker_container']).map((d) => d.id)).toEqual(['dev-docker']);
+  });
+
+  it('tells a Compose stack from the containers it is made of', () => {
+    expect(selectMosDevices(ALL, ['compose_stack']).map((d) => d.id)).toEqual(['dev-compose']);
+    expect(selectMosDevices(ALL, ['docker_container']).map((d) => d.id)).not.toContain('dev-compose');
   });
 
   it('never returns the server, which carries no model_id', () => {
@@ -153,7 +158,7 @@ describe('selectUnassignedMosDevices', () => {
   });
 
   it('treats every device as unassigned when no server resolves', () => {
-    expect(selectUnassignedMosDevices(ALL, KINDS, [])).toEqual([DOCKER, LXC, DISK, POOL]);
+    expect(selectUnassignedMosDevices(ALL, KINDS, [])).toEqual([DOCKER, COMPOSE, LXC, DISK, POOL]);
   });
 
   it('still honours the requested kinds', () => {

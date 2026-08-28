@@ -26,7 +26,7 @@ export interface MosCardConfig extends LovelaceCardConfig {
   /**
    * Which device kinds to render, matched against the device's `model_id`.
    *
-   * Defaults to all six. Kinds with no devices render nothing, so the default
+   * Defaults to all seven. Kinds with no devices render nothing, so the default
    * shows whatever the server actually has.
    */
   kinds?: MosDeviceKind[];
@@ -80,10 +80,10 @@ export interface MosCardConfig extends LovelaceCardConfig {
   /**
    * A measurement to show beside each row's state. Default `none`.
    *
-   * `auto` picks per kind: CPU and memory for a guest, temperature for a disk,
-   * free space for a pool, load for the UPS. `cpu` and `memory` ask for one
-   * specific number and resolve to nothing on the kinds that have no such
-   * thing. A measurement the server cannot currently report is left out rather
+   * `auto` picks per kind: CPU and memory for a container or a VM, the running
+   * count of a Compose stack's containers, temperature for a disk, free space
+   * for a pool, load for the UPS. `cpu` and `memory` ask for one specific
+   * number and resolve to nothing on the kinds that have no such thing. A measurement the server cannot currently report is left out rather
    * than printed as unknown.
    */
   secondary_info?: SecondaryInfo;
@@ -137,7 +137,7 @@ export interface MosCardConfig extends LovelaceCardConfig {
    * Show a badge on rows whose device reports a waiting update. Default true.
    *
    * The badge sits on the row's icon, so it needs `show_icon` as well. Only
-   * Docker containers report updates at all.
+   * Docker containers and Compose stacks report updates at all.
    */
   show_update?: boolean;
 

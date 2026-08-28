@@ -25,6 +25,7 @@
   },
   "kinds": {
     "docker_container": "Docker containers",
+    "compose_stack": "Compose stacks",
     "lxc_container": "LXC containers",
     "virtual_machine": "Virtual machines",
     "disk": "Disks",

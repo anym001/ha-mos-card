@@ -33,6 +33,7 @@ import type { Connection, UnsubscribeFunc } from 'home-assistant-js-websocket';
  */
 export const MOS_DEVICE_KINDS = [
   'docker_container',
+  'compose_stack',
   'lxc_container',
   'virtual_machine',
   'disk',
@@ -57,10 +58,11 @@ export function isMosDeviceKind(value: unknown): value is MosDeviceKind {
  * Per-kind rendering facts.
  *
  * `stateTranslationKey` names the entity that carries the row's headline value.
- * For the three guest kinds that entity also carries the MOS template icon as
- * its `entity_picture`, and the Docker one additionally carries `web_ui_url`,
- * `repo`, `network_mode` and the image metadata as attributes — which is why a
- * whole row can be built from a single entity.
+ * For the four guest kinds that entity also carries the MOS template icon as
+ * its `entity_picture`, and the two Docker ones additionally carry
+ * `web_ui_url` as an attribute — beside the container's `repo`, `network_mode`
+ * and image metadata, or the stack's services, containers and images — which is
+ * why a whole row can be built from a single entity.
  *
  * `stateKeySuffix` is the same entity's `key` on the integration side, used only
  * as a fallback when the entity registry does not hand us a `translation_key`
@@ -88,6 +90,16 @@ export type SecondaryInfo = (typeof SECONDARY_INFO_MODES)[number];
 export interface MetricRef {
   readonly translationKey: string;
   readonly keySuffix: string;
+  /**
+   * A total this measurement counts against, shown as one figure — `3/5`.
+   *
+   * For the pair of numbers a Compose stack has, where neither says much on its
+   * own: a bare "3" beside the state could be the containers that are up or the
+   * services the stack declares, and printing both as separate values asks the
+   * same question twice. A device missing the total shows the count alone
+   * rather than nothing.
+   */
+  readonly over?: MetricRef;
 }
 
 /** The measurements a kind can show beside its state. */
@@ -99,8 +111,10 @@ interface KindMetrics {
    *
    * Chosen per kind rather than uniformly, because the interesting number is
    * not the same everywhere: a guest is busy or idle, a disk is warm or cool,
-   * a pool is full or empty. For the three guest kinds this is CPU and memory;
-   * the other three have one number each and no CPU or memory to speak of.
+   * a pool is full or empty. For three of the four guest kinds this is CPU and
+   * memory; a Compose stack has neither — MOS measures those one container at a
+   * time and a stack has several — and shows how many of its containers are up
+   * instead. The other three have one number each and no CPU or memory at all.
    */
   readonly auto: readonly MetricRef[];
 }
@@ -122,7 +136,7 @@ interface KindInfo {
   /**
    * The `translation_key` of the kind's update-available binary sensor.
    *
-   * Only Docker containers have one: MOS tracks an image's local and remote
+   * Only the two Docker kinds have one: MOS tracks an image's local and remote
    * version, and neither LXC nor VM has an equivalent. Omitted for the kinds
    * that carry no update information at all.
    */
@@ -135,7 +149,7 @@ interface KindInfo {
  * The `unique_id` suffix of every update-available entity, used as the fallback
  * when a core does not serialize `translation_key` into the registry payload.
  * The integration builds the id from the entity description's key, which is
- * `update_available` for the one kind that has one.
+ * `update_available` for the kinds that have one.
  */
 const UPDATE_KEY_SUFFIX = '_update_available';
 
@@ -147,6 +161,27 @@ export const KIND_INFO: Readonly<Record<MosDeviceKind, KindInfo>> = {
     hasPower: true,
     updateTranslationKey: 'docker_update_available',
     metrics: guestMetrics('docker'),
+  },
+  compose_stack: {
+    icon: 'mdi:layers',
+    stateTranslationKey: 'compose_state',
+    stateKeySuffix: 'state',
+    hasPower: true,
+    updateTranslationKey: 'compose_update_available',
+    // No CPU and no memory, by the integration's own decision: Docker reports
+    // usage one container at a time and a stack has several, so a per-stack
+    // figure would cost a request per service to produce a number nobody asked
+    // for. The two counters are what a stack has instead, and they are one
+    // figure — how many of its containers are up.
+    metrics: {
+      auto: [
+        {
+          translationKey: 'compose_running_containers',
+          keySuffix: 'running_containers',
+          over: { translationKey: 'compose_container_count', keySuffix: 'container_count' },
+        },
+      ],
+    },
   },
   lxc_container: {
     icon: 'mdi:linux',
@@ -429,8 +464,9 @@ export function findStateEntity(
 /**
  * The start/stop switch for a guest, if it has one.
  *
- * Each of the three guest kinds contributes exactly one switch to its device,
- * so matching the domain is enough and does not depend on the switch's name.
+ * Each of the four guest kinds contributes exactly one switch to its device —
+ * a stack's starts and stops every service in it — so matching the domain is
+ * enough and does not depend on the switch's name.
  */
 export function findPowerEntity(
   entities: readonly EntityRegistryEntry[],
@@ -585,6 +621,41 @@ export function findMetricEntity(
 }
 
 /**
+ * One measurement as a row shows it: the entity carrying the number, and the
+ * entity carrying the total it counts against where the kind names one.
+ *
+ * Resolved as a pair rather than as two entries in a flat list, because the two
+ * are one figure — `3/5` — and a caller handed them side by side could only
+ * put them back together by guessing which is which.
+ */
+export interface RowMetric {
+  readonly entity: EntityRegistryEntry;
+  readonly over?: EntityRegistryEntry;
+}
+
+/**
+ * The measurements one device can show, resolved against its own entities.
+ *
+ * A metric the device has no entity for is dropped; a missing *total* only
+ * costs the row its denominator, since the count is still worth printing.
+ */
+export function resolveMetrics(entities: readonly EntityRegistryEntry[], metrics: readonly MetricRef[]): RowMetric[] {
+  const resolved: RowMetric[] = [];
+
+  for (const metric of metrics) {
+    const entity = findMetricEntity(entities, metric);
+
+    if (!entity) {
+      continue;
+    }
+
+    resolved.push({ entity, over: metric.over ? findMetricEntity(entities, metric.over) : undefined });
+  }
+
+  return resolved;
+}
+
+/**
  * The measurements a row shows for the requested mode.
  *
  * `none` is the default and resolves to nothing at all, which is what keeps the
@@ -637,7 +708,7 @@ export function deviceDisplayName(device: DeviceRegistryEntry, serverName?: stri
     trimmed = trimmed.slice(serverName.length + 1);
   }
 
-  for (const prefix of ['Docker ', 'LXC ', 'VM ', 'Disk ', 'Pool ', 'UPS ']) {
+  for (const prefix of ['Docker ', 'Compose ', 'LXC ', 'VM ', 'Disk ', 'Pool ', 'UPS ']) {
     if (trimmed.startsWith(prefix)) {
       return trimmed.slice(prefix.length);
     }
