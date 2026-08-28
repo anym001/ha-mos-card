@@ -47,7 +47,8 @@ The card discovers what to render from the Home Assistant **device registry**, n
 hand-maintained entity list. The integration writes a `model_id` onto every container device it
 creates, and that field is the only supported anchor:
 
-- Valid values: `docker_container`, `lxc_container`, `virtual_machine`, `disk`, `storage_pool`, `ups`.
+- Valid values: `docker_container`, `compose_stack`, `lxc_container`, `virtual_machine`, `disk`,
+  `storage_pool`, `ups`.
 - The MOS **server** device deliberately carries no `model_id`. Container devices hang off it via
   `via_device_id`, which is how the card scopes a dashboard to one server.
 - **Never** match on device `identifiers` (an internal format the integration reserves the right to
