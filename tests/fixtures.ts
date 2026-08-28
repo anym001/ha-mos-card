@@ -48,6 +48,14 @@ export const DOCKER = device({
   via_device_id: 'srv1',
 });
 
+export const COMPOSE = device({
+  id: 'dev-compose',
+  name: 'Pluto Compose media',
+  model: 'Compose Stack',
+  model_id: 'compose_stack',
+  via_device_id: 'srv1',
+});
+
 export const LXC = device({
   id: 'dev-lxc',
   name: 'Pluto LXC testlxc',
@@ -109,5 +117,59 @@ export const DOCKER_ENTITIES: EntityRegistryEntry[] = [
     translation_key: 'docker_healthy',
     unique_id: `${ENTRY}_docker_pushbits_healthy`,
     entity_category: 'diagnostic',
+  }),
+];
+
+/**
+ * Compose stack entities as the integration creates them for one stack.
+ *
+ * The counter pair is the difference that matters here: a stack has no CPU or
+ * memory sensor at all — MOS measures those one container at a time — and
+ * carries how many of its containers are up beside how many it has instead.
+ */
+export const COMPOSE_ENTITIES: EntityRegistryEntry[] = [
+  entity({
+    entity_id: 'sensor.pluto_compose_media_state',
+    device_id: 'dev-compose',
+    translation_key: 'compose_state',
+    unique_id: `${ENTRY}_compose_media_state`,
+  }),
+  entity({
+    entity_id: 'sensor.pluto_compose_media_running_containers',
+    device_id: 'dev-compose',
+    translation_key: 'compose_running_containers',
+    unique_id: `${ENTRY}_compose_media_running_containers`,
+  }),
+  entity({
+    entity_id: 'sensor.pluto_compose_media_containers',
+    device_id: 'dev-compose',
+    translation_key: 'compose_container_count',
+    unique_id: `${ENTRY}_compose_media_container_count`,
+  }),
+  entity({
+    entity_id: 'switch.pluto_compose_media_power',
+    device_id: 'dev-compose',
+    translation_key: 'compose_power',
+    unique_id: `${ENTRY}_compose_media_power`,
+  }),
+  entity({
+    entity_id: 'binary_sensor.pluto_compose_media_update_available',
+    device_id: 'dev-compose',
+    translation_key: 'compose_update_available',
+    unique_id: `${ENTRY}_compose_media_update_available`,
+    entity_category: 'diagnostic',
+  }),
+  entity({
+    entity_id: 'binary_sensor.pluto_compose_media_health',
+    device_id: 'dev-compose',
+    translation_key: 'compose_healthy',
+    unique_id: `${ENTRY}_compose_media_healthy`,
+    entity_category: 'diagnostic',
+  }),
+  entity({
+    entity_id: 'binary_sensor.pluto_compose_media_autostart',
+    device_id: 'dev-compose',
+    translation_key: 'compose_autostart',
+    unique_id: `${ENTRY}_compose_media_autostart`,
   }),
 ];

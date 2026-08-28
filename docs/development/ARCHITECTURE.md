@@ -41,6 +41,7 @@ Read those before changing how matching works; this file describes only the card
 | `model_id`         | Rendered as       | Has power switch |
 | ------------------ | ----------------- | ---------------- |
 | `docker_container` | Docker containers | yes              |
+| `compose_stack`    | Compose stacks    | yes              |
 | `lxc_container`    | LXC containers    | yes              |
 | `virtual_machine`  | Virtual machines  | yes              |
 | `disk`             | Disks             | no               |
@@ -85,8 +86,9 @@ A row is anchored on one entity — the state sensor the integration documents f
 purpose — and picks up the rest from the other entities on the same device.
 
 - **Icon** — resolved in the order Home Assistant itself uses: the state sensor's `entity_picture`
-  (for Docker, LXC and VM guests, the icon MOS shows), then its `icon` attribute, then what the
-  integration declares in its `icons.json`, then the per-kind MDI icon in `KIND_INFO`.
+  (for Docker containers, Compose stacks, LXC guests and VMs, the icon MOS shows), then its `icon`
+  attribute, then what the integration declares in its `icons.json`, then the per-kind MDI icon in
+  `KIND_INFO`.
 
   The third step needs a fetch. Since ha-mos moved its icons into `icons.json`, they are resolved in
   the frontend from the entity's `translation_key` and never appear as a state attribute — every MOS
@@ -98,23 +100,30 @@ purpose — and picks up the rest from the other entities on the same device.
 
 - **State** — the sensor's state through `hass.formatEntityState`, so enum states read in the user's
   language and units match the rest of Home Assistant.
-- **Link** — the Docker state sensor's `web_ui_url` attribute, falling back to the device's
-  configuration URL. The integration omits the attribute entirely for containers without a web
-  interface, so its presence is the test; a container without one gets no button rather than a
+- **Link** — the `web_ui_url` attribute of the Docker or Compose state sensor, falling back to the
+  device's configuration URL. The integration omits the attribute entirely for containers and
+  stacks without a web interface, so its presence is the test; a container without one gets no button rather than a
   dead one. `isLinkableUrl()` then checks the scheme against the same set Home Assistant validates
   `configuration_url` against — `http`, `https`, `homeassistant`, with a host. `web_ui_url` is an
   ordinary state attribute that nothing validates on the way, and a `javascript:` URL in an `href`
   runs in the dashboard's own context when clicked.
-- **Power** — the single `switch` entity on the device. Each of the three guest kinds contributes
-  exactly one, so matching the domain is enough and does not depend on the switch's name. It is
+- **Power** — the single `switch` entity on the device. Each of the four guest kinds contributes
+  exactly one — a stack's starts and stops every service in it, MOS exposing no per-service call —
+  so matching the domain is enough and does not depend on the switch's name. It is
   drawn as a start/stop button rather than a toggle: a toggle states a setting, and what a guest is
   doing right now is not one.
 - **Measurements** — the sensors named per kind in `KIND_INFO.metrics`, shown beside the state when
   `secondary_info` asks for them. `auto` takes the kind's own list, `cpu` and `memory` take one
   named metric and resolve to nothing on the kinds that have none. A metric reporting unavailable
   is dropped rather than printed.
+
+  A `MetricRef` may name a total through `over`, which `resolveMetrics()` resolves alongside it and
+  the row prints as one figure — `3/5`. That is what a Compose stack shows under `auto`: it has no
+  CPU or memory sensor at all, because MOS measures those one container at a time and a stack has
+  several, and its two counters say nothing apart. A device missing the total keeps the count.
+
 - **Badges** — a fault badge and an update badge, both drawn on the icon. The update badge reads
-  the kind's `update_available` binary sensor; only Docker containers have one. The fault badge is
+  the kind's `update_available` binary sensor; only Docker containers and Compose stacks have one. The fault badge is
   not looked up by name at all: `findProblemCandidates()` returns every binary sensor on the
   device and the caller keeps those whose state carries Home Assistant's `problem` device class.
   Which of an integration's binary sensors mean "something is wrong" is not this card's judgement
@@ -186,8 +195,8 @@ Only the long-stable public elements — `ha-card`, `ha-icon`, `ha-switch` — a
 
 `findStateEntity()` uses a three-step fallback, in this order:
 
-1. `translation_key` equal to the kind's key (`docker_state`, `lxc_state`, `vm_state`,
-   `disk_power_status`, `pool_usage`, `ups_status`). This is the integration's own name for the
+1. `translation_key` equal to the kind's key (`docker_state`, `compose_state`, `lxc_state`,
+   `vm_state`, `disk_power_status`, `pool_usage`, `ups_status`). This is the integration's own name for the
    entity and survives renames and `entity_id` changes.
 2. A `sensor.` entity whose `unique_id` ends in the kind's description key. Older Home Assistant
    cores do not serialize `translation_key` into the `config/entity_registry/list` payload, and
@@ -383,8 +392,8 @@ branching workflow are in [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 ## Localization
 
 The card ships German and English, the same two the MOS integration ships, and the German follows
-the integration's own wording so the two read alike: Docker-Container, LXC-Container, VMs,
-Festplatten, Speicherpools, USV, MOS-Server, and the du-form throughout.
+the integration's own wording so the two read alike: Docker-Container, Compose-Stacks,
+LXC-Container, VMs, Festplatten, Speicherpools, USV, MOS-Server, and the du-form throughout.
 
 A key missing from one file falls back to English rather than showing a raw key, which makes a
 partial translation safe but easy to miss — add new keys to both files.

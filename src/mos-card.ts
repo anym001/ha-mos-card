@@ -20,12 +20,12 @@ import {
   KIND_INFO,
   MOS_DEVICE_KINDS,
   MosDeviceKind,
+  RowMetric,
   SERVER_METRICS,
   declaredIcon,
   deviceDisplayName,
   entitiesByDevice,
   fetchIntegrationIcons,
-  findMetricEntity,
   findPowerEntity,
   findProblemCandidates,
   findServerDevices,
@@ -34,6 +34,7 @@ import {
   isUnavailableState,
   metricsForMode,
   passesFilter,
+  resolveMetrics,
   selectMosDevices,
   selectUnassignedMosDevices,
   subscribeDeviceRegistry,
@@ -70,7 +71,7 @@ interface WindowWithCustomCards extends Window {
 (window as unknown as WindowWithCustomCards).customCards.push({
   type: 'mos-card',
   name: 'MOS NAS Card',
-  description: 'Containers, VMs, disks, pools and the UPS of a MOS NAS server',
+  description: 'Containers, Compose stacks, VMs, disks, pools and the UPS of a MOS NAS server',
 });
 
 /**
@@ -92,7 +93,7 @@ interface DeviceRow {
   powerEntity?: EntityRegistryEntry;
   updateEntity?: EntityRegistryEntry;
   /** The measurements to show beside the state, in the order they are shown. */
-  metricEntities: EntityRegistryEntry[];
+  metrics: RowMetric[];
   /** Binary sensors that could carry a fault; which do is read off the state. */
   problemCandidates: EntityRegistryEntry[];
 }
@@ -112,7 +113,7 @@ interface ServerSection {
   server?: DeviceRegistryEntry;
   groups: RowGroup[];
   /** What the server reports about itself, when the config asks for it. */
-  serverMetrics: EntityRegistryEntry[];
+  serverMetrics: RowMetric[];
 }
 
 @customElement('mos-card')
@@ -324,8 +325,12 @@ export class MosCard extends LitElement {
         if (powerEntity) {
           ids.push(powerEntity.entity_id);
         }
-        for (const metric of this.rowMetricEntities(deviceEntities, kind)) {
-          ids.push(metric.entity_id);
+        for (const metric of this.rowMetrics(deviceEntities, kind)) {
+          ids.push(metric.entity.entity_id);
+
+          if (metric.over) {
+            ids.push(metric.over.entity_id);
+          }
         }
         if (this.config.show_update) {
           const updateEntity = findUpdateEntity(deviceEntities, kind);
@@ -345,12 +350,8 @@ export class MosCard extends LitElement {
       // therefore not reached by the loop above.
       if (this.config.show_server_summary) {
         for (const server of findServerDevices(this.devices)) {
-          for (const metric of SERVER_METRICS) {
-            const entity = findMetricEntity(entityIndex.get(server.id) ?? [], metric);
-
-            if (entity) {
-              ids.push(entity.entity_id);
-            }
+          for (const metric of resolveMetrics(entityIndex.get(server.id) ?? [], SERVER_METRICS)) {
+            ids.push(metric.entity.entity_id);
           }
         }
       }
@@ -498,7 +499,7 @@ export class MosCard extends LitElement {
               stateEntity: findStateEntity(deviceEntities, kind),
               powerEntity: findPowerEntity(deviceEntities, kind),
               updateEntity: findUpdateEntity(deviceEntities, kind),
-              metricEntities: this.rowMetricEntities(deviceEntities, kind),
+              metrics: this.rowMetrics(deviceEntities, kind),
               problemCandidates: this.config.show_problem ? findProblemCandidates(deviceEntities) : [],
             };
           })
@@ -519,9 +520,7 @@ export class MosCard extends LitElement {
           groups,
           serverMetrics:
             this.config.show_server_summary && server
-              ? SERVER_METRICS.map((metric) => findMetricEntity(entityIndex.get(server.id) ?? [], metric)).filter(
-                  (entity): entity is EntityRegistryEntry => entity !== undefined,
-                )
+              ? resolveMetrics(entityIndex.get(server.id) ?? [], SERVER_METRICS)
               : [],
         });
       }
@@ -534,17 +533,15 @@ export class MosCard extends LitElement {
     return row.stateEntity ? this.hass?.states[row.stateEntity.entity_id]?.state : undefined;
   }
 
-  /** The measurement entities one row shows, in the order they are shown. */
-  private rowMetricEntities(entities: readonly EntityRegistryEntry[], kind: MosDeviceKind): EntityRegistryEntry[] {
+  /** The measurements one row shows, in the order they are shown. */
+  private rowMetrics(entities: readonly EntityRegistryEntry[], kind: MosDeviceKind): RowMetric[] {
     const mode = this.config.secondary_info ?? 'none';
 
     if (mode === 'none') {
       return [];
     }
 
-    return metricsForMode(kind, mode)
-      .map((metric) => findMetricEntity(entities, metric))
-      .filter((entity): entity is EntityRegistryEntry => entity !== undefined);
+    return resolveMetrics(entities, metricsForMode(kind, mode));
   }
 
   protected render(): TemplateResult {
@@ -734,8 +731,8 @@ export class MosCard extends LitElement {
   /**
    * The row icon, in the order Home Assistant itself resolves one.
    *
-   * 1. `entity_picture` — the artwork MOS shows for a Docker, LXC or VM guest,
-   *    which beats any glyph either side could pick.
+   * 1. `entity_picture` — the artwork MOS shows for a container, a stack, an
+   *    LXC or a VM, which beats any glyph either side could pick.
    * 2. The `icon` state attribute, for an entity that still sets one directly.
    * 3. What the integration declares in its `icons.json`. Those are resolved in
    *    the frontend and never reach a state attribute, so they are fetched
@@ -764,9 +761,9 @@ export class MosCard extends LitElement {
    *
    * It sits on the icon rather than next to the link and the switch, because
    * the right end of a row is where the controls are and this is not one.
-   * Only Docker containers report updates — MOS tracks an image's local and
-   * remote version, and no other kind has an equivalent — so every other row
-   * finds no entity here and renders nothing.
+   * Only Docker containers and Compose stacks report updates — MOS tracks an
+   * image's local and remote version, and no other kind has an equivalent — so
+   * every other row finds no entity here and renders nothing.
    */
   private renderUpdateBadge(row: DeviceRow): TemplateResult | typeof nothing {
     if (!this.config.show_update || !row.updateEntity) {
@@ -803,7 +800,7 @@ export class MosCard extends LitElement {
       parts.push(this.renderState(stateObj));
     }
 
-    const metrics = this.formatMetrics(row.metricEntities);
+    const metrics = this.formatMetrics(row.metrics);
 
     if (metrics) {
       parts.push(metrics);
@@ -824,12 +821,31 @@ export class MosCard extends LitElement {
    * printed as "unknown", which would fill the line with non-answers on exactly
    * the rows that have least to say.
    */
-  private formatMetrics(entities: readonly EntityRegistryEntry[]): string {
-    return entities
-      .map((entity) => this.hass?.states[entity.entity_id])
-      .filter((stateObj): stateObj is HassEntity => !!stateObj && !isUnavailableState(stateObj.state))
-      .map((stateObj) => this.renderState(stateObj))
+  private formatMetrics(metrics: readonly RowMetric[]): string {
+    return metrics
+      .map((metric) => this.formatMetric(metric))
+      .filter((text): text is string => text !== undefined)
       .join(' · ');
+  }
+
+  /**
+   * One measurement, as the count of a total where the kind names one.
+   *
+   * A total that is itself unavailable leaves the count on its own rather than
+   * taking the whole figure with it: "3" beside a Compose stack's state is less
+   * than "3/5", but it is not nothing.
+   */
+  private formatMetric(metric: RowMetric): string | undefined {
+    const stateObj = this.hass?.states[metric.entity.entity_id];
+
+    if (!stateObj || isUnavailableState(stateObj.state)) {
+      return undefined;
+    }
+
+    const value = this.renderState(stateObj);
+    const total = metric.over ? this.hass?.states[metric.over.entity_id] : undefined;
+
+    return total && !isUnavailableState(total.state) ? `${value}/${this.renderState(total)}` : value;
   }
 
   private renderState(stateObj?: HassEntity): string {
@@ -853,10 +869,11 @@ export class MosCard extends LitElement {
   /**
    * A link out to the thing itself.
    *
-   * `web_ui_url` on the Docker state sensor is the container's own web
-   * interface, and the integration omits the attribute entirely for containers
-   * that have none — so its presence is the test. The device's configuration
-   * URL is the fallback, which is what the other kinds have.
+   * `web_ui_url` on the Docker and Compose state sensors is the container's or
+   * the stack's own web interface, and the integration omits the attribute
+   * entirely for the ones that have none — so its presence is the test. The
+   * device's configuration URL is the fallback, which is what the other kinds
+   * have.
    */
   private renderLink(row: DeviceRow, stateObj?: HassEntity): TemplateResult | typeof nothing {
     const url = (stateObj?.attributes.web_ui_url as string | undefined) || row.device.configuration_url || undefined;

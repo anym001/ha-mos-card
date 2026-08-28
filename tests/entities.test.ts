@@ -18,8 +18,9 @@ import {
   findStateEntity,
   findUpdateEntity,
   metricsForMode,
+  resolveMetrics,
 } from '../src/devices';
-import { DISK, DOCKER, DOCKER_ENTITIES, SERVER, entity } from './fixtures';
+import { COMPOSE, COMPOSE_ENTITIES, DISK, DOCKER, DOCKER_ENTITIES, SERVER, entity } from './fixtures';
 
 /**
  * The same entities, as a core that omits translation keys would send them.
@@ -125,6 +126,68 @@ describe('metricsForMode and findMetricEntity', () => {
   });
 });
 
+/**
+ * The Compose stack, which is the one kind whose measurement is a pair.
+ *
+ * A stack reports no CPU and no memory at all — MOS measures those one
+ * container at a time — so `auto` resolves to how many of its containers are up
+ * over how many it has, and the two explicit modes resolve to nothing.
+ */
+describe('Compose stacks', () => {
+  it('finds the state sensor, the switch and the update sensor', () => {
+    expect(findStateEntity(COMPOSE_ENTITIES, 'compose_stack')?.entity_id).toBe('sensor.pluto_compose_media_state');
+    expect(findPowerEntity(COMPOSE_ENTITIES, 'compose_stack')?.entity_id).toBe('switch.pluto_compose_media_power');
+    expect(findUpdateEntity(COMPOSE_ENTITIES, 'compose_stack')?.entity_id).toBe(
+      'binary_sensor.pluto_compose_media_update_available',
+    );
+  });
+
+  it('falls back to the unique_id suffix for all three', () => {
+    const noKeys = COMPOSE_ENTITIES.map((e) => ({ ...e, translation_key: undefined })).reverse();
+
+    expect(findStateEntity(noKeys, 'compose_stack')?.entity_id).toBe('sensor.pluto_compose_media_state');
+    expect(findUpdateEntity(noKeys, 'compose_stack')?.entity_id).toBe(
+      'binary_sensor.pluto_compose_media_update_available',
+    );
+  });
+
+  it('resolves the running count over the container count under auto', () => {
+    const [metric] = resolveMetrics(COMPOSE_ENTITIES, metricsForMode('compose_stack', 'auto'));
+
+    expect(metric.entity.entity_id).toBe('sensor.pluto_compose_media_running_containers');
+    expect(metric.over?.entity_id).toBe('sensor.pluto_compose_media_containers');
+  });
+
+  it('keeps the count when the total is missing, rather than dropping both', () => {
+    const noTotal = COMPOSE_ENTITIES.filter((e) => e.entity_id !== 'sensor.pluto_compose_media_containers');
+    const [metric] = resolveMetrics(noTotal, metricsForMode('compose_stack', 'auto'));
+
+    expect(metric.entity.entity_id).toBe('sensor.pluto_compose_media_running_containers');
+    expect(metric.over).toBeUndefined();
+  });
+
+  it('has no CPU or memory to ask for', () => {
+    expect(metricsForMode('compose_stack', 'cpu')).toEqual([]);
+    expect(metricsForMode('compose_stack', 'memory')).toEqual([]);
+  });
+});
+
+describe('resolveMetrics', () => {
+  it('drops a metric the device has no entity for', () => {
+    const noMemory = DOCKER_ENTITIES.filter((e) => !e.entity_id.endsWith('_memory_usage'));
+
+    expect(resolveMetrics(noMemory, metricsForMode('docker_container', 'auto')).map((m) => m.entity.entity_id)).toEqual(
+      ['sensor.pluto_docker_pushbits_cpu_usage'],
+    );
+  });
+
+  it('leaves a metric without a declared total unpaired', () => {
+    const [cpu] = resolveMetrics(DOCKER_ENTITIES, metricsForMode('docker_container', 'cpu'));
+
+    expect(cpu.over).toBeUndefined();
+  });
+});
+
 describe('findProblemCandidates', () => {
   it('offers every binary sensor and nothing else, the device class being on the state', () => {
     expect(findProblemCandidates(DOCKER_ENTITIES).map((e) => e.entity_id)).toEqual([
@@ -137,6 +200,10 @@ describe('findProblemCandidates', () => {
 describe('deviceDisplayName', () => {
   it('trims the server and kind prefix the integration writes', () => {
     expect(deviceDisplayName(DOCKER, 'Pluto')).toBe('pushbits');
+  });
+
+  it('trims the Compose prefix as well, so a stack reads by its own name', () => {
+    expect(deviceDisplayName(COMPOSE, 'Pluto')).toBe('media');
   });
 
   it('leaves a name the user chose completely alone', () => {
