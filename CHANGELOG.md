@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/anym001/ha-mos-card/compare/v0.2.2...v0.2.3) (2026-08-28)
+
+
+### Features
+
+* **devices:** render docker compose stacks ([5cee3d1](https://github.com/anym001/ha-mos-card/commit/5cee3d1bc3d083f5be0f18852c32eab4515f1437))
+
 ## [0.2.2](https://github.com/anym001/ha-mos-card/compare/v0.2.1...v0.2.2) (2026-08-21)
 
 

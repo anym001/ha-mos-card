@@ -1,7 +1,7 @@
 {
   "name": "ha-mos-card",
   "type": "module",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "packageManager": "yarn@4.12.0",
   "description": "Lovelace card for the MOS NAS Home Assistant integration",
   "keywords": [
