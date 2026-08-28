@@ -25,9 +25,9 @@ Read `AGENTS.md` completely before starting any work. It contains:
 ## The `model_id` Contract (non-negotiable)
 
 The card selects devices from the Home Assistant device registry by their `model_id`
-(`docker_container`, `lxc_container`, `virtual_machine`, `disk`, `storage_pool`, `ups`), scoped to a
-server via `via_device_id`. Device `identifiers` and display names are **never** matched — the first
-is an internal format, the second is the user's to rename.
+(`docker_container`, `compose_stack`, `lxc_container`, `virtual_machine`, `disk`, `storage_pool`,
+`ups`), scoped to a server via `via_device_id`. Device `identifiers` and display names are **never**
+matched — the first is an internal format, the second is the user's to rename.
 
 This is a released, public contract documented on the integration side in
 the **`ha-mos` repository's** `docs/development/ARCHITECTURE.md` and in the decision log entry
