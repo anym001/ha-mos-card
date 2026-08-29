@@ -20,7 +20,16 @@ import {
   metricsForMode,
   resolveMetrics,
 } from '../src/devices';
-import { COMPOSE, COMPOSE_ENTITIES, DISK, DOCKER, DOCKER_ENTITIES, SERVER, entity } from './fixtures';
+import {
+  COMPOSE,
+  COMPOSE_ENTITIES,
+  COMPOSE_ENTITIES_NO_STATS,
+  DISK,
+  DOCKER,
+  DOCKER_ENTITIES,
+  SERVER,
+  entity,
+} from './fixtures';
 
 /**
  * The same entities, as a core that omits translation keys would send them.
@@ -129,9 +138,10 @@ describe('metricsForMode and findMetricEntity', () => {
 /**
  * The Compose stack, which is the one kind whose measurement is a pair.
  *
- * A stack reports no CPU and no memory at all — MOS measures those one
- * container at a time — so `auto` resolves to how many of its containers are up
- * over how many it has, and the two explicit modes resolve to nothing.
+ * `auto` leads with how many of its containers are up over how many it has,
+ * then adds the CPU and memory every guest kind has. Those two only exist while
+ * the integration's Compose stats option is on, so falling back to the counter
+ * alone is the default installation rather than an edge case.
  */
 describe('Compose stacks', () => {
   it('finds the state sensor, the switch and the update sensor', () => {
@@ -151,11 +161,27 @@ describe('Compose stacks', () => {
     );
   });
 
-  it('resolves the running count over the container count under auto', () => {
+  it('leads auto with the running count over the container count', () => {
     const [metric] = resolveMetrics(COMPOSE_ENTITIES, metricsForMode('compose_stack', 'auto'));
 
     expect(metric.entity.entity_id).toBe('sensor.pluto_compose_media_running_containers');
     expect(metric.over?.entity_id).toBe('sensor.pluto_compose_media_containers');
+  });
+
+  it('adds the usage summed over the services after the counter', () => {
+    const resolved = resolveMetrics(COMPOSE_ENTITIES, metricsForMode('compose_stack', 'auto'));
+
+    expect(resolved.map((m) => m.entity.entity_id)).toEqual([
+      'sensor.pluto_compose_media_running_containers',
+      'sensor.pluto_compose_media_cpu_usage',
+      'sensor.pluto_compose_media_memory_usage',
+    ]);
+  });
+
+  it('falls back to the counter alone while the stats option is off', () => {
+    const resolved = resolveMetrics(COMPOSE_ENTITIES_NO_STATS, metricsForMode('compose_stack', 'auto'));
+
+    expect(resolved.map((m) => m.entity.entity_id)).toEqual(['sensor.pluto_compose_media_running_containers']);
   });
 
   it('keeps the count when the total is missing, rather than dropping both', () => {
@@ -166,9 +192,18 @@ describe('Compose stacks', () => {
     expect(metric.over).toBeUndefined();
   });
 
-  it('has no CPU or memory to ask for', () => {
-    expect(metricsForMode('compose_stack', 'cpu')).toEqual([]);
-    expect(metricsForMode('compose_stack', 'memory')).toEqual([]);
+  it('answers the explicit CPU and memory modes like the other guests', () => {
+    expect(
+      resolveMetrics(COMPOSE_ENTITIES, metricsForMode('compose_stack', 'cpu')).map((m) => m.entity.entity_id),
+    ).toEqual(['sensor.pluto_compose_media_cpu_usage']);
+    expect(
+      resolveMetrics(COMPOSE_ENTITIES, metricsForMode('compose_stack', 'memory')).map((m) => m.entity.entity_id),
+    ).toEqual(['sensor.pluto_compose_media_memory_usage']);
+  });
+
+  it('resolves neither explicit mode while the stats option is off', () => {
+    expect(resolveMetrics(COMPOSE_ENTITIES_NO_STATS, metricsForMode('compose_stack', 'cpu'))).toEqual([]);
+    expect(resolveMetrics(COMPOSE_ENTITIES_NO_STATS, metricsForMode('compose_stack', 'memory'))).toEqual([]);
   });
 });
 

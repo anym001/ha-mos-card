@@ -118,9 +118,11 @@ purpose — and picks up the rest from the other entities on the same device.
   is dropped rather than printed.
 
   A `MetricRef` may name a total through `over`, which `resolveMetrics()` resolves alongside it and
-  the row prints as one figure — `3/5`. That is what a Compose stack shows under `auto`: it has no
-  CPU or memory sensor at all, because MOS measures those one container at a time and a stack has
-  several, and its two counters say nothing apart. A device missing the total keeps the count.
+  the row prints as one figure — `3/5`. That is what a Compose stack leads with under `auto`, since
+  its two counters say nothing apart; a device missing the total keeps the count. Its CPU and memory
+  follow, summed by the integration over the stack's member containers. Those two exist only while
+  the integration's `enable_compose_stats` option is on, so a stack row falls back to the counter
+  alone rather than to nothing.
 
 - **Badges** — a fault badge and an update badge, both drawn on the icon. The update badge reads
   the kind's `update_available` binary sensor; only Docker containers and Compose stacks have one. The fault badge is

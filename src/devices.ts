@@ -111,10 +111,10 @@ interface KindMetrics {
    *
    * Chosen per kind rather than uniformly, because the interesting number is
    * not the same everywhere: a guest is busy or idle, a disk is warm or cool,
-   * a pool is full or empty. For three of the four guest kinds this is CPU and
-   * memory; a Compose stack has neither — MOS measures those one container at a
-   * time and a stack has several — and shows how many of its containers are up
-   * instead. The other three have one number each and no CPU or memory at all.
+   * a pool is full or empty. For the four guest kinds this is CPU and memory,
+   * and a Compose stack leads with how many of its containers are up — a figure
+   * no other kind has. The other three have one number each and no CPU or
+   * memory at all.
    */
   readonly auto: readonly MetricRef[];
 }
@@ -153,6 +153,8 @@ interface KindInfo {
  */
 const UPDATE_KEY_SUFFIX = '_update_available';
 
+const composeMetrics = guestMetrics('compose');
+
 export const KIND_INFO: Readonly<Record<MosDeviceKind, KindInfo>> = {
   docker_container: {
     icon: 'mdi:docker',
@@ -168,18 +170,20 @@ export const KIND_INFO: Readonly<Record<MosDeviceKind, KindInfo>> = {
     stateKeySuffix: 'state',
     hasPower: true,
     updateTranslationKey: 'compose_update_available',
-    // No CPU and no memory, by the integration's own decision: Docker reports
-    // usage one container at a time and a stack has several, so a per-stack
-    // figure would cost a request per service to produce a number nobody asked
-    // for. The two counters are what a stack has instead, and they are one
-    // figure — how many of its containers are up.
+    // The same CPU and memory as the other guests, plus the counter no other
+    // kind has. It leads because it is the one figure a stack always reports:
+    // CPU and memory are summed from the member containers and only exist while
+    // the integration's separate Compose stats option is on, so a row falls
+    // back to the counter alone rather than to nothing.
     metrics: {
+      ...composeMetrics,
       auto: [
         {
           translationKey: 'compose_running_containers',
           keySuffix: 'running_containers',
           over: { translationKey: 'compose_container_count', keySuffix: 'container_count' },
         },
+        ...composeMetrics.auto,
       ],
     },
   },
