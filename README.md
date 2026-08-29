@@ -119,9 +119,9 @@ the form is the real card.
 Valid values for `kinds`: `docker_container`, `compose_stack`, `lxc_container`, `virtual_machine`,
 `disk`, `storage_pool`, `ups`. Anything else is a configuration error and the card says so.
 
-A Compose stack is one row covering all of its services, and the containers those services run keep
-their own Docker rows — the integration reports both. Drop `compose_stack` or `docker_container`
-from `kinds` to see only one of the two.
+A Compose stack is one row covering all of its services. Only containers outside a stack appear as
+`docker_container` rows — the two kinds never overlap. Dropping either from `kinds` removes that
+group entirely.
 
 Notes on individual options:
 
