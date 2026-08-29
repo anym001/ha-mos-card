@@ -43,8 +43,8 @@ feature/xyz ──PR──▶ main ──release-please──▶ Release (vX.Y.Z
 1. **Branch** from `main`: `git switch main && git pull && git switch -c feature/xyz`.
 2. **Test locally** before opening the PR: `yarn check`, and the card itself in a Home Assistant
    instance.
-3. **Open a PR against `main`.** `Lint`, `Test`, `Test build` and `guard` must be green. On
-   `HACS validation`, see the note under [Branch protection](#branch-protection).
+3. **Open a PR against `main`.** `Lint`, `Test`, `Test build`, `guard` and `HACS validation` must
+   be green.
 4. **Merge with "Rebase and merge".** It is the only method enabled on this repository, and that
    has a consequence worth knowing — see below.
 5. **Releases are automatic.** On push to `main`, release-please maintains a release PR; merging
@@ -82,11 +82,6 @@ produces no release, so its changes sit on `main` until the next `fix:` or `feat
 `main` is protected by a **ruleset** (GitHub → **Settings → Rules → Rulesets**, the newer system —
 note that the older `protected` flag in the branches API stays `false` for rulesets, so it is not a
 reliable way to check). Work on a branch and open a pull request; do not push to `main` directly.
-
-> [!WARNING]
-> If you extend the ruleset with required status checks, do **not** add `HACS validation` while its
-> images sub-check still fails for want of a screenshot in the README — requiring it would block
-> every merge. `Lint`, `Test`, `Test build` and `guard` are safe to require.
 
 ## Any contributions you make will be under the MIT Software License
 
