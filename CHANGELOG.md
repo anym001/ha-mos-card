@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/anym001/ha-mos-card/compare/v0.2.3...v0.2.4) (2026-08-29)
+
+
+### Features
+
+* **devices:** show cpu and memory on compose stack rows ([7dfdde3](https://github.com/anym001/ha-mos-card/commit/7dfdde3d53c62eca508753e29ac9c6e8dae992c8))
+
 ## [0.2.3](https://github.com/anym001/ha-mos-card/compare/v0.2.2...v0.2.3) (2026-08-28)
 
 
