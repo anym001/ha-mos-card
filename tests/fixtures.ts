@@ -123,9 +123,11 @@ export const DOCKER_ENTITIES: EntityRegistryEntry[] = [
 /**
  * Compose stack entities as the integration creates them for one stack.
  *
- * The counter pair is the difference that matters here: a stack has no CPU or
- * memory sensor at all — MOS measures those one container at a time — and
- * carries how many of its containers are up beside how many it has instead.
+ * The counter pair is the difference that matters here: on top of the CPU and
+ * memory every guest has, a stack carries how many of its containers are up
+ * beside how many it has. Its stats sensors are included because the option
+ * behind them is on for this stack; `COMPOSE_ENTITIES_NO_STATS` is the same
+ * stack with it off.
  */
 export const COMPOSE_ENTITIES: EntityRegistryEntry[] = [
   entity({
@@ -145,6 +147,18 @@ export const COMPOSE_ENTITIES: EntityRegistryEntry[] = [
     device_id: 'dev-compose',
     translation_key: 'compose_container_count',
     unique_id: `${ENTRY}_compose_media_container_count`,
+  }),
+  entity({
+    entity_id: 'sensor.pluto_compose_media_cpu_usage',
+    device_id: 'dev-compose',
+    translation_key: 'compose_cpu_usage',
+    unique_id: `${ENTRY}_compose_media_cpu_usage`,
+  }),
+  entity({
+    entity_id: 'sensor.pluto_compose_media_memory_usage',
+    device_id: 'dev-compose',
+    translation_key: 'compose_memory_usage',
+    unique_id: `${ENTRY}_compose_media_memory_usage`,
   }),
   entity({
     entity_id: 'switch.pluto_compose_media_power',
@@ -173,3 +187,13 @@ export const COMPOSE_ENTITIES: EntityRegistryEntry[] = [
     unique_id: `${ENTRY}_compose_media_autostart`,
   }),
 ];
+
+/**
+ * The same stack on an installation that leaves the Compose stats option off.
+ *
+ * The default state, and the one where `auto` has to fall back to the counter
+ * pair rather than showing nothing.
+ */
+export const COMPOSE_ENTITIES_NO_STATS: EntityRegistryEntry[] = COMPOSE_ENTITIES.filter(
+  (candidate) => !candidate.entity_id.endsWith('_cpu_usage') && !candidate.entity_id.endsWith('_memory_usage'),
+);

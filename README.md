@@ -128,8 +128,11 @@ Notes on individual options:
 - `sort: state` lists running first, then paused, then stopped, alphabetically within each. Disks
   and pools stay alphabetical either way.
 - `secondary_info: auto` picks per kind: CPU and memory for a container or VM, how many of a
-  Compose stack's containers are up (`3/5`), temperature for a disk, free space for a pool, load
-  for the UPS. A value the server cannot report is left out.
+  Compose stack's containers are up (`3/5`) followed by its CPU and memory, temperature for a disk,
+  free space for a pool, load for the UPS. A value the server cannot report is left out.
+- A Compose stack reports CPU and memory only while the integration's **Compose stack stats** option
+  is on — it is off by default, because a stack is measured through its services and costs one
+  request per running service on every poll. Without it a stack row shows the container count alone.
 - `show_server_summary` also shows the server name when there is only one server.
 - A fault is what the integration marks with Home Assistant's `problem` device class — a SMART
   warning, an unhealthy container, a degraded pool, a UPS on bypass. The badge names what it found.
