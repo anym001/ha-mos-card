@@ -16,8 +16,9 @@ Pull requests are the best way to propose changes to the codebase.
 1. Create your branch from `main` (see [Branching model](#branching-model)).
 2. Run `yarn setup` — dependencies plus the pre-commit hooks, in one command.
 3. If you've changed something, update the documentation.
-4. Make sure your code passes all checks: `yarn check` runs lint, type check, markdownlint,
-   the formatting check and the build, in that order.
+4. Make sure your code passes all checks: `yarn check` runs lint, type check, the tests,
+   markdownlint, the formatting check, the Home Assistant version sync and the build, in that
+   order.
 5. Test your contribution — see [Testing your change](#testing-your-change).
 6. Open a pull request against `main`.
 
@@ -42,7 +43,7 @@ feature/xyz ──PR──▶ main ──release-please──▶ Release (vX.Y.Z
 1. **Branch** from `main`: `git switch main && git pull && git switch -c feature/xyz`.
 2. **Test locally** before opening the PR: `yarn check`, and the card itself in a Home Assistant
    instance.
-3. **Open a PR against `main`.** `Lint`, `Test build` and `guard` must be green. On
+3. **Open a PR against `main`.** `Lint`, `Test`, `Test build` and `guard` must be green. On
    `HACS validation`, see the note under [Branch protection](#branch-protection).
 4. **Merge with "Rebase and merge".** It is the only method enabled on this repository, and that
    has a consequence worth knowing — see below.
@@ -85,7 +86,7 @@ reliable way to check). Work on a branch and open a pull request; do not push to
 > [!WARNING]
 > If you extend the ruleset with required status checks, do **not** add `HACS validation` while its
 > images sub-check still fails for want of a screenshot in the README — requiring it would block
-> every merge. `Lint`, `Test build` and `guard` are safe to require.
+> every merge. `Lint`, `Test`, `Test build` and `guard` are safe to require.
 
 ## Any contributions you make will be under the MIT Software License
 
@@ -181,8 +182,11 @@ if the two disagree.
 ## Testing your change
 
 > [!NOTE]
-> **This repository has no automated test suite.** Every check in CI is a linter, a type check or a
-> build. Nothing verifies that the card renders correctly, so testing a change means running it.
+> The Vitest suite in `tests/` covers the logic that needs no DOM — `src/devices.ts`,
+> `src/config.ts` and `src/rows.ts`. `yarn test` runs it, `yarn check` includes it, and `test.yml`
+> runs it in CI. **The component is deliberately not covered**, so nothing verifies that the card
+> renders correctly and a visible change is only tested by running it. See
+> [docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md) for what each suite holds.
 
 The devcontainer gives you a Home Assistant instance with the card already wired up:
 
