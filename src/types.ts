@@ -48,9 +48,9 @@ export interface MosCardConfig extends LovelaceCardConfig {
    * Cap how many rows each group lists. Default: no cap.
    *
    * The rest are folded behind a line that says how many there are and opens
-   * them in place. Counted per group, so a card grouped by kind keeps a few of
-   * each rather than filling itself with containers; with `group_by_kind: false`
-   * there is one group per server and this caps the card as a whole.
+   * them in place. A group is one kind on one server, and `group_by_kind` only
+   * hides the heading rather than merging the groups — so the cap applies per
+   * kind under both, and each kind folds and opens on its own.
    */
   max_rows?: number;
 
