@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/anym001/ha-mos-card/compare/v0.2.4...v0.2.5) (2026-09-02)
+
+
+### Bug Fixes
+
+* **deps:** add @eslint/js required by eslint 10 ([aec94df](https://github.com/anym001/ha-mos-card/commit/aec94df434ac79b45f2dddd21a07ae50741929c8))
+
 ## [0.2.4](https://github.com/anym001/ha-mos-card/compare/v0.2.3...v0.2.4) (2026-08-29)
 
 
