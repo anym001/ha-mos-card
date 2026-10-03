@@ -22,6 +22,7 @@ yarn test        # Vitest, once
 yarn test:watch  # Vitest, watching
 yarn lint:md     # markdownlint
 yarn lint:format # prettier --check
+yarn lint:dedupe # no second copy of home-assistant-js-websocket in yarn.lock
 ```
 
 ### Primary files

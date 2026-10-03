@@ -52,11 +52,12 @@
   },
   "scripts": {
     "build": "yarn clean && yarn lint && yarn rollup",
-    "check": "yarn lint && yarn typecheck && yarn test && yarn lint:md && yarn lint:format && yarn ha-version-sync && yarn build",
+    "check": "yarn lint && yarn typecheck && yarn test && yarn lint:md && yarn lint:format && yarn lint:dedupe && yarn ha-version-sync && yarn build",
     "clean": "rm -rf dist",
     "ha-version-sync": "node scripts/ha-version-sync.mjs",
     "lint": "eslint src/**/*.ts tests/**/*.ts",
     "lint:format": "prettier --check .",
+    "lint:dedupe": "yarn dedupe --check home-assistant-js-websocket",
     "lint:md": "markdownlint-cli2 \"**/*.md\"",
     "rollup": "rollup -c",
     "setup": "yarn install && pre-commit install || echo 'pre-commit not found - install it (https://pre-commit.com/#install) and rerun `yarn setup`'",
