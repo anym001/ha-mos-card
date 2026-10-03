@@ -236,17 +236,18 @@ single bundle directly, so the dev loop and the shipped artifact are the same th
 `rollup.config.js` is production only; `rollup.config.dev.js` is what `yarn start` runs and is the
 one with the dev server.
 
-| Command            | Description                                                        |
-| ------------------ | ------------------------------------------------------------------ |
-| `yarn setup`       | Dependencies plus the pre-commit hooks — the one-command bootstrap |
-| `yarn check`       | Everything CI runs: lint, typecheck, lint:md, lint:format, build   |
-| `yarn build`       | Lint + production bundle (minified, ES2022 output)                 |
-| `yarn rollup`      | Production bundle only (skips lint)                                |
-| `yarn start`       | Development watcher with rebuild on save                           |
-| `yarn lint`        | ESLint across all `src/` files                                     |
-| `yarn typecheck`   | `tsc --noEmit`                                                     |
-| `yarn lint:md`     | markdownlint                                                       |
-| `yarn lint:format` | `prettier --check`                                                 |
+| Command            | Description                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------- |
+| `yarn setup`       | Dependencies plus the pre-commit hooks — the one-command bootstrap                  |
+| `yarn check`       | Everything CI runs: lint, typecheck, test, lint:md, lint:format, lint:dedupe, build |
+| `yarn build`       | Lint + production bundle (minified, ES2022 output)                                  |
+| `yarn rollup`      | Production bundle only (skips lint)                                                 |
+| `yarn start`       | Development watcher with rebuild on save                                            |
+| `yarn lint`        | ESLint across all `src/` files                                                      |
+| `yarn typecheck`   | `tsc --noEmit`                                                                      |
+| `yarn lint:md`     | markdownlint                                                                        |
+| `yarn lint:format` | `prettier --check`                                                                  |
+| `yarn lint:dedupe` | `yarn.lock` holds a single copy of `home-assistant-js-websocket`                    |
 
 `yarn check` is the local equivalent of the CI gates — it is what a contributor runs before
 opening a pull request, and it is the reason this repository needs no `script/` directory of its
@@ -312,14 +313,21 @@ suite reverses them for exactly that case.
 
 ## Continuous Integration
 
-| Workflow               | What it proves                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------ |
-| `lint.yml`             | ESLint, `tsc --noEmit`, markdownlint and `prettier --check` — the type gate    |
-| `test.yml`             | Vitest over `tests/` — the suites described above                              |
-| `build.yml`            | A clean checkout with `--immutable` dependencies still produces a bundle       |
-| `no-npm-lockfiles.yml` | No `package-lock.json` slipped in; this repository is Yarn-only                |
-| `validate.yml`         | `hacs/action` with `category: plugin`, nightly and on pull requests            |
-| `release-please.yml`   | Opens the release PR, then tags and attaches `dist/mos-card.js` to the release |
+| Workflow               | What it proves                                                                                |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| `lint.yml`             | ESLint, `tsc --noEmit`, markdownlint, `prettier --check` and the dedupe check — the type gate |
+| `test.yml`             | Vitest over `tests/` — the suites described above                                             |
+| `build.yml`            | A clean checkout with `--immutable` dependencies still produces a bundle                      |
+| `no-npm-lockfiles.yml` | No `package-lock.json` slipped in; this repository is Yarn-only                               |
+| `validate.yml`         | `hacs/action` with `category: plugin`, nightly and on pull requests                           |
+| `release-please.yml`   | Opens the release PR, then tags and attaches `dist/mos-card.js` to the release                |
+
+`custom-card-helpers` depends on its own `home-assistant-js-websocket` range. When Dependabot bumps
+the direct pin, Yarn can keep the old version for `custom-card-helpers`, and the two `Connection`
+types then fail the type check because `Auth` has a private field. `yarn lint:dedupe` reports that
+cause directly; `yarn dedupe home-assistant-js-websocket` fixes it. The check is limited to this
+one package because other duplicates in the lockfile are harmless and would fail every Dependabot
+pull request.
 
 ESLint runs in both `lint.yml` and (via `yarn build`) `build.yml`. That duplication is deliberate:
 it costs about twenty seconds and buys a lint failure that reads as "Lint" rather than as a broken
