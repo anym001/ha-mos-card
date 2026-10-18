@@ -6,7 +6,7 @@ server as rows and follows them as they come and go.
 
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]](LICENSE)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
+[![hacs][hacsbadge]][hacs]
 [![GitHub Activity][commits-shield]][commits]
 
 ![Every kind of device on a MOS server, in one card](https://raw.githubusercontent.com/anym001/ha-mos-card/main/assets/overview-light.png)
@@ -43,10 +43,16 @@ server as rows and follows them as they come and go.
 
 ### HACS
 
-1. Open HACS in your Home Assistant instance.
-2. Add `https://github.com/anym001/ha-mos-card` as a custom repository of type **Dashboard**.
-3. Search for **MOS NAS Card** and click **Download**.
-4. Refresh your browser.
+**MOS NAS Card** is in the HACS default store, so no custom repository is needed:
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][hacs-repo-badge]][hacs-repo-link]
+
+1. Open HACS, search for **MOS NAS Card** and click **Download** — or use the button above to go
+   straight there.
+2. Refresh your browser.
+
+HACS registers the dashboard resource itself. Only dashboards in YAML mode need the resource entry
+from the manual install below.
 
 ### Manual
 
@@ -261,6 +267,10 @@ Maintained by [@anym001][user_profile].
 
 [commits-shield]: https://img.shields.io/github/commit-activity/y/anym001/ha-mos-card.svg?style=for-the-badge
 [commits]: https://github.com/anym001/ha-mos-card/commits/main
+[hacs-repo-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
+[hacs-repo-link]: https://my.home-assistant.io/redirect/hacs_repository/?owner=anym001&repository=ha-mos-card&category=plugin
+[hacs]: https://github.com/hacs/integration
+[hacsbadge]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/anym001/ha-mos-card.svg?style=for-the-badge
 [releases-shield]: https://img.shields.io/github/release/anym001/ha-mos-card.svg?style=for-the-badge
 [releases]: https://github.com/anym001/ha-mos-card/releases
