@@ -1,5 +1,5 @@
 import { LitElement, html, nothing, TemplateResult, css, CSSResultGroup, PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { HassEntity } from 'home-assistant-js-websocket';
 import type { UnsubscribeFunc } from 'home-assistant-js-websocket';
 import {
@@ -54,6 +54,8 @@ import {
 import type { PlaceholderValues } from './rows';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
+import { announceCard, defineOnce } from './register';
+import type { CustomCardEntry } from './register';
 import { localize, setLanguage } from './localize/localize';
 
 console.info(
@@ -63,12 +65,11 @@ console.info(
 );
 
 interface WindowWithCustomCards extends Window {
-  customCards: Array<{ type: string; name: string; description: string }>;
+  customCards?: CustomCardEntry[];
 }
 
-(window as unknown as WindowWithCustomCards).customCards =
-  (window as unknown as WindowWithCustomCards).customCards || [];
-(window as unknown as WindowWithCustomCards).customCards.push({
+const pickerWindow = window as unknown as WindowWithCustomCards;
+pickerWindow.customCards = announceCard(pickerWindow.customCards, {
   type: 'mos-card',
   name: 'MOS NAS Card',
   description: 'Containers, Compose stacks, VMs, disks, pools and the UPS of a MOS NAS server',
@@ -116,7 +117,6 @@ interface ServerSection {
   serverMetrics: RowMetric[];
 }
 
-@customElement('mos-card')
 export class MosCard extends LitElement {
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
@@ -1457,3 +1457,5 @@ export class MosCard extends LitElement {
     `;
   }
 }
+
+defineOnce(customElements, 'mos-card', MosCard);
