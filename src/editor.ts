@@ -1,5 +1,5 @@
 import { LitElement, html, TemplateResult, css, CSSResultGroup, nothing, PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { HomeAssistant, LovelaceCardEditor, fireEvent } from 'custom-card-helpers';
 import type { UnsubscribeFunc } from 'home-assistant-js-websocket';
 
@@ -14,6 +14,7 @@ import {
 } from './devices';
 import { CARD_DEFAULTS, MAX_COLUMNS, TOGGLES, foldFilter, patternsToText } from './config';
 import { localize, setLanguage } from './localize/localize';
+import { defineOnce } from './register';
 
 /**
  * The action options, paired with the action the card falls back to without them.
@@ -50,7 +51,6 @@ interface FormSchema {
   value?: string;
 }
 
-@customElement('mos-card-editor')
 export class MosCardEditor extends LitElement implements LovelaceCardEditor {
   @property({ attribute: false }) public hass?: HomeAssistant;
 
@@ -309,3 +309,5 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
     `;
   }
 }
+
+defineOnce(customElements, 'mos-card-editor', MosCardEditor);
