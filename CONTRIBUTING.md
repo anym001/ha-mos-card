@@ -17,8 +17,7 @@ Pull requests are the best way to propose changes to the codebase.
 2. Run `yarn setup` — dependencies plus the pre-commit hooks, in one command.
 3. If you've changed something, update the documentation.
 4. Make sure your code passes all checks: `yarn check` runs lint, type check, the tests,
-   markdownlint, the formatting check, the Home Assistant version sync and the build, in that
-   order.
+   markdownlint, the formatting check, the lockfile dedupe check and the build, in that order.
 5. Test your contribution — see [Testing your change](#testing-your-change).
 6. Open a pull request against `main`.
 
@@ -43,13 +42,14 @@ feature/xyz ──PR──▶ main ──release-please──▶ Release (vX.Y.Z
 1. **Branch** from `main`: `git switch main && git pull && git switch -c feature/xyz`.
 2. **Test locally** before opening the PR: `yarn check`, and the card itself in a Home Assistant
    instance.
-3. **Open a PR against `main`.** `Lint`, `Test`, `Test build`, `guard` and `HACS validation` must
-   be green.
+3. **Open a PR against `main`.** `Lint`, `Test`, `Test build` and `guard` must be green.
 4. **Merge with "Rebase and merge".** It is the only method enabled on this repository, and that
    has a consequence worth knowing — see below.
 5. **Releases are automatic.** On push to `main`, release-please maintains a release PR; merging
    that PR pushes the `vX.Y.Z` tag, bumps `package.json` and `src/const.ts`, and attaches the built
-   `dist/mos-card.js` to the release. That asset is what HACS downloads. There is no manual tag
+   `dist/mos-card.js` to the release. That asset is what ha-mos bundles; its `card-sync` workflow
+   opens a pull request there with each new release, and users get the card with the next
+   integration release. There is no manual tag
    step, and neither version is ever edited by hand.
 
 > [!IMPORTANT]
@@ -191,6 +191,12 @@ The devcontainer gives you a Home Assistant instance with the card already wired
 
 For a change to device selection or rendering, that instance needs the MOS integration configured
 against a real server — a card that compiles is not a card that works.
+
+> [!IMPORTANT]
+> The integration ships its own copy of the card and loads it on every page, ahead of any dashboard
+> resource — so with the integration installed, the dev build from `yarn start` is **not** the copy
+> that runs. Copy `dist/mos-card.js` over `custom_components/mos/www/mos-card.js` in that Home
+> Assistant instead, restart it, and hard-reload the browser.
 
 ## License
 

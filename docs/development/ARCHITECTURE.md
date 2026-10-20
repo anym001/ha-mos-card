@@ -22,7 +22,7 @@ src/
         └── en.json              # English strings
 tests/                           # Vitest suites over the three logic modules
 dist/
-└── mos-card.js                  # Build output — the file HACS ships
+└── mos-card.js                  # Build output — the file ha-mos bundles
 ```
 
 `config.ts` and `rows.ts` hold the logic that needs no DOM, no `hass` and no render. It sits there
@@ -319,7 +319,6 @@ suite reverses them for exactly that case.
 | `test.yml`             | Vitest over `tests/` — the suites described above                                             |
 | `build.yml`            | A clean checkout with `--immutable` dependencies still produces a bundle                      |
 | `no-npm-lockfiles.yml` | No `package-lock.json` slipped in; this repository is Yarn-only                               |
-| `validate.yml`         | `hacs/action` with `category: plugin`, nightly and on pull requests                           |
 | `release-please.yml`   | Opens the release PR, then tags and attaches `dist/mos-card.js` to the release                |
 
 `custom-card-helpers` depends on its own `home-assistant-js-websocket` range. When Dependabot bumps
@@ -338,16 +337,16 @@ Every action is pinned to a commit sha with the version in a trailing comment. A
 
 ## Development Environment
 
-| Tool           | Minimum version | Notes                                     |
-| -------------- | --------------- | ----------------------------------------- |
-| Home Assistant | 2026.8          | Declared in `hacs.json`, enforced by HACS |
-| Node.js        | 24              | Required by `custom-card-helpers@2`       |
-| Yarn           | 4               | Managed via Corepack                      |
+| Tool           | Minimum version | Notes                                              |
+| -------------- | --------------- | -------------------------------------------------- |
+| Home Assistant | 2026.8          | The integration's floor, from ha-mos's `hacs.json` |
+| Node.js        | 24              | Required by `custom-card-helpers@2`                |
+| Yarn           | 4               | Managed via Corepack                               |
 
 The Home Assistant floor is the integration's floor: ha-mos requires 2026.8 for the device registry
 APIs it uses, and a card that renders that integration's devices is useless on a core the
-integration refuses to run on. `scripts/ha-version-sync.mjs` keeps this table, the README and
-`hacs.json` from drifting apart; `yarn check` runs it.
+integration refuses to run on. The card ships inside ha-mos, so ha-mos's `hacs.json` is what
+enforces it; this repository no longer declares a version of its own.
 
 TypeScript, Rollup, ESLint and the rest are installed locally by `yarn install` — no global
 installs needed.
@@ -392,7 +391,8 @@ table is in [`AGENTS.md`](../../AGENTS.md).
 
 Releases are not hand-tagged. Merging to `main` opens or updates a release PR; merging that PR tags
 the release, bumps `package.json` and `src/const.ts`, and attaches the built `mos-card.js`,
-which is what HACS downloads. Never edit either version by hand.
+which is what ha-mos bundles (its `card-sync` workflow opens a pull request there). Never edit
+either version by hand.
 
 Merging is restricted to **rebase**, so commits land on `main` individually and the changelog does
 not pick up a merge commit's subject alongside the commits it contains. The practical consequence —

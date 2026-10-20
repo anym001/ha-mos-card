@@ -70,5 +70,5 @@ bypass it with `--no-verify`.
 
 Releases are driven by `release-please`, not by hand-tagging. Merging to `main` opens or updates
 a release PR; merging that PR tags the release and the workflow attaches `dist/mos-card.js` to
-it, which is what HACS downloads. `package.json` and `src/const.ts` are both bumped automatically —
+it, which is what ha-mos bundles. `package.json` and `src/const.ts` are both bumped automatically —
 never edit either version by hand.
