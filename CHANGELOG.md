@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.5](https://github.com/anym001/ha-mos-card/compare/v0.2.4...v0.2.5) (2026-10-20)
+
+
+### Bug Fixes
+
+* **card:** tolerate the bundle being loaded twice ([703459e](https://github.com/anym001/ha-mos-card/commit/703459eb31e2e87c41fa3779352bfa9e1615112e))
+* **deps:** add @eslint/js required by eslint 10 ([aec94df](https://github.com/anym001/ha-mos-card/commit/aec94df434ac79b45f2dddd21a07ae50741929c8))
+
 ## [0.2.4](https://github.com/anym001/ha-mos-card/compare/v0.2.3...v0.2.4) (2026-08-29)
 
 
