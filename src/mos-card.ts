@@ -54,7 +54,7 @@ import {
 import type { PlaceholderValues } from './rows';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
-import { announceCard, defineOnce } from './register';
+import { announceCard, defineWhenHostReady } from './register';
 import type { CustomCardEntry } from './register';
 import { localize, setLanguage } from './localize/localize';
 
@@ -119,7 +119,8 @@ interface ServerSection {
 
 export class MosCard extends LitElement {
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
-    await import('./editor');
+    const { editorDefined } = await import('./editor');
+    await editorDefined;
     return document.createElement('mos-card-editor');
   }
 
@@ -1458,4 +1459,4 @@ export class MosCard extends LitElement {
   }
 }
 
-defineOnce(customElements, 'mos-card', MosCard);
+void defineWhenHostReady(() => customElements, 'mos-card', MosCard);

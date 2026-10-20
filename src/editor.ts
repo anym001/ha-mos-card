@@ -14,7 +14,7 @@ import {
 } from './devices';
 import { CARD_DEFAULTS, MAX_COLUMNS, TOGGLES, foldFilter, patternsToText } from './config';
 import { localize, setLanguage } from './localize/localize';
-import { defineOnce } from './register';
+import { defineWhenHostReady } from './register';
 
 /**
  * The action options, paired with the action the card falls back to without them.
@@ -310,4 +310,5 @@ export class MosCardEditor extends LitElement implements LovelaceCardEditor {
   }
 }
 
-defineOnce(customElements, 'mos-card-editor', MosCardEditor);
+/** Settles once `mos-card-editor` can be created; `getConfigElement` waits for it. */
+export const editorDefined = defineWhenHostReady(() => customElements, 'mos-card-editor', MosCardEditor);
