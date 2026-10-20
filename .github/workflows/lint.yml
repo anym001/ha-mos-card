@@ -43,7 +43,6 @@ jobs:
       - name: Type check
         run: yarn typecheck
 
-      # The README is the card's HACS landing page, not just developer docs.
       - name: Markdown
         run: yarn lint:md
 
@@ -55,9 +54,3 @@ jobs:
       # names the actual cause. Other duplicates are harmless and not checked.
       - name: Lockfile duplicates
         run: yarn lint:dedupe
-
-      # hacs.json declares the minimum Home Assistant version and HACS enforces
-      # it; the README and ARCHITECTURE only describe it. This catches the day
-      # those stop agreeing.
-      - name: Home Assistant version sync
-        run: yarn ha-version-sync

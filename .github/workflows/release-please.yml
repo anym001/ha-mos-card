@@ -29,8 +29,8 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # HACS installs the card by downloading the asset named in hacs.json from the
-  # release, so a release without the built bundle attached is not installable.
+  # ha-mos bundles the card by downloading this asset from the release (its
+  # card-sync workflow), so a release without it never reaches users.
   # This runs only on the push that merges a release PR, when release-please has
   # already tagged the commit and both version sources carry the new number.
   publish:

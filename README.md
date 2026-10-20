@@ -6,7 +6,6 @@ server as rows and follows them as they come and go.
 
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]](LICENSE)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Activity][commits-shield]][commits]
 
 ![Every kind of device on a MOS server, in one card](https://raw.githubusercontent.com/anym001/ha-mos-card/main/assets/overview-light.png)
@@ -32,33 +31,27 @@ server as rows and follows them as they come and go.
 
 ---
 
-## Requirements
-
-- **Home Assistant 2026.8** or newer. HACS does not offer the card on older cores.
-- The [MOS NAS integration](https://github.com/anym001/ha-mos), set up and reporting devices.
-
----
-
 ## Installation
 
-### HACS
+The card ships with the [MOS NAS integration](https://github.com/anym001/ha-mos). There is nothing to
+install separately and no dashboard resource to add:
 
-1. Open HACS in your Home Assistant instance.
-2. Add `https://github.com/anym001/ha-mos-card` as a custom repository of type **Dashboard**.
-3. Search for **MOS NAS Card** and click **Download**.
-4. Refresh your browser.
+1. Install and set up MOS NAS — it is in the HACS default store.
+2. Refresh your browser.
+3. Add a card and pick **MOS NAS Card**, or write `type: custom:mos-card`.
 
-### Manual
+The integration loads the card once it has at least one MOS server set up. Updates arrive with the
+integration's own updates.
 
-1. Download `mos-card.js` from the [latest release][releases].
-2. Copy it to `<config>/www/mos-card.js`.
-3. Add a resource entry in your dashboard settings:
+### Installed the card on its own before?
 
-```yaml
-resources:
-  - url: /local/mos-card.js
-    type: module
-```
+Earlier versions were a separate HACS download. Remove that copy so the browser does not load two:
+
+- **HACS:** remove **MOS NAS Card** under HACS → Dashboard.
+- **Manual install:** delete `<config>/www/mos-card.js` and its entry under
+  **Settings → Dashboards → Resources**.
+
+Your dashboards keep working — `type: custom:mos-card` is unchanged.
 
 ---
 
@@ -207,13 +200,17 @@ The card takes its colours from the active theme and follows light and dark with
 
 ## Troubleshooting
 
-**"Custom element doesn't exist: ha-mos-card"**
-The element is `mos-card`: use `type: custom:mos-card`, and for a manual install the file
-`mos-card.js`. Remove any resource entry pointing at `ha-mos-card.js` under
-**Settings → Dashboards → Resources**.
+**"Custom element doesn't exist: mos-card"**
+Check that the MOS integration is installed and has a server set up — the card comes with it. Then
+clear your browser cache or do a hard reload (`Ctrl+Shift+R` / `Cmd+Shift+R`).
 
-**Card not appearing after install**
-Clear your browser cache or do a hard reload (`Ctrl+Shift+R` / `Cmd+Shift+R`).
+**"Custom element doesn't exist: ha-mos-card"**
+The element is `mos-card`: use `type: custom:mos-card`. Remove any resource entry pointing at
+`ha-mos-card.js` under **Settings → Dashboards → Resources**.
+
+**The card looks older than the integration**
+A copy from a separate install is still loaded — see
+[Installed the card on its own before?](#installed-the-card-on-its-own-before).
 
 **"No MOS devices found"**
 Check that the MOS integration is set up and that its devices are not disabled in
