@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/anym001/ha-mos-card/compare/v0.2.5...v0.3.0) (2026-10-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* the card is no longer installable from HACS as a custom repository; install the MOS NAS integration, which ships it, and remove the separate copy.
+
+### Bug Fixes
+
+* **card:** define the elements after home assistant installs its registry ([2a9bc2f](https://github.com/anym001/ha-mos-card/commit/2a9bc2f5ae3bbc14483e2a2684373deb77d43d0d))
+
+
+### Maintenance
+
+* stop distributing the card through hacs ([d132862](https://github.com/anym001/ha-mos-card/commit/d132862b3fc924bc8a2cb2bab7d965492d7f9e11))
+
 ## [0.2.5](https://github.com/anym001/ha-mos-card/compare/v0.2.4...v0.2.5) (2026-10-20)
 
 
