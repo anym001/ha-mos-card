@@ -107,5 +107,21 @@
     "d": "d",
     "h": "h",
     "min": "min"
+  },
+  "ups": {
+    "OL": "Online",
+    "OB": "On battery",
+    "LB": "Battery low",
+    "HB": "Battery high",
+    "RB": "Replace battery",
+    "CHRG": "Charging",
+    "DISCHRG": "Discharging",
+    "BYPASS": "Bypass",
+    "CAL": "Calibrating",
+    "OFF": "Off",
+    "OVER": "Overload",
+    "TRIM": "Trimming voltage",
+    "BOOST": "Boosting voltage",
+    "FSD": "Forced shutdown"
   }
 }

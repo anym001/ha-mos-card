@@ -126,7 +126,7 @@ interface KindMetrics {
 }
 
 const guestMetrics = (prefix: string): KindMetrics => {
-  const cpu = { translationKey: `${prefix}_cpu_usage`, keySuffix: 'cpu_usage', label: 'cpu', icon: 'mdi:cpu-64-bit' };
+  const cpu = { translationKey: `${prefix}_cpu_usage`, keySuffix: 'cpu_usage', label: 'cpu', icon: 'mdi:speedometer' };
   const memory = {
     translationKey: `${prefix}_memory_usage`,
     keySuffix: 'memory_usage',
@@ -775,7 +775,7 @@ export interface ServerMetricRef extends MetricRef {
  * cannot measure reports unknown and is left out rather than printed.
  */
 export const SERVER_METRICS: readonly ServerMetricRef[] = [
-  { translationKey: 'cpu_load', keySuffix: 'cpu_load', icon: 'mdi:cpu-64-bit', label: 'cpu', gauge: true },
+  { translationKey: 'cpu_load', keySuffix: 'cpu_load', icon: 'mdi:speedometer', label: 'cpu', gauge: true },
   { translationKey: 'memory_usage', keySuffix: 'memory_usage', icon: 'mdi:memory', label: 'memory', gauge: true },
   {
     translationKey: 'cpu_temperature',

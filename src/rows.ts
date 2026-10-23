@@ -8,7 +8,7 @@
  * and because on the component it could only be checked by driving the card.
  */
 import type { ActionConfig } from 'custom-card-helpers';
-import { isUnavailableState } from './devices';
+import { KIND_INFO, isUnavailableState } from './devices';
 import type { MosDeviceKind, RowSort } from './devices';
 
 /**
@@ -83,6 +83,54 @@ export function countGroup(
     total: rows.length,
     updates: rows.filter((row) => row.update === 'on').length,
   };
+}
+
+/**
+ * Whether a row's measurements mean anything in its current state.
+ *
+ * A guest that is not running reports what it last used — a stopped LXC its
+ * zeros, a stopped container the memory it had — which reads as a live figure
+ * beside "Stopped". Only guests that run or are paused show theirs; kinds that
+ * do not run always do.
+ */
+export function showsMeasurements(kind: MosDeviceKind, state: string | undefined): boolean {
+  if (!KIND_INFO[kind].hasPower) {
+    return true;
+  }
+
+  const tone = toneFor(kind, state);
+
+  return tone === 'active' || tone === 'idle';
+}
+
+/** The NUT status flags a UPS reports, in the order MOS lists them. */
+export const UPS_FLAGS = [
+  'OL',
+  'OB',
+  'LB',
+  'HB',
+  'RB',
+  'CHRG',
+  'DISCHRG',
+  'BYPASS',
+  'CAL',
+  'OFF',
+  'OVER',
+  'TRIM',
+  'BOOST',
+  'FSD',
+] as const;
+
+/**
+ * A UPS status string split into its flags, each known flag marked so it can
+ * be put into words. "OL CHRG" is two facts, not one code; an unknown flag
+ * stays as it is rather than being dropped.
+ */
+export function upsFlags(state: string | undefined): Array<{ flag: string; known: boolean }> {
+  return (state ?? '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((flag) => ({ flag, known: (UPS_FLAGS as readonly string[]).includes(flag.toUpperCase()) }));
 }
 
 /** How long the server has been up, split into the units a heading shows. */
