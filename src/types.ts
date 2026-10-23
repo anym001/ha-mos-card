@@ -5,6 +5,7 @@ import type { MosDeviceKind, NameFilter, RowSort, SecondaryInfo } from './device
 declare global {
   interface HTMLElementTagNameMap {
     'mos-card-editor': LovelaceCardEditor;
+    'mos-overview-card-editor': LovelaceCardEditor;
   }
 }
 
@@ -185,4 +186,36 @@ export interface LovelaceGridOptions {
   min_rows?: number;
   max_columns?: number;
   max_rows?: number;
+}
+
+/** The overview card: one MOS server condensed, with no row per device. */
+export interface MosOverviewCardConfig extends LovelaceCardConfig {
+  type: string;
+
+  /** Card heading. Omit for none; the server's name heads each server anyway. */
+  title?: string;
+
+  /** Device id of the MOS server to show. Omit for every server, one after another. */
+  server?: string;
+
+  /** Draw the last hour of CPU load and memory beside their rings. Default true. */
+  show_history?: boolean;
+
+  /** One summary per guest kind: what runs, what waits on an update, CPU and memory. Default true. */
+  show_guests?: boolean;
+
+  /** The pools and a line for the disks. Default true. */
+  show_storage?: boolean;
+
+  /** The UPS: status, battery, runtime and load. Default true. */
+  show_ups?: boolean;
+
+  /** SSH, Samba, NFS, Tailscale and NetBird as chips. Default true. */
+  show_services?: boolean;
+
+  /**
+   * Where a tap on a guest kind leads, for a dashboard with the full list.
+   * `[[kind]]` is replaced with the kind's `model_id`. Omit for no tap.
+   */
+  navigation_path?: string;
 }

@@ -202,6 +202,33 @@ tap_action:
 - The visual editor has no field for placeholders: Home Assistant's action editor offers an entity
   picker, which cannot hold one. Pick the action in the editor, write the rest in YAML.
 
+### Overview card
+
+The bundle carries a second card for a server at a glance, with no row per device: its load,
+one tile per guest kind with how many run, how many wait on an update and what they use, the
+pools as bars, one line for the disks, the UPS and the services.
+
+```yaml
+type: custom:mos-overview-card
+navigation_path: /mos/[[kind]]
+```
+
+| Name              | Type    | Description                                                            | Default     |
+| ----------------- | ------- | ---------------------------------------------------------------------- | ----------- |
+| `type`            | string  | **Required.** `custom:mos-overview-card`                               |             |
+| `title`           | string  | Card heading. Omit for none; each server is headed by its name anyway. | none        |
+| `server`          | string  | Device id of the MOS server to show. Omit for every server.            | all servers |
+| `show_history`    | boolean | Draw the last hour of CPU load and memory beside their rings.          | `true`      |
+| `show_guests`     | boolean | One tile per guest kind.                                               | `true`      |
+| `show_storage`    | boolean | The pools as bars and one line for the disks.                          | `true`      |
+| `show_ups`        | boolean | The UPS with its status, battery, runtime and load.                    | `true`      |
+| `show_services`   | boolean | SSH, Samba, NFS, Tailscale and NetBird as chips.                       | `true`      |
+| `navigation_path` | string  | Where a tap on a guest kind leads; `[[kind]]` becomes its `model_id`.  | no tap      |
+
+A kind's memory is the server's own total for it (`memory_docker`, `memory_lxc`, `memory_vms`),
+so Compose stacks, which run as Docker containers, show none of their own. Its CPU is the guests'
+usage added up. A tap on a pool or the UPS opens its more-info dialog.
+
 ### Themes
 
 The card takes its colours from the active theme and follows light and dark without configuration:

@@ -77,6 +77,8 @@ import { CARD_VERSION } from './const';
 import { announceCard, defineWhenHostReady } from './register';
 import type { CustomCardEntry } from './register';
 import { localize, setLanguage } from './localize/localize';
+// The overview card ships in the same bundle, so installing one installs both.
+import './overview-card';
 
 console.info(
   `%c  MOS-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,

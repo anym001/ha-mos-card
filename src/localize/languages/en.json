@@ -21,7 +21,9 @@
     "unknown_sort": "Unknown sort order",
     "unknown_secondary_info": "Unknown secondary info",
     "bad_max_rows": "'max_rows' must be a whole number of at least 1",
-    "bad_columns": "'columns' must be 1 or 2"
+    "bad_columns": "'columns' must be 1 or 2",
+    "not_a_boolean": "Must be true or false",
+    "not_a_string": "Must be text"
   },
   "kinds": {
     "docker_container": "Docker containers",
@@ -123,5 +125,26 @@
     "TRIM": "Trimming voltage",
     "BOOST": "Boosting voltage",
     "FSD": "Forced shutdown"
+  },
+  "overview": {
+    "guests": "Guests",
+    "storage": "Storage",
+    "power": "Power",
+    "running": "running",
+    "disks": "{count} disks",
+    "standby": "{count} in standby",
+    "max": "max",
+    "problems": "{count} with a fault"
+  },
+  "overview_editor": {
+    "title": "Title",
+    "server": "MOS server",
+    "show_history": "Show load history",
+    "show_guests": "Show guests",
+    "show_storage": "Show storage",
+    "show_ups": "Show UPS",
+    "show_services": "Show services",
+    "navigation_path": "Tap on a guest kind opens",
+    "navigation_path_hint": "A dashboard path, for example /mos/containers. [[kind]] becomes the kind, e.g. docker_container. Leave empty for no tap."
   }
 }
