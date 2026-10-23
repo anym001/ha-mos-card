@@ -1,4 +1,4 @@
-import { LitElement, html, svg, nothing, TemplateResult, css, CSSResultGroup, PropertyValues } from 'lit';
+import { LitElement, html, nothing, TemplateResult, css, CSSResultGroup, PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { HassEntity } from 'home-assistant-js-websocket';
 import type { UnsubscribeFunc } from 'home-assistant-js-websocket';
@@ -9,7 +9,6 @@ import {
   ActionHandlerEvent,
   handleAction,
   LovelaceCardEditor,
-  computeStateDisplay,
 } from 'custom-card-helpers';
 
 import type { LovelaceGridOptions, MosCardConfig } from './types';
@@ -53,7 +52,6 @@ import {
   capRows,
   compareRows,
   countGroup,
-  uptimeSince,
   fillPlaceholders,
   isLinkableUrl,
   moreInfoEntity,
@@ -63,14 +61,22 @@ import {
   upsFlags,
 } from './rows';
 import type { GroupCounts, PlaceholderValues } from './rows';
-import { HISTORY_WINDOW_MS, appendSample, parseHistory, sparklinePath } from './history';
-import type { HistoryResponse, Sample } from './history';
+import { HistoryLoader } from './history-loader';
+import type { HistoryMap } from './history-loader';
+import {
+  formatState,
+  renderChip,
+  renderFigure,
+  renderServerTile,
+  renderServices,
+  renderUptime,
+  summaryStyles,
+} from './render';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
 import { announceCard, defineWhenHostReady } from './register';
 import type { CustomCardEntry } from './register';
 import { localize, setLanguage } from './localize/localize';
-import { GAUGE_ROTATION, GAUGE_SIZE, gaugeGeometry, gaugePercent, severityFor } from './gauge';
 
 console.info(
   `%c  MOS-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
@@ -136,10 +142,6 @@ interface ServerSection {
   services: RowMetric<ServiceRef>[];
 }
 
-/** The sparkline's drawing box; it is stretched to whatever width the tile has. */
-const SPARK_WIDTH = 100;
-const SPARK_HEIGHT = 28;
-
 /** How a pool's state reads as a chip: it is the pool's usage in percent. */
 const POOL_USAGE: MetricRef = {
   translationKey: 'pool_usage',
@@ -204,16 +206,12 @@ export class MosCard extends LitElement {
    */
   @state() private expanded: ReadonlySet<string> = new Set();
 
-  /**
-   * The recent readings of the server measurements drawn as sparklines.
-   *
-   * Seeded once per entity from the recorder and continued from the states
-   * `hass` brings anyway. Replaced rather than mutated, so Lit sees it.
-   */
-  @state() private history: ReadonlyMap<string, readonly Sample[]> = new Map();
+  /** The recent readings of the server measurements drawn as sparklines. */
+  @state() private history: HistoryMap = new Map();
 
-  /** Entities whose history has been asked for, so a slow answer is not asked for twice. */
-  private historyRequested = new Set<string>();
+  private readonly historyLoader = new HistoryLoader((history) => {
+    this.history = history;
+  });
 
   private readonly pendingTimers = new PendingTimers(PENDING_TIMEOUT_MS);
 
@@ -260,7 +258,7 @@ export class MosCard extends LitElement {
   protected willUpdate(changedProps: PropertyValues): void {
     if (changedProps.has('hass')) {
       setLanguage(this.hass?.locale?.language);
-      this.continueHistory();
+      this.historyLoader.continue(this.hass);
     }
 
     if (!changedProps.has('hass') || !this.pending.size) {
@@ -279,9 +277,17 @@ export class MosCard extends LitElement {
       this.subscribeRegistries();
     }
 
-    this.requestHistory();
+    this.historyLoader.request(this.hass, this.historyEntityIds());
   }
 
+  /**
+   * Re-render only for state changes that can actually show up on this card.
+   *
+   * `hass` is replaced on every state change anywhere in Home Assistant, which
+   * on a busy instance is many times a second. The card is interested in a
+   * small, known set of entities — the ones `trackedEntityIds()` collects — so
+   * everything else is filtered out here.
+   */
   /** The server measurements a sparkline is drawn for, under the current config. */
   private historyEntityIds(): string[] {
     if (!this.config.show_server_summary || !this.config.show_history || !this.devices || !this.entities) {
@@ -297,94 +303,6 @@ export class MosCard extends LitElement {
     );
   }
 
-  /**
-   * Ask the recorder for the last hour of each sparkline entity not yet asked for.
-   *
-   * Best effort: without the recorder there is no history, and the heading
-   * keeps its rings and figures and simply draws no line.
-   */
-  private requestHistory(): void {
-    if (!this.hass?.callWS) {
-      return;
-    }
-
-    const ids = this.historyEntityIds().filter((id) => !this.historyRequested.has(id));
-
-    if (!ids.length) {
-      return;
-    }
-
-    for (const id of ids) {
-      this.historyRequested.add(id);
-    }
-
-    // The current reading starts the line at once; the recorder's answer fills
-    // in what came before it.
-    this.continueHistory();
-
-    this.hass
-      .callWS<HistoryResponse>({
-        type: 'history/history_during_period',
-        start_time: new Date(Date.now() - HISTORY_WINDOW_MS).toISOString(),
-        entity_ids: ids,
-        minimal_response: true,
-        no_attributes: true,
-      })
-      .then((response) => {
-        const history = new Map(this.history);
-
-        for (const id of ids) {
-          // Readings that arrived while the query was out are newer than its answer.
-          const live = history.get(id) ?? [];
-          const recorded = parseHistory(response, id);
-          const last = recorded[recorded.length - 1];
-
-          history.set(id, [...recorded, ...live.filter(([at]) => !last || at > last[0])]);
-        }
-
-        this.history = history;
-      })
-      .catch(() => undefined);
-  }
-
-  /** Carry each sparkline on with the state `hass` now holds for it. */
-  private continueHistory(): void {
-    if (!this.historyRequested.size || !this.hass) {
-      return;
-    }
-
-    let history: Map<string, readonly Sample[]> | undefined;
-    const now = Date.now();
-
-    for (const id of this.historyRequested) {
-      const stateObj = this.hass.states[id];
-      const samples = this.history.get(id) ?? [];
-
-      if (!stateObj) {
-        continue;
-      }
-
-      const next = appendSample(samples, Date.parse(stateObj.last_updated) || now, stateObj.state, now);
-
-      if (next !== samples) {
-        history ??= new Map(this.history);
-        history.set(id, next);
-      }
-    }
-
-    if (history) {
-      this.history = history;
-    }
-  }
-
-  /**
-   * Re-render only for state changes that can actually show up on this card.
-   *
-   * `hass` is replaced on every state change anywhere in Home Assistant, which
-   * on a busy instance is many times a second. The card is interested in a
-   * small, known set of entities — the ones `trackedEntityIds()` collects — so
-   * everything else is filtered out here.
-   */
   protected shouldUpdate(changedProps: PropertyValues): boolean {
     if (!this.config) {
       return false;
@@ -752,10 +670,10 @@ export class MosCard extends LitElement {
       ? section.server.name_by_user || section.server.name || localize('common.server')
       : localize('common.server');
     const tiles = section.serverMetrics
-      .map((metric) => this.renderServerTile(metric))
+      .map((metric) => renderServerTile(this.hass, metric, this.history.get(metric.entity.entity_id)))
       .filter((tile): tile is TemplateResult => tile !== undefined);
-    const services = this.renderServices(section.services);
-    const uptime = this.renderUptime(section.bootTime);
+    const services = renderServices(this.hass, section.services);
+    const uptime = renderUptime(this.hass, section.bootTime);
 
     // The heading is otherwise omitted for a single server, where it only
     // repeats the card's own title — but a summary has to hang off something,
@@ -771,168 +689,6 @@ export class MosCard extends LitElement {
       }
       ${section.groups.map((group) => this.renderGroup(group))}
     `;
-  }
-
-  /** How long the server has been up, as its two largest units. */
-  private renderUptime(bootTime?: EntityRegistryEntry): TemplateResult | typeof nothing {
-    const stateObj = bootTime ? this.hass?.states[bootTime.entity_id] : undefined;
-    const uptime = uptimeSince(stateObj?.state, Date.now());
-
-    if (!uptime) {
-      return nothing;
-    }
-
-    const parts = uptime.days
-      ? [
-          [uptime.days, 'd'],
-          [uptime.hours, 'h'],
-        ]
-      : uptime.hours
-        ? [
-            [uptime.hours, 'h'],
-            [uptime.minutes, 'min'],
-          ]
-        : [[uptime.minutes, 'min']];
-    const duration = parts.map(([value, unit]) => `${value} ${localize(`units.${unit}`)}`).join(' ');
-
-    return html`<span class="uptime" title=${this.renderState(stateObj)}>
-      <ha-icon .icon=${SERVER_BOOT_TIME.icon}></ha-icon>${localize('metrics.uptime_for', '{duration}', duration)}
-    </span>`;
-  }
-
-  /** The server's services as chips, lit while on; nothing for a server that reports none. */
-  private renderServices(services: readonly RowMetric<ServiceRef>[]): TemplateResult | typeof nothing {
-    const chips = services.flatMap((service) => {
-      const stateObj = this.hass?.states[service.entity.entity_id];
-
-      if (!stateObj || isUnavailableState(stateObj.state)) {
-        return [];
-      }
-
-      const on = stateObj.state === 'on';
-
-      return [
-        html`<span class="service ${on ? 'on' : 'off'}" title=${`${service.ref.name}: ${this.renderState(stateObj)}`}>
-          <ha-icon .icon=${service.ref.icon}></ha-icon>${service.ref.name}
-        </span>`,
-      ];
-    });
-
-    return chips.length ? html`<div class="services">${chips}</div>` : nothing;
-  }
-
-  /**
-   * One server measurement: a ring for a percentage, the icon alone otherwise,
-   * beside the figure and what it is. Left out while the server cannot report it.
-   */
-  private renderServerTile(metric: RowMetric<ServerMetricRef>): TemplateResult | undefined {
-    const stateObj = this.hass?.states[metric.entity.entity_id];
-
-    if (!stateObj || isUnavailableState(stateObj.state)) {
-      return undefined;
-    }
-
-    const percent = metric.ref.gauge ? gaugePercent(stateObj.state) : undefined;
-    const samples = this.history.get(metric.entity.entity_id);
-    const path = samples ? sparklinePath(samples, Date.now(), SPARK_WIDTH, SPARK_HEIGHT) : undefined;
-
-    return html`
-      <div
-        class="tile ${path ? 'with-history' : ''} ${percent === undefined ? '' : `severity-${severityFor(percent, metric.ref.inverse)}`}"
-        title=${this.renderState(stateObj)}
-      >
-        <div class="tile-icon ${percent === undefined ? 'plain' : ''}">
-          ${percent === undefined ? nothing : this.renderGauge(percent, 'gauge', metric.ref.inverse)}
-          <ha-icon .icon=${metric.ref.icon}></ha-icon>
-        </div>
-        <div class="tile-text">
-          ${this.renderFigure(stateObj)}
-          <span class="tile-label">${localize(`metrics.${metric.ref.label}`)}</span>
-        </div>
-        ${
-          path
-            ? html`<svg
-                class="spark"
-                viewBox="0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                ${svg`<path d=${path}></path>`}
-              </svg>`
-            : nothing
-        }
-      </div>
-    `;
-  }
-
-  /** A ring in a 40-unit box: 4 wide where it frames an icon, 8 where it is drawn at icon size. */
-  private renderGauge(percent: number, className = 'gauge', inverse = false): TemplateResult {
-    const centre = GAUGE_SIZE / 2;
-    const stroke = className === 'gauge' ? 4 : 8;
-    const { radius, circumference, sweep } = gaugeGeometry(stroke);
-
-    return html`
-      <svg
-        class="${className} severity-${severityFor(percent, inverse)}"
-        viewBox="0 0 ${GAUGE_SIZE} ${GAUGE_SIZE}"
-        aria-hidden="true"
-      >
-        ${svg`
-          <g transform="rotate(${GAUGE_ROTATION} ${centre} ${centre})">
-            <circle class="track" cx=${centre} cy=${centre} r=${radius} stroke-width=${stroke}
-              stroke-dasharray="${sweep} ${circumference}"></circle>
-            ${
-              percent > 0
-                ? svg`<circle class="value" cx=${centre} cy=${centre} r=${radius} stroke-width=${stroke}
-                    stroke-dasharray="${(sweep * percent) / 100} ${circumference}"></circle>`
-                : nothing
-            }
-          </g>
-        `}
-      </svg>
-    `;
-  }
-
-  /** A state as its number and a quieter unit after it. */
-  private renderFigure(stateObj: HassEntity): TemplateResult {
-    const { value, unit } = this.stateParts(stateObj);
-
-    return html`<span class="figure">${value}${unit ? html`<span class="unit">${unit}</span>` : nothing}</span>`;
-  }
-
-  /**
-   * A state split into its number and its unit, in the core's own formatting.
-   *
-   * `formatEntityStateToParts` is how the core's own tiles get the two apart;
-   * on a core without it the unit is cut off the formatted string instead.
-   */
-  private stateParts(stateObj: HassEntity): { value: string; unit: string } {
-    const hass = this.hass as HomeAssistant & {
-      formatEntityStateToParts?: (stateObj: HassEntity) => Array<{ type: string; value: string }>;
-    };
-
-    if (hass.formatEntityStateToParts) {
-      const parts = hass.formatEntityStateToParts(stateObj);
-
-      return {
-        value: parts
-          .filter((part) => part.type !== 'unit')
-          .map((part) => part.value)
-          .join('')
-          .trim(),
-        unit: parts
-          .filter((part) => part.type === 'unit')
-          .map((part) => part.value)
-          .join(''),
-      };
-    }
-
-    const text = this.renderState(stateObj);
-    const unit = stateObj.attributes.unit_of_measurement as string | undefined;
-
-    return unit && text.endsWith(unit)
-      ? { value: text.slice(0, -unit.length).trim(), unit }
-      : { value: text, unit: '' };
   }
 
   private renderGroup(group: RowGroup): TemplateResult {
@@ -1170,9 +926,9 @@ export class MosCard extends LitElement {
       stateObj &&
       !isUnavailableState(stateObj.state)
     ) {
-      parts.push(this.renderChip(POOL_USAGE, stateObj, this.renderFigure(stateObj)));
+      parts.push(renderChip(POOL_USAGE, stateObj, renderFigure(this.hass, stateObj)));
     } else if (this.config.show_state) {
-      parts.push(row.kind === 'ups' ? this.renderUpsState(stateObj) : this.renderState(stateObj));
+      parts.push(row.kind === 'ups' ? this.renderUpsState(stateObj) : formatState(this.hass, stateObj));
     }
 
     const metrics = showsMeasurements(row.kind, stateObj?.state)
@@ -1199,14 +955,14 @@ export class MosCard extends LitElement {
   /** A UPS status in words: "OL CHRG" reads as "Online, Charging". */
   private renderUpsState(stateObj?: HassEntity): string {
     if (!stateObj || isUnavailableState(stateObj.state)) {
-      return this.renderState(stateObj);
+      return formatState(this.hass, stateObj);
     }
 
     const flags = upsFlags(stateObj.state);
 
     return flags.length
       ? flags.map(({ flag, known }) => (known ? localize(`ups.${flag.toUpperCase()}`) : flag)).join(', ')
-      : this.renderState(stateObj);
+      : formatState(this.hass, stateObj);
   }
 
   /** The device's own long jobs that are running right now, each named. */
@@ -1244,41 +1000,10 @@ export class MosCard extends LitElement {
 
     const figure =
       total && !isUnavailableState(total.state)
-        ? html`${this.renderFigure(stateObj)}<span class="of">/</span>${this.renderFigure(total)}`
-        : this.renderFigure(stateObj);
+        ? html`${renderFigure(this.hass, stateObj)}<span class="of">/</span>${renderFigure(this.hass, total)}`
+        : renderFigure(this.hass, stateObj);
 
-    return this.renderChip(metric.ref, stateObj, figure);
-  }
-
-  /** A figure with what it is in front of it: a ring for a percentage, its icon otherwise. */
-  private renderChip(ref: MetricRef, stateObj: HassEntity, figure: TemplateResult): TemplateResult {
-    const percent = stateObj.attributes.unit_of_measurement === '%' ? gaugePercent(stateObj.state) : undefined;
-
-    return html`<span class="chip" title=${localize(`metrics.${ref.label}`)}
-      >${
-        percent === undefined
-          ? html`<ha-icon class="chip-icon" .icon=${ref.icon}></ha-icon>`
-          : this.renderGauge(percent, 'mini-gauge', ref.inverse)
-      }${figure}</span
-    >`;
-  }
-
-  private renderState(stateObj?: HassEntity): string {
-    if (!stateObj) {
-      return localize('common.no_state_entity');
-    }
-
-    // `formatEntityState` is the core's own formatter: it resolves the state
-    // translations an integration declares under its entity's translation_key,
-    // so a Docker container reads "Stopped" here exactly as it does in the
-    // more-info dialog. `computeStateDisplay` from custom-card-helpers predates
-    // translation_key enums and hands back the raw `exited`, so it is only the
-    // fallback for cores too old to offer the former.
-    const hass = this.hass as HomeAssistant & { formatEntityState?: (stateObj: HassEntity) => string };
-
-    return hass.formatEntityState
-      ? hass.formatEntityState(stateObj)
-      : computeStateDisplay(this.hass.localize, stateObj, this.hass.locale);
+    return renderChip(metric.ref, stateObj, figure);
   }
 
   /**
@@ -1481,652 +1206,432 @@ export class MosCard extends LitElement {
     };
   }
   static get styles(): CSSResultGroup {
-    return css`
-      .card-content {
-        padding: 4px 12px 12px;
-        /* The column layout below asks about the card's own width, not the
+    return [
+      summaryStyles,
+      css`
+        .card-content {
+          padding: 4px 12px 12px;
+          /* The column layout below asks about the card's own width, not the
            window's: the same card is wide in one dashboard column and narrow in
            three, and only a container query can tell the difference. */
-        container-type: inline-size;
-      }
-
-      .notice {
-        padding: 16px 0;
-        color: var(--secondary-text-color);
-        text-align: center;
-      }
-
-      .server-heading {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-        margin: 14px 4px 6px;
-        font-weight: 500;
-        color: var(--primary-text-color);
-      }
-
-      .server-summary {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px 16px;
-        margin: 4px 4px 10px;
-      }
-
-      .tile {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-      }
-
-      .tile-icon {
-        position: relative;
-        flex: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        --mdc-icon-size: 18px;
-        color: var(--secondary-text-color);
-      }
-
-      /* Without a ring the icon still gets a round footprint, so a row of tiles
-         keeps one rhythm — filled rather than outlined, so it does not read as
-         a ring standing at zero. */
-      .tile-icon.plain {
-        border-radius: 50%;
-        background: color-mix(in srgb, var(--secondary-text-color) 12%, transparent);
-      }
-
-      .gauge {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-      }
-
-      .gauge circle {
-        fill: none;
-      }
-
-      .gauge .track {
-        stroke: var(--divider-color, rgba(127, 127, 127, 0.25));
-      }
-
-      /* A fixed scale rather than the theme's accent: the ring says how loaded
-         the server is, which a theme has no business recolouring. */
-      .gauge .value {
-        stroke: var(--gauge-color);
-        stroke-linecap: round;
-        transition: stroke-dasharray 0.3s ease;
-      }
-
-      .gauge.severity-low {
-        --gauge-color: var(--green-color, #43a047);
-      }
-
-      .gauge.severity-medium {
-        --gauge-color: var(--amber-color, #ffc107);
-      }
-
-      .gauge.severity-high {
-        --gauge-color: var(--orange-color, #fb8c00);
-      }
-
-      .gauge.severity-critical {
-        --gauge-color: var(--red-color, #e53935);
-      }
-
-      .tile-text {
-        display: flex;
-        flex-direction: column;
-        line-height: 1.15;
-      }
-
-      .tile .figure {
-        font-size: 1.05em;
-        font-weight: 600;
-        color: var(--primary-text-color);
-      }
-
-      .tile-label {
-        font-size: 0.68em;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--secondary-text-color);
-      }
-
-      .tile.with-history {
-        flex: 1 1 140px;
-      }
-
-      .spark {
-        flex: 1;
-        min-width: 48px;
-        height: 28px;
-        overflow: visible;
-      }
-
-      .spark path {
-        fill: none;
-        stroke: var(--gauge-color, var(--primary-color));
-        stroke-width: 1.5;
-        stroke-linejoin: round;
-        vector-effect: non-scaling-stroke;
-      }
-
-      .tile.severity-low,
-      .mini-gauge.severity-low {
-        --gauge-color: var(--green-color, #43a047);
-      }
-
-      .tile.severity-medium,
-      .mini-gauge.severity-medium {
-        --gauge-color: var(--amber-color, #ffc107);
-      }
-
-      .tile.severity-high,
-      .mini-gauge.severity-high {
-        --gauge-color: var(--orange-color, #fb8c00);
-      }
-
-      .tile.severity-critical,
-      .mini-gauge.severity-critical {
-        --gauge-color: var(--red-color, #e53935);
-      }
-
-      /* A measurement in a row: what it is in front, kept together as one unit
-         so the line breaks between measurements and never inside one. */
-      .chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
-        white-space: nowrap;
-        vertical-align: bottom;
-      }
-
-      .chip-icon {
-        --mdc-icon-size: 14px;
-        opacity: 0.8;
-      }
-
-      .mini-gauge {
-        width: 14px;
-        height: 14px;
-        flex: none;
-      }
-
-      .mini-gauge circle {
-        fill: none;
-      }
-
-      .mini-gauge .track {
-        stroke: color-mix(in srgb, currentColor 35%, transparent);
-      }
-
-      .mini-gauge .value {
-        stroke: var(--gauge-color);
-        stroke-linecap: round;
-      }
-
-      .separator {
-        opacity: 0.6;
-      }
-
-      .part {
-        white-space: nowrap;
-      }
-
-      /* The state word carries the row's tone; the measurements beside it stay
-         quiet, so a running row is not a line of green numbers. Rings keep
-         their own scale. */
-      .state .chip {
-        color: var(--secondary-text-color);
-      }
-
-      .state .chip.activity {
-        color: var(--info-color, var(--primary-color));
-      }
-
-      /* A figure wraps as a whole: a number on one line and its unit on the next
-         reads as two values. */
-      .figure {
-        white-space: nowrap;
-      }
-
-      .unit {
-        margin-left: 0.15em;
-        font-size: 0.75em;
-        font-weight: 400;
-        opacity: 0.8;
-      }
-
-      .uptime {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        flex: none;
-        font-size: 0.8em;
-        font-weight: 400;
-        color: var(--secondary-text-color);
-        --mdc-icon-size: 14px;
-      }
-
-      .services {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin: 0 4px 10px;
-      }
-
-      /* Lit like a running row while the service is on, dimmed while it is off. */
-      .service {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 8px 2px 6px;
-        border-radius: 12px;
-        font-size: 0.78em;
-        --mdc-icon-size: 14px;
-      }
-
-      .service.on {
-        color: var(--success-color, #43a047);
-        background: color-mix(in srgb, var(--success-color, #43a047) 14%, transparent);
-      }
-
-      .service.off {
-        color: var(--secondary-text-color);
-        background: color-mix(in srgb, var(--secondary-text-color) 10%, transparent);
-        opacity: 0.7;
-      }
-
-      .chip.activity {
-        color: var(--info-color, var(--primary-color));
-      }
-
-      .of {
-        margin: 0 1px;
-        opacity: 0.6;
-      }
-
-      .kind-heading {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-        margin: 14px 4px 6px;
-        font-size: 0.75em;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--secondary-text-color);
-      }
-
-      /* Counts read as part of the heading, not as a label of their own: same
-         size, no capitals, so "3/4 running" is not shouted. */
-      .kind-counts {
-        flex: none;
-        text-transform: none;
-        letter-spacing: normal;
-        font-size: 1.1em;
-        font-weight: 400;
-      }
-
-      .kind-updates {
-        color: var(--warning-color, #ffa600);
-      }
-
-      .group {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 8px;
-      }
-
-      .group.cols-2 {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      /* A row needs roughly 220px before its name turns to ellipsis, so a card
-         too narrow for two of them gets one rather than two unreadable ones. */
-      @container (max-width: 440px) {
-        .group.cols-2 {
-          grid-template-columns: 1fr;
+          container-type: inline-size;
         }
-      }
 
-      /* Opens the rows the cap folded away. Sized and coloured like the kind
+        .notice {
+          padding: 16px 0;
+          color: var(--secondary-text-color);
+          text-align: center;
+        }
+
+        .server-heading {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 12px;
+          margin: 14px 4px 6px;
+          font-weight: 500;
+          color: var(--primary-text-color);
+        }
+
+        .separator {
+          opacity: 0.6;
+        }
+
+        .part {
+          white-space: nowrap;
+        }
+
+        /* The state word carries the row's tone; the measurements beside it
+           stay quiet, so a running row is not a line of green numbers. Rings
+           keep their own scale. */
+        .state .chip {
+          color: var(--secondary-text-color);
+        }
+
+        .state .chip.activity {
+          color: var(--info-color, var(--primary-color));
+        }
+
+        .chip.activity {
+          color: var(--info-color, var(--primary-color));
+        }
+
+        .of {
+          margin: 0 1px;
+          opacity: 0.6;
+        }
+
+        .kind-heading {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 12px;
+          margin: 14px 4px 6px;
+          font-size: 0.75em;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: var(--secondary-text-color);
+        }
+
+        /* Counts read as part of the heading, not as a label of their own: same
+         size, no capitals, so "3/4 running" is not shouted. */
+        .kind-counts {
+          flex: none;
+          text-transform: none;
+          letter-spacing: normal;
+          font-size: 1.1em;
+          font-weight: 400;
+        }
+
+        .kind-updates {
+          color: var(--warning-color, #ffa600);
+        }
+
+        .group {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+
+        .group.cols-2 {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        /* A row needs roughly 220px before its name turns to ellipsis, so a card
+         too narrow for two of them gets one rather than two unreadable ones. */
+        @container (max-width: 440px) {
+          .group.cols-2 {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        /* Opens the rows the cap folded away. Sized and coloured like the kind
          headings rather than like a row, so it reads as part of the list's
          furniture and not as another device. */
-      .more {
-        justify-self: start;
-        margin: 8px 4px 0;
-        padding: 4px 8px;
-        border: none;
-        border-radius: 8px;
-        background: none;
-        cursor: pointer;
-        font: inherit;
-        font-size: 0.8em;
-        font-weight: 500;
-        color: var(--secondary-text-color);
-      }
+        .more {
+          justify-self: start;
+          margin: 8px 4px 0;
+          padding: 4px 8px;
+          border: none;
+          border-radius: 8px;
+          background: none;
+          cursor: pointer;
+          font: inherit;
+          font-size: 0.8em;
+          font-weight: 500;
+          color: var(--secondary-text-color);
+        }
 
-      .more:hover {
-        color: var(--primary-color);
-        background: color-mix(in srgb, var(--primary-color) 12%, transparent);
-      }
+        .more:hover {
+          color: var(--primary-color);
+          background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+        }
 
-      .more:focus-visible {
-        outline: 2px solid var(--primary-color);
-        outline-offset: 1px;
-      }
+        .more:focus-visible {
+          outline: 2px solid var(--primary-color);
+          outline-offset: 1px;
+        }
 
-      /* Every row carries a tone class derived from its state; these map it onto
+        /* Every row carries a tone class derived from its state; these map it onto
          the theme's own colours, so a custom theme recolours the card without
          the card knowing anything about it. */
-      .row {
-        --tone-color: var(--secondary-text-color);
-        /* Lifted off the card by mixing the text colour into the card's own
+        .row {
+          --tone-color: var(--secondary-text-color);
+          /* Lifted off the card by mixing the text colour into the card's own
            background: a fixed grey would sit invisibly on the card in one theme
            or the other, and this stays a step darker in light and a step lighter
            in dark without needing to know which is in use. Named so the update
            badge can cut its ring out of the same colour. */
-        --row-background: color-mix(
-          in srgb,
-          var(--primary-text-color) 7%,
-          var(--ha-card-background, var(--card-background-color))
-        );
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 8px 12px;
-        min-height: 56px;
-        border-radius: 14px;
-        box-sizing: border-box;
-        background: var(--row-background);
-      }
+          --row-background: color-mix(
+            in srgb,
+            var(--primary-text-color) 7%,
+            var(--ha-card-background, var(--card-background-color))
+          );
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 8px 12px;
+          min-height: 56px;
+          border-radius: 14px;
+          box-sizing: border-box;
+          background: var(--row-background);
+        }
 
-      /* Everything shrinks together, so the row keeps its proportions and does
+        /* Everything shrinks together, so the row keeps its proportions and does
          not just look like a squashed version of itself. */
-      .row.compact {
-        gap: 8px;
-        padding: 4px 8px;
-        min-height: 40px;
-        border-radius: 10px;
-      }
+        .row.compact {
+          gap: 8px;
+          padding: 4px 8px;
+          min-height: 40px;
+          border-radius: 10px;
+        }
 
-      .row.compact .icon {
-        width: 32px;
-        height: 32px;
-        padding: 5px;
-        border-radius: 9px;
-        --mdc-icon-size: 20px;
-      }
+        .row.compact .icon {
+          width: 32px;
+          height: 32px;
+          padding: 5px;
+          border-radius: 9px;
+          --mdc-icon-size: 20px;
+        }
 
-      .row.compact .link,
-      .row.compact .power-button {
-        width: 28px;
-        height: 28px;
-        --mdc-icon-size: 16px;
-      }
+        .row.compact .link,
+        .row.compact .power-button {
+          width: 28px;
+          height: 28px;
+          --mdc-icon-size: 16px;
+        }
 
-      .row.compact .update-badge,
-      .row.compact .problem-badge {
-        width: 14px;
-        height: 14px;
-        border-width: 1.5px;
-        --mdc-icon-size: 8px;
-      }
+        .row.compact .update-badge,
+        .row.compact .problem-badge {
+          width: 14px;
+          height: 14px;
+          border-width: 1.5px;
+          --mdc-icon-size: 8px;
+        }
 
-      .row.compact .spinner {
-        width: 13px;
-        height: 13px;
-      }
+        .row.compact .spinner {
+          width: 13px;
+          height: 13px;
+        }
 
-      .row.tone-active {
-        --tone-color: var(--success-color, var(--state-active-color, #43a047));
-      }
+        .row.tone-active {
+          --tone-color: var(--success-color, var(--state-active-color, #43a047));
+        }
 
-      .row.tone-idle {
-        --tone-color: var(--warning-color, #ffa726);
-      }
+        .row.tone-idle {
+          --tone-color: var(--warning-color, #ffa726);
+        }
 
-      .row.tone-inactive {
-        --tone-color: var(--state-inactive-color, var(--secondary-text-color));
-      }
+        .row.tone-inactive {
+          --tone-color: var(--state-inactive-color, var(--secondary-text-color));
+        }
 
-      .row.tone-unknown {
-        --tone-color: var(--disabled-color, var(--secondary-text-color));
-      }
+        .row.tone-unknown {
+          --tone-color: var(--disabled-color, var(--secondary-text-color));
+        }
 
-      .row.tone-neutral {
-        --tone-color: var(--state-icon-color, var(--secondary-text-color));
-      }
+        .row.tone-neutral {
+          --tone-color: var(--state-icon-color, var(--secondary-text-color));
+        }
 
-      /* The secondary line only takes the tone colour where the tone means
+        /* The secondary line only takes the tone colour where the tone means
          something; on a neutral row it is ordinary secondary text. */
-      .row.tone-neutral .state,
-      .row.tone-inactive .state,
-      .row.tone-unknown .state {
-        color: var(--secondary-text-color);
-      }
+        .row.tone-neutral .state,
+        .row.tone-inactive .state,
+        .row.tone-unknown .state {
+          color: var(--secondary-text-color);
+        }
 
-      .row.unavailable {
-        opacity: 0.6;
-      }
+        .row.unavailable {
+          opacity: 0.6;
+        }
 
-      .row-body {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex: 1;
-        min-width: 0;
-        cursor: pointer;
-        border-radius: 10px;
-        outline: none;
-      }
+        .row-body {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex: 1;
+          min-width: 0;
+          cursor: pointer;
+          border-radius: 10px;
+          outline: none;
+        }
 
-      .row-body:focus-visible {
-        box-shadow: 0 0 0 2px var(--primary-color);
-      }
+        .row-body:focus-visible {
+          box-shadow: 0 0 0 2px var(--primary-color);
+        }
 
-      /* The icon well.
+        /* The icon well.
          A rounded square rather than a circle, because most of what lands here
          is a square app logo from the MOS template and a circle clips its
          corners. The tone is carried by a ring around the well instead of a
          wash behind the artwork, which would drain the colour out of it. */
-      .icon {
-        flex: 0 0 auto;
-        width: 44px;
-        height: 44px;
-        padding: 8px;
-        box-sizing: border-box;
-        border-radius: 12px;
-        color: var(--tone-color);
-        background: color-mix(in srgb, var(--tone-color) 16%, transparent);
-        --mdc-icon-size: 28px;
-      }
+        .icon {
+          flex: 0 0 auto;
+          width: 44px;
+          height: 44px;
+          padding: 8px;
+          box-sizing: border-box;
+          border-radius: 12px;
+          color: var(--tone-color);
+          background: color-mix(in srgb, var(--tone-color) 16%, transparent);
+          --mdc-icon-size: 28px;
+        }
 
-      /* The ring is the state signal, so it is only drawn where the state is
+        /* The ring is the state signal, so it is only drawn where the state is
          one — otherwise it reads as a stray border around every icon. */
-      .row.tone-active .icon,
-      .row.tone-idle .icon {
-        box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tone-color) 35%, transparent);
-      }
+        .row.tone-active .icon,
+        .row.tone-idle .icon {
+          box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tone-color) 35%, transparent);
+        }
 
-      /* Holds the icon and the badge together. The icon keeps its own box, so
+        /* Holds the icon and the badge together. The icon keeps its own box, so
          nothing about its size or spacing changes when no badge is drawn. */
-      .icon-wrap {
-        position: relative;
-        flex: 0 0 auto;
-        display: inline-flex;
-      }
+        .icon-wrap {
+          position: relative;
+          flex: 0 0 auto;
+          display: inline-flex;
+        }
 
-      .update-badge,
-      .problem-badge {
-        position: absolute;
-        right: -3px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 18px;
-        height: 18px;
-        box-sizing: border-box;
-        border-radius: 50%;
-        /* The ring is the row's own background, which lifts the badge off the
+        .update-badge,
+        .problem-badge {
+          position: absolute;
+          right: -3px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 18px;
+          height: 18px;
+          box-sizing: border-box;
+          border-radius: 50%;
+          /* The ring is the row's own background, which lifts the badge off the
            icon instead of letting it merge into the corner of a dark logo. */
-        border: 2px solid var(--row-background);
-        color: var(--text-primary-color, #fff);
-        --mdc-icon-size: 10px;
-      }
+          border: 2px solid var(--row-background);
+          color: var(--text-primary-color, #fff);
+          --mdc-icon-size: 10px;
+        }
 
-      .update-badge {
-        bottom: -3px;
-        background: var(--warning-color, #ffa726);
-      }
+        .update-badge {
+          bottom: -3px;
+          background: var(--warning-color, #ffa726);
+        }
 
-      /* Opposite corner from the update badge, so a container that is both
+        /* Opposite corner from the update badge, so a container that is both
          unhealthy and out of date shows both without them overlapping. Error
          rather than warning: this one is not a suggestion. */
-      .problem-badge {
-        top: -3px;
-        background: var(--error-color, #db4437);
-      }
+        .problem-badge {
+          top: -3px;
+          background: var(--error-color, #db4437);
+        }
 
-      /* Artwork gets a neutral well and more room: it brings its own colours,
+        /* Artwork gets a neutral well and more room: it brings its own colours,
          and a tinted backdrop behind a logo reads as a stain. */
-      .icon.picture {
-        padding: 5px;
-        object-fit: contain;
-        background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
-      }
+        .icon.picture {
+          padding: 5px;
+          object-fit: contain;
+          background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
+        }
 
-      .text {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        flex: 1;
-        min-width: 0;
-        gap: 1px;
-      }
+        .text {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          flex: 1;
+          min-width: 0;
+          gap: 1px;
+        }
 
-      .name {
-        width: 100%;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-weight: 500;
-        line-height: 1.3;
-        color: var(--primary-text-color);
-      }
+        .name {
+          width: 100%;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-weight: 500;
+          line-height: 1.3;
+          color: var(--primary-text-color);
+        }
 
-      .state {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-size: 0.85em;
-        line-height: 1.3;
-        color: var(--tone-color);
-      }
+        .state {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 0.85em;
+          line-height: 1.3;
+          color: var(--tone-color);
+        }
 
-      /* A state on its own is a word that can be cut without losing much; a
+        /* A state on its own is a word that can be cut without losing much; a
          measurement cut in half is the one thing the reader asked for and did
          not get. So a line carrying numbers wraps instead, to at most two lines
          — which only happens on a card too narrow to hold them side by side. */
-      .state.with-metrics {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        white-space: normal;
-      }
+        .state.with-metrics {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          white-space: normal;
+        }
 
-      /* Controls sit in matching round wells so the row ends in a consistent
+        /* Controls sit in matching round wells so the row ends in a consistent
          shape whether a device has a link, a switch, both or neither. */
-      .link,
-      .power-button {
-        flex: 0 0 auto;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 34px;
-        height: 34px;
-        padding: 0;
-        border: none;
-        border-radius: 50%;
-        --mdc-icon-size: 20px;
-      }
+        .link,
+        .power-button {
+          flex: 0 0 auto;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 34px;
+          height: 34px;
+          padding: 0;
+          border: none;
+          border-radius: 50%;
+          --mdc-icon-size: 20px;
+        }
 
-      .link {
-        color: var(--secondary-text-color);
-        background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
-      }
+        .link {
+          color: var(--secondary-text-color);
+          background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
+        }
 
-      .link:hover {
-        color: var(--primary-color);
-        background: color-mix(in srgb, var(--primary-color) 18%, transparent);
-      }
+        .link:hover {
+          color: var(--primary-color);
+          background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+        }
 
-      .power-button {
-        cursor: pointer;
-        color: var(--tone-color);
-        background: color-mix(in srgb, var(--tone-color) 16%, transparent);
-        transition: background 0.15s ease-in-out;
-      }
+        .power-button {
+          cursor: pointer;
+          color: var(--tone-color);
+          background: color-mix(in srgb, var(--tone-color) 16%, transparent);
+          transition: background 0.15s ease-in-out;
+        }
 
-      .power-button:hover {
-        background: color-mix(in srgb, var(--tone-color) 30%, transparent);
-      }
+        .power-button:hover {
+          background: color-mix(in srgb, var(--tone-color) 30%, transparent);
+        }
 
-      .power-button:focus-visible {
-        outline: 2px solid var(--primary-color);
-        outline-offset: 1px;
-      }
+        .power-button:focus-visible {
+          outline: 2px solid var(--primary-color);
+          outline-offset: 1px;
+        }
 
-      .power-button:disabled {
-        cursor: default;
-        opacity: 0.5;
-      }
+        .power-button:disabled {
+          cursor: default;
+          opacity: 0.5;
+        }
 
-      /* A waiting button is disabled so it cannot be pressed twice, but it is
+        /* A waiting button is disabled so it cannot be pressed twice, but it is
          not dimmed like an unavailable one — it is the row's liveliest thing
          at that moment, and fading it says the opposite. */
-      .power-button.pending {
-        opacity: 1;
-      }
-
-      .spinner {
-        width: 16px;
-        height: 16px;
-        box-sizing: border-box;
-        border-radius: 50%;
-        border: 2px solid color-mix(in srgb, var(--tone-color) 25%, transparent);
-        border-top-color: var(--tone-color);
-        animation: mos-spin 0.8s linear infinite;
-      }
-
-      @keyframes mos-spin {
-        to {
-          transform: rotate(360deg);
+        .power-button.pending {
+          opacity: 1;
         }
-      }
 
-      /* Slowed rather than stopped: a spinner that does not turn says nothing
-         at all, which is the one thing this element exists to avoid. */
-      @media (prefers-reduced-motion: reduce) {
         .spinner {
-          animation-duration: 2.4s;
+          width: 16px;
+          height: 16px;
+          box-sizing: border-box;
+          border-radius: 50%;
+          border: 2px solid color-mix(in srgb, var(--tone-color) 25%, transparent);
+          border-top-color: var(--tone-color);
+          animation: mos-spin 0.8s linear infinite;
         }
 
-        .gauge .value {
-          transition: none;
+        @keyframes mos-spin {
+          to {
+            transform: rotate(360deg);
+          }
         }
-      }
-    `;
+
+        /* Slowed rather than stopped: a spinner that does not turn says nothing
+         at all, which is the one thing this element exists to avoid. */
+        @media (prefers-reduced-motion: reduce) {
+          .spinner {
+            animation-duration: 2.4s;
+          }
+        }
+      `,
+    ];
   }
 }
 
