@@ -107,5 +107,21 @@
     "d": "T",
     "h": "Std.",
     "min": "Min."
+  },
+  "ups": {
+    "OL": "Netzbetrieb",
+    "OB": "Akkubetrieb",
+    "LB": "Akku schwach",
+    "HB": "Akku hoch",
+    "RB": "Akku tauschen",
+    "CHRG": "Lädt",
+    "DISCHRG": "Entlädt",
+    "BYPASS": "Bypass",
+    "CAL": "Kalibriert",
+    "OFF": "Aus",
+    "OVER": "Überlast",
+    "TRIM": "Spannung gesenkt",
+    "BOOST": "Spannung angehoben",
+    "FSD": "Zwangsabschaltung"
   }
 }

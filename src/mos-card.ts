@@ -58,7 +58,9 @@ import {
   isLinkableUrl,
   moreInfoEntity,
   settledPending,
+  showsMeasurements,
   toneFor,
+  upsFlags,
 } from './rows';
 import type { GroupCounts, PlaceholderValues } from './rows';
 import { HISTORY_WINDOW_MS, appendSample, parseHistory, sparklinePath } from './history';
@@ -315,6 +317,10 @@ export class MosCard extends LitElement {
     for (const id of ids) {
       this.historyRequested.add(id);
     }
+
+    // The current reading starts the line at once; the recorder's answer fills
+    // in what came before it.
+    this.continueHistory();
 
     this.hass
       .callWS<HistoryResponse>({
@@ -1152,16 +1158,28 @@ export class MosCard extends LitElement {
   private renderSecondary(row: DeviceRow, stateObj?: HassEntity): TemplateResult | typeof nothing {
     const parts: Array<string | TemplateResult> = [];
 
-    // A pool's state is how full it is, which reads better as a ring than as a word.
-    if (this.config.show_state && row.kind === 'storage_pool' && stateObj && !isUnavailableState(stateObj.state)) {
+    // A pool's state is how full it is, which reads better as a ring than as a
+    // word — but only where measurements were asked for, so a card left at its
+    // defaults keeps the plain line it always had.
+    const measured = (this.config.secondary_info ?? 'none') !== 'none';
+
+    if (
+      this.config.show_state &&
+      measured &&
+      row.kind === 'storage_pool' &&
+      stateObj &&
+      !isUnavailableState(stateObj.state)
+    ) {
       parts.push(this.renderChip(POOL_USAGE, stateObj, this.renderFigure(stateObj)));
     } else if (this.config.show_state) {
-      parts.push(this.renderState(stateObj));
+      parts.push(row.kind === 'ups' ? this.renderUpsState(stateObj) : this.renderState(stateObj));
     }
 
-    const metrics = row.metrics
-      .map((metric) => this.renderMetric(metric))
-      .filter((part): part is TemplateResult => part !== undefined);
+    const metrics = showsMeasurements(row.kind, stateObj?.state)
+      ? row.metrics
+          .map((metric) => this.renderMetric(metric))
+          .filter((part): part is TemplateResult => part !== undefined)
+      : [];
 
     parts.push(...metrics, ...this.renderActivities(row));
 
@@ -1169,9 +1187,26 @@ export class MosCard extends LitElement {
       return nothing;
     }
 
+    // Each part after the first carries its separator, so a line that wraps
+    // breaks before a "·" rather than leaving one hanging at the end.
     return html`<span class="state ${metrics.length ? 'with-metrics' : ''}"
-      >${parts.map((part, index) => html`${index ? html`<span class="separator"> · </span>` : ''}${part}`)}</span
+      >${parts.map((part, index) =>
+        index ? html` <span class="part"><span class="separator">·</span> ${part}</span>` : part,
+      )}</span
     >`;
+  }
+
+  /** A UPS status in words: "OL CHRG" reads as "Online, Charging". */
+  private renderUpsState(stateObj?: HassEntity): string {
+    if (!stateObj || isUnavailableState(stateObj.state)) {
+      return this.renderState(stateObj);
+    }
+
+    const flags = upsFlags(stateObj.state);
+
+    return flags.length
+      ? flags.map(({ flag, known }) => (known ? localize(`ups.${flag.toUpperCase()}`) : flag)).join(', ')
+      : this.renderState(stateObj);
   }
 
   /** The device's own long jobs that are running right now, each named. */
@@ -1498,11 +1533,11 @@ export class MosCard extends LitElement {
       }
 
       /* Without a ring the icon still gets a round footprint, so a row of tiles
-         keeps one rhythm whichever of them are percentages. */
+         keeps one rhythm — filled rather than outlined, so it does not read as
+         a ring standing at zero. */
       .tile-icon.plain {
-        box-sizing: border-box;
-        border: 4px solid var(--divider-color, rgba(127, 127, 127, 0.25));
         border-radius: 50%;
+        background: color-mix(in srgb, var(--secondary-text-color) 12%, transparent);
       }
 
       .gauge {
@@ -1641,6 +1676,21 @@ export class MosCard extends LitElement {
         opacity: 0.6;
       }
 
+      .part {
+        white-space: nowrap;
+      }
+
+      /* The state word carries the row's tone; the measurements beside it stay
+         quiet, so a running row is not a line of green numbers. Rings keep
+         their own scale. */
+      .state .chip {
+        color: var(--secondary-text-color);
+      }
+
+      .state .chip.activity {
+        color: var(--info-color, var(--primary-color));
+      }
+
       /* A figure wraps as a whole: a number on one line and its unit on the next
          reads as two values. */
       .figure {
@@ -1691,7 +1741,7 @@ export class MosCard extends LitElement {
       .service.off {
         color: var(--secondary-text-color);
         background: color-mix(in srgb, var(--secondary-text-color) 10%, transparent);
-        text-decoration: line-through;
+        opacity: 0.7;
       }
 
       .chip.activity {

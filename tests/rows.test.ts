@@ -19,7 +19,9 @@ import {
   isLinkableUrl,
   moreInfoEntity,
   settledPending,
+  showsMeasurements,
   toneFor,
+  upsFlags,
   uptimeSince,
 } from '../src/rows';
 
@@ -372,5 +374,40 @@ describe('uptimeSince', () => {
 
   it.each([undefined, '', 'unknown', '2026-10-24T00:00:00Z'])('has no uptime for %j', (state) => {
     expect(uptimeSince(state, now)).toBeUndefined();
+  });
+});
+
+describe('showsMeasurements', () => {
+  it.each(['running', 'paused'])('shows a guest that is %s', (state) => {
+    expect(showsMeasurements('lxc_container', state)).toBe(true);
+  });
+
+  it.each(['stopped', 'exited', 'unavailable', undefined])('hides a guest that is %s', (state) => {
+    expect(showsMeasurements('docker_container', state)).toBe(false);
+  });
+
+  it('always shows the kinds that do not run', () => {
+    expect(showsMeasurements('storage_pool', undefined)).toBe(true);
+    expect(showsMeasurements('ups', 'OB')).toBe(true);
+  });
+});
+
+describe('upsFlags', () => {
+  it('splits a status into its flags and marks the known ones', () => {
+    expect(upsFlags('OL CHRG')).toEqual([
+      { flag: 'OL', known: true },
+      { flag: 'CHRG', known: true },
+    ]);
+  });
+
+  it('keeps a flag it does not know', () => {
+    expect(upsFlags('OB  XYZ')).toEqual([
+      { flag: 'OB', known: true },
+      { flag: 'XYZ', known: false },
+    ]);
+  });
+
+  it('has no flags for an empty status', () => {
+    expect(upsFlags(undefined)).toEqual([]);
   });
 });
