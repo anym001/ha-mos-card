@@ -14,7 +14,11 @@ export type Severity = (typeof SEVERITIES)[number];
 /** The upper bound of each step but the last, in percent. */
 const SEVERITY_STEPS: readonly number[] = [25, 50, 75];
 
-export function severityFor(percent: number): Severity {
+export function severityFor(percent: number, inverse = false): Severity {
+  if (inverse) {
+    return severityFor(100 - percent);
+  }
+
   const step = SEVERITY_STEPS.findIndex((bound) => percent <= bound);
 
   return SEVERITIES[step === -1 ? SEVERITIES.length - 1 : step];

@@ -102,6 +102,9 @@ export interface MosCardConfig extends LovelaceCardConfig {
    */
   show_history?: boolean;
 
+  /** Show the server's SSH, Samba, NFS, Tailscale and NetBird status as chips. Default false. */
+  show_services?: boolean;
+
   /** Show the state entity's icon or MOS template picture. Default true. */
   show_icon?: boolean;
 

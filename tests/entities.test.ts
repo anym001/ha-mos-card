@@ -12,10 +12,12 @@ import {
   KIND_INFO,
   declaredIcon,
   deviceDisplayName,
+  findActivities,
   findMetricEntity,
   findPowerEntity,
   findProblemCandidates,
   findStateEntity,
+  findServices,
   findUpdateEntity,
   metricsForMode,
   resolveMetrics,
@@ -116,8 +118,11 @@ describe('metricsForMode and findMetricEntity', () => {
     expect(metricsForMode('docker_container', 'none')).toEqual([]);
   });
 
-  it('gives a disk its temperature under auto and nothing under cpu', () => {
-    expect(metricsForMode('disk', 'auto')[0].translationKey).toBe('disk_temperature');
+  it('gives a disk its usage and temperature under auto and nothing under cpu', () => {
+    expect(metricsForMode('disk', 'auto').map((metric) => metric.translationKey)).toEqual([
+      'disk_usage',
+      'disk_temperature',
+    ]);
     expect(metricsForMode('disk', 'cpu')).toEqual([]);
     expect(metricsForMode('storage_pool', 'memory')).toEqual([]);
   });
@@ -283,5 +288,45 @@ describe('declaredIcon', () => {
     expect(
       declaredIcon(undefined, entity({ entity_id: 'sensor.d', translation_key: 'pool_usage' }), 'x'),
     ).toBeUndefined();
+  });
+});
+
+describe('findActivities', () => {
+  const poolEntities = [
+    entity({ entity_id: 'binary_sensor.tank_scrub', translation_key: 'pool_scrub_running', device_id: 'dev-pool' }),
+    entity({
+      entity_id: 'binary_sensor.tank_parity',
+      unique_id: '01J_pool_tank_parity_running',
+      device_id: 'dev-pool',
+    }),
+    entity({ entity_id: 'sensor.tank_balance_running', unique_id: '01J_pool_tank_balance_running' }),
+  ];
+
+  it('finds a pool job by translation key and by unique_id suffix, in declared order', () => {
+    expect(findActivities(poolEntities, 'storage_pool').map((activity) => activity.entity.entity_id)).toEqual([
+      'binary_sensor.tank_scrub',
+      'binary_sensor.tank_parity',
+    ]);
+  });
+
+  it('only falls back to binary sensors, so a sensor with a matching suffix is not a job', () => {
+    expect(findActivities(poolEntities, 'storage_pool').some((a) => a.entity.entity_id.startsWith('sensor.'))).toBe(
+      false,
+    );
+  });
+
+  it('has none for a kind without long jobs', () => {
+    expect(findActivities(poolEntities, 'docker_container')).toEqual([]);
+  });
+});
+
+describe('findServices', () => {
+  it('lists the services the server has, in a fixed order', () => {
+    const entities = [
+      entity({ entity_id: 'binary_sensor.pluto_nfs', translation_key: 'nfs_enabled' }),
+      entity({ entity_id: 'binary_sensor.pluto_ssh', unique_id: '01J_ssh_enabled' }),
+    ];
+
+    expect(findServices(entities).map((service) => service.ref.name)).toEqual(['SSH', 'NFS']);
   });
 });

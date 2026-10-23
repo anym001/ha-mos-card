@@ -94,6 +94,8 @@ export interface MetricRef {
   readonly label: string;
   /** Drawn beside the figure, unless the figure is a percentage and gets a ring instead. */
   readonly icon: string;
+  /** A percentage where more is better, like a battery's charge: its ring turns red as it falls. */
+  readonly inverse?: boolean;
   /**
    * A total this measurement counts against, shown as one figure — `3/5`.
    *
@@ -152,6 +154,12 @@ interface KindInfo {
   readonly updateTranslationKey?: string;
   /** The measurements this kind can show beside its state. */
   readonly metrics: KindMetrics;
+  /**
+   * Binary sensors that say the device is busy with a long job of its own — a
+   * scrub, a parity check, a preclear. Shown while on, because the NAS is
+   * slower for as long as one runs.
+   */
+  readonly activities?: readonly MetricRef[];
 }
 
 /**
@@ -224,9 +232,18 @@ export const KIND_INFO: Readonly<Record<MosDeviceKind, KindInfo>> = {
     hasPower: false,
     metrics: {
       auto: [
+        { translationKey: 'disk_usage', keySuffix: 'usage', label: 'used', icon: 'mdi:harddisk' },
         { translationKey: 'disk_temperature', keySuffix: 'temperature', label: 'temperature', icon: 'mdi:thermometer' },
       ],
     },
+    activities: [
+      {
+        translationKey: 'disk_preclear_running',
+        keySuffix: 'preclear_running',
+        label: 'preclear',
+        icon: 'mdi:autorenew',
+      },
+    ],
   },
   storage_pool: {
     icon: 'mdi:database',
@@ -235,16 +252,44 @@ export const KIND_INFO: Readonly<Record<MosDeviceKind, KindInfo>> = {
     hasPower: false,
     metrics: {
       auto: [
-        { translationKey: 'pool_free_space', keySuffix: 'free_space', label: 'free', icon: 'mdi:database-outline' },
+        {
+          translationKey: 'pool_free_space',
+          keySuffix: 'free_space',
+          label: 'free',
+          icon: 'mdi:database-outline',
+          over: { translationKey: 'pool_total_space', keySuffix: 'total_space', label: 'total', icon: 'mdi:database' },
+        },
       ],
     },
+    activities: [
+      { translationKey: 'pool_scrub_running', keySuffix: 'scrub_running', label: 'scrub', icon: 'mdi:autorenew' },
+      { translationKey: 'pool_balance_running', keySuffix: 'balance_running', label: 'balance', icon: 'mdi:autorenew' },
+      { translationKey: 'pool_parity_running', keySuffix: 'parity_running', label: 'parity', icon: 'mdi:autorenew' },
+    ],
   },
   ups: {
     icon: 'mdi:power-plug',
     stateTranslationKey: 'ups_status',
     stateKeySuffix: 'ups_status',
     hasPower: false,
-    metrics: { auto: [{ translationKey: 'ups_load', keySuffix: 'ups_load', label: 'load', icon: 'mdi:gauge' }] },
+    metrics: {
+      auto: [
+        {
+          translationKey: 'ups_battery_charge',
+          keySuffix: 'ups_battery_charge',
+          label: 'battery',
+          icon: 'mdi:battery',
+          inverse: true,
+        },
+        {
+          translationKey: 'ups_battery_runtime',
+          keySuffix: 'ups_battery_runtime',
+          label: 'runtime',
+          icon: 'mdi:timer-outline',
+        },
+        { translationKey: 'ups_load', keySuffix: 'ups_load', label: 'load', icon: 'mdi:gauge' },
+      ],
+    },
   },
 };
 
@@ -639,13 +684,23 @@ export function findProblemCandidates(entities: readonly EntityRegistryEntry[]):
 export function findMetricEntity(
   entities: readonly EntityRegistryEntry[],
   metric: MetricRef,
+  domain = 'sensor',
 ): EntityRegistryEntry | undefined {
   return (
     entities.find((entity) => entity.translation_key === metric.translationKey) ??
     entities.find(
-      (entity) => entity.entity_id.startsWith('sensor.') && entity.unique_id?.endsWith(`_${metric.keySuffix}`),
+      (entity) => entity.entity_id.startsWith(`${domain}.`) && entity.unique_id?.endsWith(`_${metric.keySuffix}`),
     )
   );
+}
+
+/** The binary sensors behind a kind's long-running jobs, as far as the device has them. */
+export function findActivities(entities: readonly EntityRegistryEntry[], kind: MosDeviceKind): RowMetric[] {
+  return (KIND_INFO[kind].activities ?? []).flatMap((ref) => {
+    const entity = findMetricEntity(entities, ref, 'binary_sensor');
+
+    return entity ? [{ ref, entity }] : [];
+  });
 }
 
 /**
@@ -730,6 +785,55 @@ export const SERVER_METRICS: readonly ServerMetricRef[] = [
     gauge: false,
   },
 ];
+
+/** When the server last booted, shown as its uptime beside its name. */
+export const SERVER_BOOT_TIME: MetricRef = {
+  translationKey: 'boot_time',
+  keySuffix: 'boot_time',
+  label: 'uptime',
+  icon: 'mdi:clock-outline',
+};
+
+/** A service the server runs, shown as a chip that is lit while it is on. */
+export interface ServiceRef extends MetricRef {
+  /** The service's own name, which is the same in every language. */
+  readonly name: string;
+}
+
+export const SERVER_SERVICES: readonly ServiceRef[] = [
+  { translationKey: 'ssh_enabled', keySuffix: 'ssh_enabled', label: 'service', icon: 'mdi:console', name: 'SSH' },
+  {
+    translationKey: 'samba_enabled',
+    keySuffix: 'samba_enabled',
+    label: 'service',
+    icon: 'mdi:folder-network',
+    name: 'Samba',
+  },
+  {
+    translationKey: 'nfs_enabled',
+    keySuffix: 'nfs_enabled',
+    label: 'service',
+    icon: 'mdi:folder-network-outline',
+    name: 'NFS',
+  },
+  {
+    translationKey: 'tailscale_online',
+    keySuffix: 'tailscale_online',
+    label: 'service',
+    icon: 'mdi:vpn',
+    name: 'Tailscale',
+  },
+  { translationKey: 'netbird_online', keySuffix: 'netbird_online', label: 'service', icon: 'mdi:vpn', name: 'NetBird' },
+];
+
+/** The services a server has, in the order they are shown. */
+export function findServices(entities: readonly EntityRegistryEntry[]): RowMetric<ServiceRef>[] {
+  return SERVER_SERVICES.flatMap((ref) => {
+    const entity = findMetricEntity(entities, ref, 'binary_sensor');
+
+    return entity ? [{ ref, entity }] : [];
+  });
+}
 
 /**
  * The display name for a device row.

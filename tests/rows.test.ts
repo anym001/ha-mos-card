@@ -20,6 +20,7 @@ import {
   moreInfoEntity,
   settledPending,
   toneFor,
+  uptimeSince,
 } from '../src/rows';
 
 describe('toneFor', () => {
@@ -359,5 +360,17 @@ describe('countGroup', () => {
 
   it('is zero across the board for an empty group', () => {
     expect(countGroup('virtual_machine', [])).toEqual({ running: 0, total: 0, updates: 0 });
+  });
+});
+
+describe('uptimeSince', () => {
+  const now = Date.parse('2026-10-23T12:00:00Z');
+
+  it('splits the time since boot into days, hours and minutes', () => {
+    expect(uptimeSince('2026-10-21T09:33:00Z', now)).toEqual({ days: 2, hours: 2, minutes: 27 });
+  });
+
+  it.each([undefined, '', 'unknown', '2026-10-24T00:00:00Z'])('has no uptime for %j', (state) => {
+    expect(uptimeSince(state, now)).toBeUndefined();
   });
 });

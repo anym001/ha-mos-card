@@ -21,8 +21,13 @@ import {
   MOS_DEVICE_KINDS,
   MosDeviceKind,
   RowMetric,
+  SERVER_BOOT_TIME,
   SERVER_METRICS,
   ServerMetricRef,
+  ServiceRef,
+  findActivities,
+  findMetricEntity,
+  findServices,
   MetricRef,
   declaredIcon,
   deviceDisplayName,
@@ -48,6 +53,7 @@ import {
   capRows,
   compareRows,
   countGroup,
+  uptimeSince,
   fillPlaceholders,
   isLinkableUrl,
   moreInfoEntity,
@@ -103,6 +109,8 @@ interface DeviceRow {
   metrics: RowMetric[];
   /** Binary sensors that could carry a fault; which do is read off the state. */
   problemCandidates: EntityRegistryEntry[];
+  /** Binary sensors for the device's own long-running jobs; shown while one is on. */
+  activities: RowMetric[];
 }
 
 /** Rows of one kind, under one server. */
@@ -122,6 +130,8 @@ interface ServerSection {
   groups: RowGroup[];
   /** What the server reports about itself, when the config asks for it. */
   serverMetrics: RowMetric<ServerMetricRef>[];
+  bootTime?: EntityRegistryEntry;
+  services: RowMetric<ServiceRef>[];
 }
 
 /** The sparkline's drawing box; it is stretched to whatever width the tile has. */
@@ -470,14 +480,29 @@ export class MosCard extends LitElement {
             ids.push(candidate.entity_id);
           }
         }
+        for (const activity of findActivities(deviceEntities, kind)) {
+          ids.push(activity.entity.entity_id);
+        }
       }
 
       // The server's own entities, which no row is built from and which are
       // therefore not reached by the loop above.
-      if (this.config.show_server_summary) {
-        for (const server of findServerDevices(this.devices)) {
-          for (const metric of resolveMetrics(entityIndex.get(server.id) ?? [], SERVER_METRICS)) {
+      for (const server of findServerDevices(this.devices)) {
+        const serverEntities = entityIndex.get(server.id) ?? [];
+
+        if (this.config.show_server_summary) {
+          for (const metric of resolveMetrics(serverEntities, SERVER_METRICS)) {
             ids.push(metric.entity.entity_id);
+          }
+          const bootTime = findMetricEntity(serverEntities, SERVER_BOOT_TIME);
+
+          if (bootTime) {
+            ids.push(bootTime.entity_id);
+          }
+        }
+        if (this.config.show_services) {
+          for (const service of findServices(serverEntities)) {
+            ids.push(service.entity.entity_id);
           }
         }
       }
@@ -627,6 +652,7 @@ export class MosCard extends LitElement {
               updateEntity: findUpdateEntity(deviceEntities, kind),
               metrics: this.rowMetrics(deviceEntities, kind),
               problemCandidates: this.config.show_problem ? findProblemCandidates(deviceEntities) : [],
+              activities: findActivities(deviceEntities, kind),
             };
           })
           .filter((row) => passesFilter(row.name, this.config.filter))
@@ -649,13 +675,15 @@ export class MosCard extends LitElement {
       }
 
       if (groups.length) {
+        const serverEntities = server ? (entityIndex.get(server.id) ?? []) : [];
+        const summary = this.config.show_server_summary && server;
+
         sections.push({
           server,
           groups,
-          serverMetrics:
-            this.config.show_server_summary && server
-              ? resolveMetrics(entityIndex.get(server.id) ?? [], SERVER_METRICS)
-              : [],
+          serverMetrics: summary ? resolveMetrics(serverEntities, SERVER_METRICS) : [],
+          bootTime: summary ? findMetricEntity(serverEntities, SERVER_BOOT_TIME) : undefined,
+          services: this.config.show_services && server ? findServices(serverEntities) : [],
         });
       }
     }
@@ -720,21 +748,71 @@ export class MosCard extends LitElement {
     const tiles = section.serverMetrics
       .map((metric) => this.renderServerTile(metric))
       .filter((tile): tile is TemplateResult => tile !== undefined);
+    const services = this.renderServices(section.services);
+    const uptime = this.renderUptime(section.bootTime);
 
     // The heading is otherwise omitted for a single server, where it only
     // repeats the card's own title — but a summary has to hang off something,
     // so asking for one brings the name back with it.
     return html`
       ${
-        showServerHeading || tiles.length
+        showServerHeading || tiles.length || services !== nothing
           ? html`
-              <div class="server-heading">${heading}</div>
-              ${tiles.length ? html`<div class="server-summary">${tiles}</div>` : nothing}
+              <div class="server-heading"><span>${heading}</span>${uptime}</div>
+              ${tiles.length ? html`<div class="server-summary">${tiles}</div>` : nothing} ${services}
             `
           : nothing
       }
       ${section.groups.map((group) => this.renderGroup(group))}
     `;
+  }
+
+  /** How long the server has been up, as its two largest units. */
+  private renderUptime(bootTime?: EntityRegistryEntry): TemplateResult | typeof nothing {
+    const stateObj = bootTime ? this.hass?.states[bootTime.entity_id] : undefined;
+    const uptime = uptimeSince(stateObj?.state, Date.now());
+
+    if (!uptime) {
+      return nothing;
+    }
+
+    const parts = uptime.days
+      ? [
+          [uptime.days, 'd'],
+          [uptime.hours, 'h'],
+        ]
+      : uptime.hours
+        ? [
+            [uptime.hours, 'h'],
+            [uptime.minutes, 'min'],
+          ]
+        : [[uptime.minutes, 'min']];
+    const duration = parts.map(([value, unit]) => `${value} ${localize(`units.${unit}`)}`).join(' ');
+
+    return html`<span class="uptime" title=${this.renderState(stateObj)}>
+      <ha-icon .icon=${SERVER_BOOT_TIME.icon}></ha-icon>${localize('metrics.uptime_for', '{duration}', duration)}
+    </span>`;
+  }
+
+  /** The server's services as chips, lit while on; nothing for a server that reports none. */
+  private renderServices(services: readonly RowMetric<ServiceRef>[]): TemplateResult | typeof nothing {
+    const chips = services.flatMap((service) => {
+      const stateObj = this.hass?.states[service.entity.entity_id];
+
+      if (!stateObj || isUnavailableState(stateObj.state)) {
+        return [];
+      }
+
+      const on = stateObj.state === 'on';
+
+      return [
+        html`<span class="service ${on ? 'on' : 'off'}" title=${`${service.ref.name}: ${this.renderState(stateObj)}`}>
+          <ha-icon .icon=${service.ref.icon}></ha-icon>${service.ref.name}
+        </span>`,
+      ];
+    });
+
+    return chips.length ? html`<div class="services">${chips}</div>` : nothing;
   }
 
   /**
@@ -754,11 +832,11 @@ export class MosCard extends LitElement {
 
     return html`
       <div
-        class="tile ${path ? 'with-history' : ''} ${percent === undefined ? '' : `severity-${severityFor(percent)}`}"
+        class="tile ${path ? 'with-history' : ''} ${percent === undefined ? '' : `severity-${severityFor(percent, metric.ref.inverse)}`}"
         title=${this.renderState(stateObj)}
       >
         <div class="tile-icon ${percent === undefined ? 'plain' : ''}">
-          ${percent === undefined ? nothing : this.renderGauge(percent)}
+          ${percent === undefined ? nothing : this.renderGauge(percent, 'gauge', metric.ref.inverse)}
           <ha-icon .icon=${metric.ref.icon}></ha-icon>
         </div>
         <div class="tile-text">
@@ -782,14 +860,14 @@ export class MosCard extends LitElement {
   }
 
   /** A ring in a 40-unit box: 4 wide where it frames an icon, 8 where it is drawn at icon size. */
-  private renderGauge(percent: number, className = 'gauge'): TemplateResult {
+  private renderGauge(percent: number, className = 'gauge', inverse = false): TemplateResult {
     const centre = GAUGE_SIZE / 2;
     const stroke = className === 'gauge' ? 4 : 8;
     const { radius, circumference, sweep } = gaugeGeometry(stroke);
 
     return html`
       <svg
-        class="${className} severity-${severityFor(percent)}"
+        class="${className} severity-${severityFor(percent, inverse)}"
         viewBox="0 0 ${GAUGE_SIZE} ${GAUGE_SIZE}"
         aria-hidden="true"
       >
@@ -1085,7 +1163,7 @@ export class MosCard extends LitElement {
       .map((metric) => this.renderMetric(metric))
       .filter((part): part is TemplateResult => part !== undefined);
 
-    parts.push(...metrics);
+    parts.push(...metrics, ...this.renderActivities(row));
 
     if (!parts.length) {
       return nothing;
@@ -1094,6 +1172,20 @@ export class MosCard extends LitElement {
     return html`<span class="state ${metrics.length ? 'with-metrics' : ''}"
       >${parts.map((part, index) => html`${index ? html`<span class="separator"> · </span>` : ''}${part}`)}</span
     >`;
+  }
+
+  /** The device's own long jobs that are running right now, each named. */
+  private renderActivities(row: DeviceRow): TemplateResult[] {
+    return row.activities
+      .filter((activity) => this.hass?.states[activity.entity.entity_id]?.state === 'on')
+      .map(
+        (activity) =>
+          html`<span class="chip activity"
+            ><ha-icon class="chip-icon" .icon=${activity.ref.icon}></ha-icon>${localize(
+              `metrics.${activity.ref.label}`,
+            )}</span
+          >`,
+      );
   }
 
   /**
@@ -1117,7 +1209,7 @@ export class MosCard extends LitElement {
 
     const figure =
       total && !isUnavailableState(total.state)
-        ? html`<span class="figure">${this.renderState(stateObj)}/${this.renderState(total)}</span>`
+        ? html`${this.renderFigure(stateObj)}<span class="of">/</span>${this.renderFigure(total)}`
         : this.renderFigure(stateObj);
 
     return this.renderChip(metric.ref, stateObj, figure);
@@ -1131,7 +1223,7 @@ export class MosCard extends LitElement {
       >${
         percent === undefined
           ? html`<ha-icon class="chip-icon" .icon=${ref.icon}></ha-icon>`
-          : this.renderGauge(percent, 'mini-gauge')
+          : this.renderGauge(percent, 'mini-gauge', ref.inverse)
       }${figure}</span
     >`;
   }
@@ -1370,6 +1462,10 @@ export class MosCard extends LitElement {
       }
 
       .server-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
         margin: 14px 4px 6px;
         font-weight: 500;
         color: var(--primary-text-color);
@@ -1556,6 +1652,55 @@ export class MosCard extends LitElement {
         font-size: 0.75em;
         font-weight: 400;
         opacity: 0.8;
+      }
+
+      .uptime {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        flex: none;
+        font-size: 0.8em;
+        font-weight: 400;
+        color: var(--secondary-text-color);
+        --mdc-icon-size: 14px;
+      }
+
+      .services {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0 4px 10px;
+      }
+
+      /* Lit like a running row while the service is on, dimmed while it is off. */
+      .service {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px 2px 6px;
+        border-radius: 12px;
+        font-size: 0.78em;
+        --mdc-icon-size: 14px;
+      }
+
+      .service.on {
+        color: var(--success-color, #43a047);
+        background: color-mix(in srgb, var(--success-color, #43a047) 14%, transparent);
+      }
+
+      .service.off {
+        color: var(--secondary-text-color);
+        background: color-mix(in srgb, var(--secondary-text-color) 10%, transparent);
+        text-decoration: line-through;
+      }
+
+      .chip.activity {
+        color: var(--info-color, var(--primary-color));
+      }
+
+      .of {
+        margin: 0 1px;
+        opacity: 0.6;
       }
 
       .kind-heading {
