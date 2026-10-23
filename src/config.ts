@@ -11,7 +11,7 @@
  */
 import { MOS_DEVICE_KINDS, ROW_SORTS, SECONDARY_INFO_MODES, isMosDeviceKind } from './devices';
 import type { NameFilter } from './devices';
-import type { MosCardConfig } from './types';
+import type { MosCardConfig, MosOverviewCardConfig } from './types';
 import { localize } from './localize/localize';
 
 /**
@@ -163,4 +163,41 @@ export function foldFilter(includeText: unknown, excludeText: unknown): NameFilt
     ...(include.length ? { include } : {}),
     ...(exclude.length ? { exclude } : {}),
   };
+}
+
+/** What the overview card does when the config says nothing: everything on. */
+export const OVERVIEW_DEFAULTS = {
+  show_history: true,
+  show_guests: true,
+  show_storage: true,
+  show_ups: true,
+  show_services: true,
+} as const satisfies Partial<MosOverviewCardConfig>;
+
+/** The overview card's switches, in the order its editor offers them. */
+export const OVERVIEW_TOGGLES = [
+  'show_history',
+  'show_guests',
+  'show_storage',
+  'show_ups',
+  'show_services',
+] as const satisfies readonly (keyof typeof OVERVIEW_DEFAULTS)[];
+
+/** Check an overview config and fill in what it leaves out. */
+export function normalizeOverviewConfig(config: MosOverviewCardConfig): MosOverviewCardConfig {
+  if (!config) {
+    throw new Error(localize('common.invalid_configuration'));
+  }
+
+  for (const option of OVERVIEW_TOGGLES) {
+    if (config[option] !== undefined && typeof config[option] !== 'boolean') {
+      throw new Error(`${localize('errors.not_a_boolean')}: ${option}`);
+    }
+  }
+
+  if (config.navigation_path !== undefined && typeof config.navigation_path !== 'string') {
+    throw new Error(`${localize('errors.not_a_string')}: navigation_path`);
+  }
+
+  return { ...OVERVIEW_DEFAULTS, ...config };
 }

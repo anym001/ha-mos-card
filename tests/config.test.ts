@@ -10,9 +10,12 @@ import { describe, expect, it } from 'vitest';
 import {
   CARD_DEFAULTS,
   MAX_COLUMNS,
+  OVERVIEW_DEFAULTS,
+  OVERVIEW_TOGGLES,
   TOGGLES,
   foldFilter,
   normalizeConfig,
+  normalizeOverviewConfig,
   patternsToText,
   textToPatterns,
 } from '../src/config';
@@ -207,5 +210,23 @@ describe('editor and card defaults', () => {
     expect(CARD_DEFAULTS.compact).toBe(false);
     expect(CARD_DEFAULTS.show_problem).toBe(true);
     expect(CARD_DEFAULTS.show_update).toBe(true);
+  });
+});
+
+describe('normalizeOverviewConfig', () => {
+  it('turns every section on by default', () => {
+    expect(normalizeOverviewConfig({ type: 'custom:mos-overview-card' })).toMatchObject(OVERVIEW_DEFAULTS);
+  });
+
+  it('keeps what the config sets', () => {
+    expect(normalizeOverviewConfig({ type: 'x', show_ups: false }).show_ups).toBe(false);
+  });
+
+  it('rejects a switch that is not a boolean', () => {
+    expect(() => normalizeOverviewConfig({ type: 'x', show_ups: 'no' as unknown as boolean })).toThrow('show_ups');
+  });
+
+  it('has a switch in the editor for every default', () => {
+    expect([...OVERVIEW_TOGGLES].sort()).toEqual(Object.keys(OVERVIEW_DEFAULTS).sort());
   });
 });

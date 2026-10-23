@@ -13,6 +13,11 @@ src/
 ├── rows.ts                      # Tone, order, row cap, group counts, waiting power buttons
 ├── gauge.ts                     # Ring geometry and its fixed severity scale
 ├── history.ts                   # Sparkline readings: recorder answer, live samples, SVG path
+├── history-loader.ts            # One recorder query per entity, continued from live states
+├── render.ts                    # States, figures, rings, chips and the server tiles, shared
+├── overview.ts                  # What the overview card condenses a server into
+├── overview-card.ts             # The overview card element — custom:mos-overview-card
+├── overview-editor.ts           # Its visual editor
 ├── editor.ts                    # Visual editor — implements LovelaceCardEditor
 ├── types.ts                     # Card config interface
 ├── const.ts                     # CARD_VERSION (bumped by release-please)
@@ -200,6 +205,19 @@ again does not ask twice. Only percentages are drawn, on a fixed 0–100 scale: 
 its own minimum and maximum would turn noise into drama.
 
 The design follows AzAel76's ha-mos-card-addons (MIT); nothing is imported from it.
+
+### The overview card
+
+`custom:mos-overview-card` ships in the same bundle: `mos-card.ts` imports it, so one install
+brings both and the picker lists both. It is a card of its own rather than a layout of the list
+card because the two share almost no options — the list card's are about rows, the overview's
+about sections — and one editor switching half its fields on and off would serve neither.
+
+What the two draw alike lives in `render.ts`: state formatting, figures, rings, chips and the
+server tiles, uptime and services, with their styles. `overview.ts` condenses a server into
+plain values — per kind the counts, the summed guest CPU and the server's memory total for the
+kind; the disks as one line; the pools and the UPS as they are — and lists every entity it read,
+which is what the card's re-render check watches. The card only draws what comes out of it.
 
 ### Tones
 
