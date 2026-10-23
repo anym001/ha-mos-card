@@ -58,7 +58,9 @@
     "display": "Display",
     "group_by_kind": "Group by kind",
     "show_server_summary": "Show server summary",
-    "show_server_summary_hint": "Puts the server's load next to its name, and shows that name even with a single server.",
+    "show_server_summary_hint": "Shows the server's load, memory and temperature under its name, and that name even with a single server.",
+    "show_history": "Show load history",
+    "show_history_hint": "Draws the last hour of CPU load and memory usage beside the server's rings. Needs the server summary and Home Assistant's recorder.",
     "show_icon": "Show icon",
     "show_state": "Show state",
     "show_link": "Show link",
@@ -74,5 +76,19 @@
     "hold_action": "Hold action",
     "double_tap_action": "Double tap action",
     "actions_hint": "Applied to each row's own state entity, except Toggle, which uses the row's start/stop switch. In YAML, a placeholder such as [[name]] or [[entity]] anywhere in an action stands for the row that was tapped."
+  },
+  "metrics": {
+    "cpu": "CPU",
+    "memory": "Memory",
+    "temperature": "Temp",
+    "containers": "Containers",
+    "free": "Free",
+    "load": "Load",
+    "used": "Used"
+  },
+  "counts": {
+    "running": "{running}/{total} running",
+    "update": "{count} update",
+    "updates": "{count} updates"
   }
 }

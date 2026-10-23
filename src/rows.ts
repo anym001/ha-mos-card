@@ -61,6 +61,30 @@ export function toneFor(kind: MosDeviceKind, state: string | undefined): Tone {
   return IDLE_STATES.has(value) ? 'idle' : 'inactive';
 }
 
+/** What a group's heading counts: how many of its rows are up, and how many wait on an update. */
+export interface GroupCounts {
+  readonly running: number;
+  readonly total: number;
+  readonly updates: number;
+}
+
+/**
+ * Count a group from its rows' states and update states.
+ *
+ * Counted over every row, not just the ones `max_rows` leaves visible, so the
+ * heading says what the server has rather than what fits.
+ */
+export function countGroup(
+  kind: MosDeviceKind,
+  rows: ReadonlyArray<{ state: string | undefined; update: string | undefined }>,
+): GroupCounts {
+  return {
+    running: rows.filter((row) => toneFor(kind, row.state) === 'active').length,
+    total: rows.length,
+    updates: rows.filter((row) => row.update === 'on').length,
+  };
+}
+
 /**
  * The URL schemes a row's link button may point at.
  *

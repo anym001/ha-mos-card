@@ -90,6 +90,10 @@ export type SecondaryInfo = (typeof SECONDARY_INFO_MODES)[number];
 export interface MetricRef {
   readonly translationKey: string;
   readonly keySuffix: string;
+  /** Key under `metrics.` in the language files, naming the figure where it stands on its own. */
+  readonly label: string;
+  /** Drawn beside the figure, unless the figure is a percentage and gets a ring instead. */
+  readonly icon: string;
   /**
    * A total this measurement counts against, shown as one figure — `3/5`.
    *
@@ -120,8 +124,13 @@ interface KindMetrics {
 }
 
 const guestMetrics = (prefix: string): KindMetrics => {
-  const cpu = { translationKey: `${prefix}_cpu_usage`, keySuffix: 'cpu_usage' };
-  const memory = { translationKey: `${prefix}_memory_usage`, keySuffix: 'memory_usage' };
+  const cpu = { translationKey: `${prefix}_cpu_usage`, keySuffix: 'cpu_usage', label: 'cpu', icon: 'mdi:cpu-64-bit' };
+  const memory = {
+    translationKey: `${prefix}_memory_usage`,
+    keySuffix: 'memory_usage',
+    label: 'memory',
+    icon: 'mdi:memory',
+  };
 
   return { cpu, memory, auto: [cpu, memory] };
 };
@@ -181,7 +190,14 @@ export const KIND_INFO: Readonly<Record<MosDeviceKind, KindInfo>> = {
         {
           translationKey: 'compose_running_containers',
           keySuffix: 'running_containers',
-          over: { translationKey: 'compose_container_count', keySuffix: 'container_count' },
+          label: 'containers',
+          icon: 'mdi:package-variant-closed',
+          over: {
+            translationKey: 'compose_container_count',
+            keySuffix: 'container_count',
+            label: 'containers',
+            icon: 'mdi:package-variant-closed',
+          },
         },
         ...composeMetrics.auto,
       ],
@@ -206,21 +222,29 @@ export const KIND_INFO: Readonly<Record<MosDeviceKind, KindInfo>> = {
     stateTranslationKey: 'disk_power_status',
     stateKeySuffix: 'power_status',
     hasPower: false,
-    metrics: { auto: [{ translationKey: 'disk_temperature', keySuffix: 'temperature' }] },
+    metrics: {
+      auto: [
+        { translationKey: 'disk_temperature', keySuffix: 'temperature', label: 'temperature', icon: 'mdi:thermometer' },
+      ],
+    },
   },
   storage_pool: {
     icon: 'mdi:database',
     stateTranslationKey: 'pool_usage',
     stateKeySuffix: 'usage',
     hasPower: false,
-    metrics: { auto: [{ translationKey: 'pool_free_space', keySuffix: 'free_space' }] },
+    metrics: {
+      auto: [
+        { translationKey: 'pool_free_space', keySuffix: 'free_space', label: 'free', icon: 'mdi:database-outline' },
+      ],
+    },
   },
   ups: {
     icon: 'mdi:power-plug',
     stateTranslationKey: 'ups_status',
     stateKeySuffix: 'ups_status',
     hasPower: false,
-    metrics: { auto: [{ translationKey: 'ups_load', keySuffix: 'ups_load' }] },
+    metrics: { auto: [{ translationKey: 'ups_load', keySuffix: 'ups_load', label: 'load', icon: 'mdi:gauge' }] },
   },
 };
 
@@ -632,7 +656,9 @@ export function findMetricEntity(
  * are one figure — `3/5` — and a caller handed them side by side could only
  * put them back together by guessing which is which.
  */
-export interface RowMetric {
+export interface RowMetric<R extends MetricRef = MetricRef> {
+  /** What was looked for, so a caller can present the figure by what it is. */
+  readonly ref: R;
   readonly entity: EntityRegistryEntry;
   readonly over?: EntityRegistryEntry;
 }
@@ -643,8 +669,11 @@ export interface RowMetric {
  * A metric the device has no entity for is dropped; a missing *total* only
  * costs the row its denominator, since the count is still worth printing.
  */
-export function resolveMetrics(entities: readonly EntityRegistryEntry[], metrics: readonly MetricRef[]): RowMetric[] {
-  const resolved: RowMetric[] = [];
+export function resolveMetrics<R extends MetricRef>(
+  entities: readonly EntityRegistryEntry[],
+  metrics: readonly R[],
+): RowMetric<R>[] {
+  const resolved: RowMetric<R>[] = [];
 
   for (const metric of metrics) {
     const entity = findMetricEntity(entities, metric);
@@ -653,7 +682,7 @@ export function resolveMetrics(entities: readonly EntityRegistryEntry[], metrics
       continue;
     }
 
-    resolved.push({ entity, over: metric.over ? findMetricEntity(entities, metric.over) : undefined });
+    resolved.push({ ref: metric, entity, over: metric.over ? findMetricEntity(entities, metric.over) : undefined });
   }
 
   return resolved;
@@ -677,6 +706,12 @@ export function metricsForMode(kind: MosDeviceKind, mode: SecondaryInfo): readon
   return chosen ? [chosen] : [];
 }
 
+/** A server measurement, with what the heading needs to show it as a tile. */
+export interface ServerMetricRef extends MetricRef {
+  /** Whether the value is a percentage, drawn as a ring rather than a bare figure. */
+  readonly gauge: boolean;
+}
+
 /**
  * What the MOS server itself reports about its load.
  *
@@ -684,10 +719,16 @@ export function metricsForMode(kind: MosDeviceKind, mode: SecondaryInfo): readon
  * never a row — these are for the heading above the rows. Anything the server
  * cannot measure reports unknown and is left out rather than printed.
  */
-export const SERVER_METRICS: readonly MetricRef[] = [
-  { translationKey: 'cpu_load', keySuffix: 'cpu_load' },
-  { translationKey: 'memory_usage', keySuffix: 'memory_usage' },
-  { translationKey: 'cpu_temperature', keySuffix: 'cpu_temperature' },
+export const SERVER_METRICS: readonly ServerMetricRef[] = [
+  { translationKey: 'cpu_load', keySuffix: 'cpu_load', icon: 'mdi:cpu-64-bit', label: 'cpu', gauge: true },
+  { translationKey: 'memory_usage', keySuffix: 'memory_usage', icon: 'mdi:memory', label: 'memory', gauge: true },
+  {
+    translationKey: 'cpu_temperature',
+    keySuffix: 'cpu_temperature',
+    icon: 'mdi:thermometer',
+    label: 'temperature',
+    gauge: false,
+  },
 ];
 
 /**

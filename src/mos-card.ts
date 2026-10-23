@@ -1,4 +1,4 @@
-import { LitElement, html, nothing, TemplateResult, css, CSSResultGroup, PropertyValues } from 'lit';
+import { LitElement, html, svg, nothing, TemplateResult, css, CSSResultGroup, PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { HassEntity } from 'home-assistant-js-websocket';
 import type { UnsubscribeFunc } from 'home-assistant-js-websocket';
@@ -22,6 +22,8 @@ import {
   MosDeviceKind,
   RowMetric,
   SERVER_METRICS,
+  ServerMetricRef,
+  MetricRef,
   declaredIcon,
   deviceDisplayName,
   entitiesByDevice,
@@ -45,18 +47,22 @@ import {
   PendingTimers,
   capRows,
   compareRows,
+  countGroup,
   fillPlaceholders,
   isLinkableUrl,
   moreInfoEntity,
   settledPending,
   toneFor,
 } from './rows';
-import type { PlaceholderValues } from './rows';
+import type { GroupCounts, PlaceholderValues } from './rows';
+import { HISTORY_WINDOW_MS, appendSample, parseHistory, sparklinePath } from './history';
+import type { HistoryResponse, Sample } from './history';
 import { actionHandler } from './action-handler-directive';
 import { CARD_VERSION } from './const';
 import { announceCard, defineWhenHostReady } from './register';
 import type { CustomCardEntry } from './register';
 import { localize, setLanguage } from './localize/localize';
+import { GAUGE_ROTATION, GAUGE_SIZE, gaugeGeometry, gaugePercent, severityFor } from './gauge';
 
 console.info(
   `%c  MOS-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
@@ -107,6 +113,7 @@ interface RowGroup {
   hidden: number;
   /** Identifies the group across renders, so an opened one stays open. */
   key: string;
+  counts: GroupCounts;
 }
 
 /** Everything belonging to one MOS server. */
@@ -114,8 +121,20 @@ interface ServerSection {
   server?: DeviceRegistryEntry;
   groups: RowGroup[];
   /** What the server reports about itself, when the config asks for it. */
-  serverMetrics: RowMetric[];
+  serverMetrics: RowMetric<ServerMetricRef>[];
 }
+
+/** The sparkline's drawing box; it is stretched to whatever width the tile has. */
+const SPARK_WIDTH = 100;
+const SPARK_HEIGHT = 28;
+
+/** How a pool's state reads as a chip: it is the pool's usage in percent. */
+const POOL_USAGE: MetricRef = {
+  translationKey: 'pool_usage',
+  keySuffix: 'usage',
+  label: 'used',
+  icon: 'mdi:database',
+};
 
 export class MosCard extends LitElement {
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
@@ -173,6 +192,17 @@ export class MosCard extends LitElement {
    */
   @state() private expanded: ReadonlySet<string> = new Set();
 
+  /**
+   * The recent readings of the server measurements drawn as sparklines.
+   *
+   * Seeded once per entity from the recorder and continued from the states
+   * `hass` brings anyway. Replaced rather than mutated, so Lit sees it.
+   */
+  @state() private history: ReadonlyMap<string, readonly Sample[]> = new Map();
+
+  /** Entities whose history has been asked for, so a slow answer is not asked for twice. */
+  private historyRequested = new Set<string>();
+
   private readonly pendingTimers = new PendingTimers(PENDING_TIMEOUT_MS);
 
   private unsubscribe: UnsubscribeFunc[] = [];
@@ -218,6 +248,7 @@ export class MosCard extends LitElement {
   protected willUpdate(changedProps: PropertyValues): void {
     if (changedProps.has('hass')) {
       setLanguage(this.hass?.locale?.language);
+      this.continueHistory();
     }
 
     if (!changedProps.has('hass') || !this.pending.size) {
@@ -234,6 +265,99 @@ export class MosCard extends LitElement {
     // so the subscription cannot be set up in connectedCallback alone.
     if (changedProps.has('hass') && !this.unsubscribe.length) {
       this.subscribeRegistries();
+    }
+
+    this.requestHistory();
+  }
+
+  /** The server measurements a sparkline is drawn for, under the current config. */
+  private historyEntityIds(): string[] {
+    if (!this.config.show_server_summary || !this.config.show_history || !this.devices || !this.entities) {
+      return [];
+    }
+
+    const entityIndex = entitiesByDevice(this.entities);
+
+    return findServerDevices(this.devices).flatMap((server) =>
+      resolveMetrics(entityIndex.get(server.id) ?? [], SERVER_METRICS)
+        .filter((metric) => metric.ref.gauge)
+        .map((metric) => metric.entity.entity_id),
+    );
+  }
+
+  /**
+   * Ask the recorder for the last hour of each sparkline entity not yet asked for.
+   *
+   * Best effort: without the recorder there is no history, and the heading
+   * keeps its rings and figures and simply draws no line.
+   */
+  private requestHistory(): void {
+    if (!this.hass?.callWS) {
+      return;
+    }
+
+    const ids = this.historyEntityIds().filter((id) => !this.historyRequested.has(id));
+
+    if (!ids.length) {
+      return;
+    }
+
+    for (const id of ids) {
+      this.historyRequested.add(id);
+    }
+
+    this.hass
+      .callWS<HistoryResponse>({
+        type: 'history/history_during_period',
+        start_time: new Date(Date.now() - HISTORY_WINDOW_MS).toISOString(),
+        entity_ids: ids,
+        minimal_response: true,
+        no_attributes: true,
+      })
+      .then((response) => {
+        const history = new Map(this.history);
+
+        for (const id of ids) {
+          // Readings that arrived while the query was out are newer than its answer.
+          const live = history.get(id) ?? [];
+          const recorded = parseHistory(response, id);
+          const last = recorded[recorded.length - 1];
+
+          history.set(id, [...recorded, ...live.filter(([at]) => !last || at > last[0])]);
+        }
+
+        this.history = history;
+      })
+      .catch(() => undefined);
+  }
+
+  /** Carry each sparkline on with the state `hass` now holds for it. */
+  private continueHistory(): void {
+    if (!this.historyRequested.size || !this.hass) {
+      return;
+    }
+
+    let history: Map<string, readonly Sample[]> | undefined;
+    const now = Date.now();
+
+    for (const id of this.historyRequested) {
+      const stateObj = this.hass.states[id];
+      const samples = this.history.get(id) ?? [];
+
+      if (!stateObj) {
+        continue;
+      }
+
+      const next = appendSample(samples, Date.parse(stateObj.last_updated) || now, stateObj.state, now);
+
+      if (next !== samples) {
+        history ??= new Map(this.history);
+        history.set(id, next);
+      }
+    }
+
+    if (history) {
+      this.history = history;
     }
   }
 
@@ -265,7 +389,8 @@ export class MosCard extends LitElement {
       changedProps.has('entities') ||
       changedProps.has('icons') ||
       changedProps.has('pending') ||
-      changedProps.has('expanded')
+      changedProps.has('expanded') ||
+      changedProps.has('history')
     ) {
       return true;
     }
@@ -511,7 +636,15 @@ export class MosCard extends LitElement {
         if (rows.length) {
           const key = `${serverId ?? ''}:${kind}`;
 
-          groups.push({ kind, key, ...capRows(rows, this.config.max_rows, this.expanded.has(key)) });
+          const counts = countGroup(
+            kind,
+            rows.map((row) => ({
+              state: this.stateValue(row),
+              update: row.updateEntity ? this.hass?.states[row.updateEntity.entity_id]?.state : undefined,
+            })),
+          );
+
+          groups.push({ kind, key, counts, ...capRows(rows, this.config.max_rows, this.expanded.has(key)) });
         }
       }
 
@@ -584,19 +717,19 @@ export class MosCard extends LitElement {
     const heading = section.server
       ? section.server.name_by_user || section.server.name || localize('common.server')
       : localize('common.server');
-    const summary = this.formatMetrics(section.serverMetrics);
+    const tiles = section.serverMetrics
+      .map((metric) => this.renderServerTile(metric))
+      .filter((tile): tile is TemplateResult => tile !== undefined);
 
     // The heading is otherwise omitted for a single server, where it only
     // repeats the card's own title — but a summary has to hang off something,
     // so asking for one brings the name back with it.
     return html`
       ${
-        showServerHeading || summary
+        showServerHeading || tiles.length
           ? html`
-              <div class="server-heading">
-                <span>${heading}</span>
-                ${summary ? html`<span class="server-summary">${summary}</span>` : nothing}
-              </div>
+              <div class="server-heading">${heading}</div>
+              ${tiles.length ? html`<div class="server-summary">${tiles}</div>` : nothing}
             `
           : nothing
       }
@@ -604,12 +737,156 @@ export class MosCard extends LitElement {
     `;
   }
 
+  /**
+   * One server measurement: a ring for a percentage, the icon alone otherwise,
+   * beside the figure and what it is. Left out while the server cannot report it.
+   */
+  private renderServerTile(metric: RowMetric<ServerMetricRef>): TemplateResult | undefined {
+    const stateObj = this.hass?.states[metric.entity.entity_id];
+
+    if (!stateObj || isUnavailableState(stateObj.state)) {
+      return undefined;
+    }
+
+    const percent = metric.ref.gauge ? gaugePercent(stateObj.state) : undefined;
+    const samples = this.history.get(metric.entity.entity_id);
+    const path = samples ? sparklinePath(samples, Date.now(), SPARK_WIDTH, SPARK_HEIGHT) : undefined;
+
+    return html`
+      <div
+        class="tile ${path ? 'with-history' : ''} ${percent === undefined ? '' : `severity-${severityFor(percent)}`}"
+        title=${this.renderState(stateObj)}
+      >
+        <div class="tile-icon ${percent === undefined ? 'plain' : ''}">
+          ${percent === undefined ? nothing : this.renderGauge(percent)}
+          <ha-icon .icon=${metric.ref.icon}></ha-icon>
+        </div>
+        <div class="tile-text">
+          ${this.renderFigure(stateObj)}
+          <span class="tile-label">${localize(`metrics.${metric.ref.label}`)}</span>
+        </div>
+        ${
+          path
+            ? html`<svg
+                class="spark"
+                viewBox="0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                ${svg`<path d=${path}></path>`}
+              </svg>`
+            : nothing
+        }
+      </div>
+    `;
+  }
+
+  /** A ring in a 40-unit box: 4 wide where it frames an icon, 8 where it is drawn at icon size. */
+  private renderGauge(percent: number, className = 'gauge'): TemplateResult {
+    const centre = GAUGE_SIZE / 2;
+    const stroke = className === 'gauge' ? 4 : 8;
+    const { radius, circumference, sweep } = gaugeGeometry(stroke);
+
+    return html`
+      <svg
+        class="${className} severity-${severityFor(percent)}"
+        viewBox="0 0 ${GAUGE_SIZE} ${GAUGE_SIZE}"
+        aria-hidden="true"
+      >
+        ${svg`
+          <g transform="rotate(${GAUGE_ROTATION} ${centre} ${centre})">
+            <circle class="track" cx=${centre} cy=${centre} r=${radius} stroke-width=${stroke}
+              stroke-dasharray="${sweep} ${circumference}"></circle>
+            ${
+              percent > 0
+                ? svg`<circle class="value" cx=${centre} cy=${centre} r=${radius} stroke-width=${stroke}
+                    stroke-dasharray="${(sweep * percent) / 100} ${circumference}"></circle>`
+                : nothing
+            }
+          </g>
+        `}
+      </svg>
+    `;
+  }
+
+  /** A state as its number and a quieter unit after it. */
+  private renderFigure(stateObj: HassEntity): TemplateResult {
+    const { value, unit } = this.stateParts(stateObj);
+
+    return html`<span class="figure">${value}${unit ? html`<span class="unit">${unit}</span>` : nothing}</span>`;
+  }
+
+  /**
+   * A state split into its number and its unit, in the core's own formatting.
+   *
+   * `formatEntityStateToParts` is how the core's own tiles get the two apart;
+   * on a core without it the unit is cut off the formatted string instead.
+   */
+  private stateParts(stateObj: HassEntity): { value: string; unit: string } {
+    const hass = this.hass as HomeAssistant & {
+      formatEntityStateToParts?: (stateObj: HassEntity) => Array<{ type: string; value: string }>;
+    };
+
+    if (hass.formatEntityStateToParts) {
+      const parts = hass.formatEntityStateToParts(stateObj);
+
+      return {
+        value: parts
+          .filter((part) => part.type !== 'unit')
+          .map((part) => part.value)
+          .join('')
+          .trim(),
+        unit: parts
+          .filter((part) => part.type === 'unit')
+          .map((part) => part.value)
+          .join(''),
+      };
+    }
+
+    const text = this.renderState(stateObj);
+    const unit = stateObj.attributes.unit_of_measurement as string | undefined;
+
+    return unit && text.endsWith(unit)
+      ? { value: text.slice(0, -unit.length).trim(), unit }
+      : { value: text, unit: '' };
+  }
+
   private renderGroup(group: RowGroup): TemplateResult {
     return html`
-      ${this.config.group_by_kind ? html`<div class="kind-heading">${localize(`kinds.${group.kind}`)}</div>` : nothing}
+      ${
+        this.config.group_by_kind
+          ? html`<div class="kind-heading">
+              <span>${localize(`kinds.${group.kind}`)}</span>${this.renderCounts(group)}
+            </div>`
+          : nothing
+      }
       <div class="group cols-${this.config.columns ?? 1}">${group.rows.map((row) => this.renderRow(row))}</div>
       ${this.renderMore(group)}
     `;
+  }
+
+  /**
+   * How many of a group's guests are up, and how many wait on an update.
+   *
+   * Only for the kinds that run: a disk or a pool has no "up" worth counting.
+   */
+  private renderCounts(group: RowGroup): TemplateResult | typeof nothing {
+    if (!KIND_INFO[group.kind].hasPower) {
+      return nothing;
+    }
+
+    const { running, total, updates } = group.counts;
+
+    return html`<span class="kind-counts">
+      ${localize('counts.running', '{running}', String(running)).replace('{total}', String(total))}
+      ${
+        this.config.show_update && updates
+          ? html`<span class="kind-updates"
+              >· ${localize(updates === 1 ? 'counts.update' : 'counts.updates', '{count}', String(updates))}</span
+            >`
+          : nothing
+      }
+    </span>`;
   }
 
   /**
@@ -795,58 +1072,68 @@ export class MosCard extends LitElement {
    * the line is left out entirely instead of rendering empty.
    */
   private renderSecondary(row: DeviceRow, stateObj?: HassEntity): TemplateResult | typeof nothing {
-    const parts: string[] = [];
+    const parts: Array<string | TemplateResult> = [];
 
-    if (this.config.show_state) {
+    // A pool's state is how full it is, which reads better as a ring than as a word.
+    if (this.config.show_state && row.kind === 'storage_pool' && stateObj && !isUnavailableState(stateObj.state)) {
+      parts.push(this.renderChip(POOL_USAGE, stateObj, this.renderFigure(stateObj)));
+    } else if (this.config.show_state) {
       parts.push(this.renderState(stateObj));
     }
 
-    const metrics = this.formatMetrics(row.metrics);
+    const metrics = row.metrics
+      .map((metric) => this.renderMetric(metric))
+      .filter((part): part is TemplateResult => part !== undefined);
 
-    if (metrics) {
-      parts.push(metrics);
-    }
+    parts.push(...metrics);
 
     if (!parts.length) {
       return nothing;
     }
 
-    return html`<span class="state ${metrics ? 'with-metrics' : ''}">${parts.join(' · ')}</span>`;
-  }
-
-  /**
-   * Measurements as one string, in the reading the rest of Home Assistant uses.
-   *
-   * A measurement the server cannot currently report — a stopped container has
-   * no CPU figure, a virtualised disk no temperature — is left out rather than
-   * printed as "unknown", which would fill the line with non-answers on exactly
-   * the rows that have least to say.
-   */
-  private formatMetrics(metrics: readonly RowMetric[]): string {
-    return metrics
-      .map((metric) => this.formatMetric(metric))
-      .filter((text): text is string => text !== undefined)
-      .join(' · ');
+    return html`<span class="state ${metrics.length ? 'with-metrics' : ''}"
+      >${parts.map((part, index) => html`${index ? html`<span class="separator"> · </span>` : ''}${part}`)}</span
+    >`;
   }
 
   /**
    * One measurement, as the count of a total where the kind names one.
    *
-   * A total that is itself unavailable leaves the count on its own rather than
-   * taking the whole figure with it: "3" beside a Compose stack's state is less
-   * than "3/5", but it is not nothing.
+   * A measurement the server cannot currently report — a stopped container has
+   * no CPU figure, a virtualised disk no temperature — is left out rather than
+   * printed as "unknown", which would fill the line with non-answers on exactly
+   * the rows that have least to say. A total that is itself unavailable leaves
+   * the count on its own: "3" beside a Compose stack's state is less than "3/5",
+   * but it is not nothing.
    */
-  private formatMetric(metric: RowMetric): string | undefined {
+  private renderMetric(metric: RowMetric): TemplateResult | undefined {
     const stateObj = this.hass?.states[metric.entity.entity_id];
 
     if (!stateObj || isUnavailableState(stateObj.state)) {
       return undefined;
     }
 
-    const value = this.renderState(stateObj);
     const total = metric.over ? this.hass?.states[metric.over.entity_id] : undefined;
 
-    return total && !isUnavailableState(total.state) ? `${value}/${this.renderState(total)}` : value;
+    const figure =
+      total && !isUnavailableState(total.state)
+        ? html`<span class="figure">${this.renderState(stateObj)}/${this.renderState(total)}</span>`
+        : this.renderFigure(stateObj);
+
+    return this.renderChip(metric.ref, stateObj, figure);
+  }
+
+  /** A figure with what it is in front of it: a ring for a percentage, its icon otherwise. */
+  private renderChip(ref: MetricRef, stateObj: HassEntity, figure: TemplateResult): TemplateResult {
+    const percent = stateObj.attributes.unit_of_measurement === '%' ? gaugePercent(stateObj.state) : undefined;
+
+    return html`<span class="chip" title=${localize(`metrics.${ref.label}`)}
+      >${
+        percent === undefined
+          ? html`<ha-icon class="chip-icon" .icon=${ref.icon}></ha-icon>`
+          : this.renderGauge(percent, 'mini-gauge')
+      }${figure}</span
+    >`;
   }
 
   private renderState(stateObj?: HassEntity): string {
@@ -1083,34 +1370,219 @@ export class MosCard extends LitElement {
       }
 
       .server-heading {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
         margin: 14px 4px 6px;
         font-weight: 500;
         color: var(--primary-text-color);
       }
 
-      /* Right of the name and quieter than it: the server's load is context for
-         the rows below, not a heading of its own. */
       .server-summary {
-        flex: 0 1 auto;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-size: 0.85em;
-        font-weight: 400;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        margin: 4px 4px 10px;
+      }
+
+      .tile {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .tile-icon {
+        position: relative;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        --mdc-icon-size: 18px;
         color: var(--secondary-text-color);
       }
 
+      /* Without a ring the icon still gets a round footprint, so a row of tiles
+         keeps one rhythm whichever of them are percentages. */
+      .tile-icon.plain {
+        box-sizing: border-box;
+        border: 4px solid var(--divider-color, rgba(127, 127, 127, 0.25));
+        border-radius: 50%;
+      }
+
+      .gauge {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .gauge circle {
+        fill: none;
+      }
+
+      .gauge .track {
+        stroke: var(--divider-color, rgba(127, 127, 127, 0.25));
+      }
+
+      /* A fixed scale rather than the theme's accent: the ring says how loaded
+         the server is, which a theme has no business recolouring. */
+      .gauge .value {
+        stroke: var(--gauge-color);
+        stroke-linecap: round;
+        transition: stroke-dasharray 0.3s ease;
+      }
+
+      .gauge.severity-low {
+        --gauge-color: var(--green-color, #43a047);
+      }
+
+      .gauge.severity-medium {
+        --gauge-color: var(--amber-color, #ffc107);
+      }
+
+      .gauge.severity-high {
+        --gauge-color: var(--orange-color, #fb8c00);
+      }
+
+      .gauge.severity-critical {
+        --gauge-color: var(--red-color, #e53935);
+      }
+
+      .tile-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.15;
+      }
+
+      .tile .figure {
+        font-size: 1.05em;
+        font-weight: 600;
+        color: var(--primary-text-color);
+      }
+
+      .tile-label {
+        font-size: 0.68em;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--secondary-text-color);
+      }
+
+      .tile.with-history {
+        flex: 1 1 140px;
+      }
+
+      .spark {
+        flex: 1;
+        min-width: 48px;
+        height: 28px;
+        overflow: visible;
+      }
+
+      .spark path {
+        fill: none;
+        stroke: var(--gauge-color, var(--primary-color));
+        stroke-width: 1.5;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .tile.severity-low,
+      .mini-gauge.severity-low {
+        --gauge-color: var(--green-color, #43a047);
+      }
+
+      .tile.severity-medium,
+      .mini-gauge.severity-medium {
+        --gauge-color: var(--amber-color, #ffc107);
+      }
+
+      .tile.severity-high,
+      .mini-gauge.severity-high {
+        --gauge-color: var(--orange-color, #fb8c00);
+      }
+
+      .tile.severity-critical,
+      .mini-gauge.severity-critical {
+        --gauge-color: var(--red-color, #e53935);
+      }
+
+      /* A measurement in a row: what it is in front, kept together as one unit
+         so the line breaks between measurements and never inside one. */
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        white-space: nowrap;
+        vertical-align: bottom;
+      }
+
+      .chip-icon {
+        --mdc-icon-size: 14px;
+        opacity: 0.8;
+      }
+
+      .mini-gauge {
+        width: 14px;
+        height: 14px;
+        flex: none;
+      }
+
+      .mini-gauge circle {
+        fill: none;
+      }
+
+      .mini-gauge .track {
+        stroke: color-mix(in srgb, currentColor 35%, transparent);
+      }
+
+      .mini-gauge .value {
+        stroke: var(--gauge-color);
+        stroke-linecap: round;
+      }
+
+      .separator {
+        opacity: 0.6;
+      }
+
+      /* A figure wraps as a whole: a number on one line and its unit on the next
+         reads as two values. */
+      .figure {
+        white-space: nowrap;
+      }
+
+      .unit {
+        margin-left: 0.15em;
+        font-size: 0.75em;
+        font-weight: 400;
+        opacity: 0.8;
+      }
+
       .kind-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
         margin: 14px 4px 6px;
         font-size: 0.75em;
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--secondary-text-color);
+      }
+
+      /* Counts read as part of the heading, not as a label of their own: same
+         size, no capitals, so "3/4 running" is not shouted. */
+      .kind-counts {
+        flex: none;
+        text-transform: none;
+        letter-spacing: normal;
+        font-size: 1.1em;
+        font-weight: 400;
+      }
+
+      .kind-updates {
+        color: var(--warning-color, #ffa600);
       }
 
       .group {
@@ -1453,6 +1925,10 @@ export class MosCard extends LitElement {
       @media (prefers-reduced-motion: reduce) {
         .spinner {
           animation-duration: 2.4s;
+        }
+
+        .gauge .value {
+          transition: none;
         }
       }
     `;

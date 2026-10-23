@@ -58,7 +58,9 @@
     "display": "Anzeige",
     "group_by_kind": "Nach Geräteart gruppieren",
     "show_server_summary": "Server-Zusammenfassung anzeigen",
-    "show_server_summary_hint": "Zeigt die Auslastung des Servers neben seinem Namen — und diesen Namen auch bei nur einem Server.",
+    "show_server_summary_hint": "Zeigt Auslastung, Arbeitsspeicher und Temperatur des Servers unter seinem Namen — und diesen Namen auch bei nur einem Server.",
+    "show_history": "Lastverlauf anzeigen",
+    "show_history_hint": "Zeigt die letzte Stunde von CPU-Last und Arbeitsspeicher neben den Ringen des Servers. Braucht die Server-Zusammenfassung und den Recorder von Home Assistant.",
     "show_icon": "Symbol anzeigen",
     "show_state": "Status anzeigen",
     "show_link": "Link anzeigen",
@@ -74,5 +76,19 @@
     "hold_action": "Aktion bei Gedrückthalten",
     "double_tap_action": "Aktion bei Doppeltippen",
     "actions_hint": "Wird auf die Status-Entität der jeweiligen Zeile angewendet — außer „Umschalten“, das den Start/Stopp-Schalter der Zeile verwendet. Im YAML steht ein Platzhalter wie [[name]] oder [[entity]] an jeder Stelle einer Aktion für die angetippte Zeile."
+  },
+  "metrics": {
+    "cpu": "CPU",
+    "memory": "RAM",
+    "temperature": "Temp.",
+    "containers": "Container",
+    "free": "Frei",
+    "load": "Last",
+    "used": "Belegt"
+  },
+  "counts": {
+    "running": "{running}/{total} laufen",
+    "update": "{count} Update",
+    "updates": "{count} Updates"
   }
 }

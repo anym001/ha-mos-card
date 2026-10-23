@@ -14,6 +14,7 @@ import {
   TONES,
   capRows,
   compareRows,
+  countGroup,
   fillPlaceholders,
   isLinkableUrl,
   moreInfoEntity,
@@ -341,5 +342,22 @@ describe('moreInfoEntity', () => {
 
   it('keeps an unknown key, so a typo opens a dialog that names it', () => {
     expect(moreInfoEntity({ action: 'more-info', entity: '[[entty]]' }, values)).toBe('[[entty]]');
+  });
+});
+
+describe('countGroup', () => {
+  it('counts the rows that are up and the ones with an update waiting', () => {
+    expect(
+      countGroup('docker_container', [
+        { state: 'running', update: 'on' },
+        { state: 'exited', update: 'off' },
+        { state: 'running', update: undefined },
+        { state: 'unavailable', update: 'on' },
+      ]),
+    ).toEqual({ running: 2, total: 4, updates: 2 });
+  });
+
+  it('is zero across the board for an empty group', () => {
+    expect(countGroup('virtual_machine', [])).toEqual({ running: 0, total: 0, updates: 0 });
   });
 });
