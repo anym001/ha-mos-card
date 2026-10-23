@@ -16,7 +16,7 @@ import type { EntityRegistryEntry, MetricRef, RowMetric, ServerMetricRef, Servic
 import { GAUGE_ROTATION, GAUGE_SIZE, gaugeGeometry, gaugePercent, severityFor } from './gauge';
 import { sparklinePath } from './history';
 import type { Sample } from './history';
-import { uptimeSince } from './rows';
+import { upsFlags, uptimeSince } from './rows';
 import { localize } from './localize/localize';
 
 type FormattingHass = HomeAssistant & {
@@ -48,6 +48,15 @@ export function formatState(hass: HomeAssistant, stateObj?: HassEntity): string 
   return formatting.formatEntityState
     ? formatting.formatEntityState(stateObj)
     : computeStateDisplay(hass.localize, stateObj, hass.locale);
+}
+
+/** A UPS status in words: "OL CHRG" reads as "Online, Charging". */
+export function formatUpsState(hass: HomeAssistant, stateObj?: HassEntity): string {
+  const flags = stateObj && !isUnavailableState(stateObj.state) ? upsFlags(stateObj.state) : [];
+
+  return flags.length
+    ? flags.map(({ flag, known }) => (known ? localize(`ups.${flag.toUpperCase()}`) : flag)).join(', ')
+    : formatState(hass, stateObj);
 }
 
 /**
