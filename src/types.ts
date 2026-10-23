@@ -96,6 +96,12 @@ export interface MosCardConfig extends LovelaceCardConfig {
    */
   show_server_summary?: boolean;
 
+  /**
+   * Draw the last hour of the server's CPU load and memory usage beside their
+   * rings. Default false. Needs `show_server_summary` and the recorder.
+   */
+  show_history?: boolean;
+
   /** Show the state entity's icon or MOS template picture. Default true. */
   show_icon?: boolean;
 

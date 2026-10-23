@@ -10,7 +10,9 @@ src/
 ├── mos-card.ts                  # Main card element — LitElement subclass
 ├── devices.ts                   # Device registry subscription and model_id filtering
 ├── config.ts                    # Defaults, validation, editor/config conversions
-├── rows.ts                      # Tone, order, row cap, waiting power buttons
+├── rows.ts                      # Tone, order, row cap, group counts, waiting power buttons
+├── gauge.ts                     # Ring geometry and its fixed severity scale
+├── history.ts                   # Sparkline readings: recorder answer, live samples, SVG path
 ├── editor.ts                    # Visual editor — implements LovelaceCardEditor
 ├── types.ts                     # Card config interface
 ├── const.ts                     # CARD_VERSION (bumped by release-please)
@@ -20,7 +22,7 @@ src/
     └── languages/
         ├── de.json              # German strings
         └── en.json              # English strings
-tests/                           # Vitest suites over the three logic modules
+tests/                           # Vitest suites over the logic modules
 dist/
 └── mos-card.js                  # Build output — the file ha-mos bundles
 ```
@@ -177,6 +179,28 @@ Tints are computed with `color-mix()` on the resolved colour rather than through
 duplicates a theme also exposes. Those duplicates are maintained separately and drift — a stock
 install reports `--primary-text-color: #141414` alongside `--rgb-primary-text-color: 33, 33, 33`.
 
+### Rings and sparklines
+
+The server heading draws percentages as a 270° ring around the metric's icon, and each row draws a
+percentage measurement as a ring at icon size in front of its figure. Both are plain SVG rendered by
+the card itself rather than a custom element of their own: an element would be one more tag to
+register, with the same registry-timing and double-load concerns as the card's own (see
+`src/register.ts`), for something that has no state of its own.
+
+The ring's colour is a fixed scale — green, amber, orange, red at 25, 50 and 75 % — on Home
+Assistant's palette variables (`--green-color` and so on) rather than the theme's accent. It says
+how loaded something is, which a theme has no business recolouring. Everything else, the track
+included, stays on theme variables.
+
+`show_history` costs one `history/history_during_period` query per card for the last hour of the
+server's CPU load and memory usage, with `minimal_response` and `no_attributes`. After that the line
+is continued from the states `hass` delivers anyway, so there is no polling and no history
+subscription. The readings live on the element and survive a detach, so a card hidden and shown
+again does not ask twice. Only percentages are drawn, on a fixed 0–100 scale: a sparkline scaled to
+its own minimum and maximum would turn noise into drama.
+
+The design follows AzAel76's ha-mos-card-addons (MIT); nothing is imported from it.
+
 ### Tones
 
 Each row carries a `tone-*` class that the CSS maps onto a theme variable, so a state nobody
@@ -223,7 +247,8 @@ drops rows based on state and a hidden row's entity still has to be watched for 
 
 The set grows with the config: each row's state sensor and power switch always, its metric sensors
 when `secondary_info` asks for one, its binary sensors when `show_problem` is on, and the server's
-own metrics when `show_server_summary` is. It is memoized on the identity of the two registries and
+own metrics when `show_server_summary` is.
+The sparkline readings are `@state`, so a recorder answer re-renders the card on its own. It is memoized on the identity of the two registries and
 the config, all of which are replaced wholesale rather than mutated, so a reference check is enough
 to know the list still holds.
 
@@ -275,7 +300,7 @@ syntax, and transpiling to ES5 produces `TypeError: Class constructor cannot be 
 
 `yarn test` runs Vitest over `tests/`, in a plain node environment with no DOM.
 
-What is covered is the three files that hold logic rather than rendering:
+What is covered is the files that hold logic rather than rendering:
 
 - `src/devices.ts` — the `model_id` selection, the two-step entity lookups, the per-kind metric map
   and the name filter. This is the part with a contract to keep, the one documented on the
@@ -287,7 +312,10 @@ What is covered is the three files that hold logic rather than rendering:
 - `src/rows.ts` — the tone a row is drawn in, the order rows come in, the row cap, which waiting
   power buttons the incoming states have answered, and the timeouts that end a wait nobody did.
   The timers are tested with `vi.useFakeTimers()`, which is the only exercise that path gets: on a
-  live instance every start and stop came back well inside the window.
+  live instance every start and stop came back well inside the window. `countGroup` behind the
+  group headings sits here too.
+- `src/gauge.ts` and `src/history.ts` — the severity scale, the ring geometry, reading the
+  recorder's answer, continuing it from live states and drawing it as a path.
 
 The last two exist because that logic used to sit on the component, where the only way to check it
 was to render a card against a live Home Assistant.

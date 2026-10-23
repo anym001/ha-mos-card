@@ -35,6 +35,7 @@ const HELPERS: Readonly<Record<string, string>> = {
   confirm_stop: 'editor.confirm_stop_hint',
   secondary_info: 'editor.secondary_info_hint',
   show_server_summary: 'editor.show_server_summary_hint',
+  show_history: 'editor.show_history_hint',
   show_problem: 'editor.show_problem_hint',
   filter_include: 'editor.filter_hint',
   max_rows: 'editor.max_rows_hint',

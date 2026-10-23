@@ -19,6 +19,8 @@ server as rows and follows them as they come and go.
 - **Every row** carries the icon, the name, the state, a link to the device's own web interface and
   a start/stop button for the guests that can be controlled. A fault or a waiting update adds a
   badge on the icon.
+- **Load at a glance.** The server's CPU and memory as rings with an optional one-hour history,
+  each group heading counts what is running, and each measurement carries a small ring or icon.
 - **Colour follows state.** A running guest gets a coloured ring and a coloured state, a stopped
   one stays neutral. Disks and pools stay neutral on purpose — a disk reporting `Active` names its
   power mode, it does not report good news.
@@ -97,6 +99,7 @@ the form is the real card.
 | `sort`                | string  | Row order within a group: `name` or `state`.                          | `name`              |
 | `secondary_info`      | string  | Extra value beside the state: `none`, `auto`, `cpu` or `memory`.      | `none`              |
 | `show_server_summary` | boolean | Show the server's CPU load, memory usage and CPU temperature.         | `false`             |
+| `show_history`        | boolean | Draw the last hour of CPU load and memory beside the summary's rings. | `false`             |
 | `show_icon`           | boolean | Show the row icon.                                                    | `true`              |
 | `show_state`          | boolean | Show the state value on each row.                                     | `true`              |
 | `show_link`           | boolean | Show a link button where the device has a URL.                        | `true`              |
@@ -128,9 +131,15 @@ Notes on individual options:
 - A Compose stack reports CPU and memory only while the integration's **Compose stack stats** option
   is on — it is off by default, because a stack is measured through its services and costs one
   request per running service on every poll. Without it a stack row shows the container count alone.
-- `show_server_summary` also brings back the server heading for a single server, which the card
-  otherwise omits. The heading needs at least one of the three values, so a server reporting none of
-  them stays without one.
+- `show_server_summary` draws CPU load and memory usage as rings that go from green through amber
+  and orange to red at 25, 50 and 75 %, with the CPU temperature beside them. It also brings back
+  the server heading for a single server, which the card otherwise omits. The heading needs at least
+  one of the three values, so a server reporting none of them stays without one.
+- `show_history` needs `show_server_summary` and Home Assistant's recorder. The card asks the
+  recorder for the last hour once and continues the line from live states; without the recorder the
+  rings stay and the line is left out.
+- A group heading counts how many of its guests are running and how many have an update waiting,
+  over every row of the group — including those `max_rows` folds away.
 - A fault is what the integration marks with Home Assistant's `problem` device class — a SMART
   warning, an unhealthy container, a degraded pool, a UPS on bypass. The badge names what it found.
 - While the server works on a start or a stop, the button shows that it is waiting and ignores
@@ -254,8 +263,11 @@ are in [docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md).
 
 MIT — see [LICENSE](LICENSE).
 
+The rings and sparklines follow the design of [ha-mos-card-addons][addons] by @AzAel76 (MIT).
+
 Maintained by [@anym001][user_profile].
 
+[addons]: https://github.com/AzAel76/ha-mos-card-addons
 [commits-shield]: https://img.shields.io/github/commit-activity/y/anym001/ha-mos-card.svg?style=for-the-badge
 [commits]: https://github.com/anym001/ha-mos-card/commits/main
 [license-shield]: https://img.shields.io/github/license/anym001/ha-mos-card.svg?style=for-the-badge
