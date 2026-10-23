@@ -34,7 +34,7 @@ import { HistoryLoader } from './history-loader';
 import type { HistoryMap } from './history-loader';
 import { gaugePercent, severityFor } from './gauge';
 import {
-  formatState,
+  formatUpsState,
   readableState,
   renderChip,
   renderFigure,
@@ -483,7 +483,7 @@ export class MosOverviewCard extends LitElement {
           <div class="ups ${problems ? 'alert' : ''}" @click=${() => this.moreInfo(device.status)}>
             <ha-icon icon=${problems ? 'mdi:power-plug-off' : 'mdi:power-plug'}></ha-icon>
             <span class="ups-name">${deviceDisplayName(device.device, serverName)}</span>
-            ${status ? html`<span class="ups-status">${formatState(this.hass, status)}</span>` : nothing}
+            ${status ? html`<span class="ups-status">${formatUpsState(this.hass, status)}</span>` : nothing}
             <span class="ups-metrics">${chips}</span>
           </div>
         `;

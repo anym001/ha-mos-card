@@ -58,13 +58,13 @@ import {
   settledPending,
   showsMeasurements,
   toneFor,
-  upsFlags,
 } from './rows';
 import type { GroupCounts, PlaceholderValues } from './rows';
 import { HistoryLoader } from './history-loader';
 import type { HistoryMap } from './history-loader';
 import {
   formatState,
+  formatUpsState,
   renderChip,
   renderFigure,
   renderServerTile,
@@ -930,7 +930,7 @@ export class MosCard extends LitElement {
     ) {
       parts.push(renderChip(POOL_USAGE, stateObj, renderFigure(this.hass, stateObj)));
     } else if (this.config.show_state) {
-      parts.push(row.kind === 'ups' ? this.renderUpsState(stateObj) : formatState(this.hass, stateObj));
+      parts.push(row.kind === 'ups' ? formatUpsState(this.hass, stateObj) : formatState(this.hass, stateObj));
     }
 
     const metrics = showsMeasurements(row.kind, stateObj?.state)
@@ -952,19 +952,6 @@ export class MosCard extends LitElement {
         index ? html` <span class="part"><span class="separator">·</span> ${part}</span>` : part,
       )}</span
     >`;
-  }
-
-  /** A UPS status in words: "OL CHRG" reads as "Online, Charging". */
-  private renderUpsState(stateObj?: HassEntity): string {
-    if (!stateObj || isUnavailableState(stateObj.state)) {
-      return formatState(this.hass, stateObj);
-    }
-
-    const flags = upsFlags(stateObj.state);
-
-    return flags.length
-      ? flags.map(({ flag, known }) => (known ? localize(`ups.${flag.toUpperCase()}`) : flag)).join(', ')
-      : formatState(this.hass, stateObj);
   }
 
   /** The device's own long jobs that are running right now, each named. */
