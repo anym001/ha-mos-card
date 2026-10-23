@@ -100,6 +100,7 @@ the form is the real card.
 | `secondary_info`      | string  | Extra value beside the state: `none`, `auto`, `cpu` or `memory`.      | `none`              |
 | `show_server_summary` | boolean | Show the server's CPU load, memory usage and CPU temperature.         | `false`             |
 | `show_history`        | boolean | Draw the last hour of CPU load and memory beside the summary's rings. | `false`             |
+| `show_services`       | boolean | Show SSH, Samba, NFS, Tailscale and NetBird as chips, lit while on.   | `false`             |
 | `show_icon`           | boolean | Show the row icon.                                                    | `true`              |
 | `show_state`          | boolean | Show the state value on each row.                                     | `true`              |
 | `show_link`           | boolean | Show a link button where the device has a URL.                        | `true`              |
@@ -126,15 +127,19 @@ Notes on individual options:
 - `sort: state` lists running first, then paused, then stopped, then unavailable, alphabetically
   within each. Disks and pools stay alphabetical either way.
 - `secondary_info: auto` picks per kind: CPU and memory for a container or VM, how many of a
-  Compose stack's containers are up (`3/5`) followed by its CPU and memory, temperature for a disk,
-  free space for a pool, load for the UPS. A value the server cannot report is left out.
+  Compose stack's containers are up (`3/5`) followed by its CPU and memory, usage and temperature
+  for a disk, free of total space for a pool, battery charge, runtime and load for the UPS. A
+  percentage gets a small ring, anything else an icon. A value the server cannot report is left out.
+- A pool running a scrub, a balance or a parity check, or a disk running a preclear, says so on its
+  row for as long as the job runs.
 - A Compose stack reports CPU and memory only while the integration's **Compose stack stats** option
   is on — it is off by default, because a stack is measured through its services and costs one
   request per running service on every poll. Without it a stack row shows the container count alone.
 - `show_server_summary` draws CPU load and memory usage as rings that go from green through amber
-  and orange to red at 25, 50 and 75 %, with the CPU temperature beside them. It also brings back
-  the server heading for a single server, which the card otherwise omits. The heading needs at least
-  one of the three values, so a server reporting none of them stays without one.
+  and orange to red at 25, 50 and 75 %, with the CPU temperature beside them and the server's
+  uptime beside its name. It also brings back the server heading for a single server, which the
+  card otherwise omits. The heading needs at least one of the three values, so a server reporting
+  none of them stays without one.
 - `show_history` needs `show_server_summary` and Home Assistant's recorder. The card asks the
   recorder for the last hour once and continues the line from live states; without the recorder the
   rings stay and the line is left out.

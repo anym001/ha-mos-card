@@ -16,6 +16,13 @@ describe('severityFor', () => {
   });
 });
 
+describe('severityFor, inverted', () => {
+  it('reads a full battery as fine and an empty one as critical', () => {
+    expect(severityFor(100, true)).toBe('low');
+    expect(severityFor(10, true)).toBe('critical');
+  });
+});
+
 describe('gaugePercent', () => {
   it('reads a numeric state', () => {
     expect(gaugePercent('12.61')).toBe(12.61);

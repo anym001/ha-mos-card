@@ -61,6 +61,8 @@
     "show_server_summary_hint": "Shows the server's load, memory and temperature under its name, and that name even with a single server.",
     "show_history": "Show load history",
     "show_history_hint": "Draws the last hour of CPU load and memory usage beside the server's rings. Needs the server summary and Home Assistant's recorder.",
+    "show_services": "Show services",
+    "show_services_hint": "SSH, Samba, NFS, Tailscale and NetBird as chips under the server summary, lit while on.",
     "show_icon": "Show icon",
     "show_state": "Show state",
     "show_link": "Show link",
@@ -84,11 +86,26 @@
     "containers": "Containers",
     "free": "Free",
     "load": "Load",
-    "used": "Used"
+    "used": "Used",
+    "battery": "Battery",
+    "runtime": "Runtime",
+    "total": "Total",
+    "uptime": "Uptime",
+    "uptime_for": "Up {duration}",
+    "service": "Service",
+    "scrub": "Scrub",
+    "balance": "Balance",
+    "parity": "Parity check",
+    "preclear": "Preclear"
   },
   "counts": {
     "running": "{running}/{total} running",
     "update": "{count} update",
     "updates": "{count} updates"
+  },
+  "units": {
+    "d": "d",
+    "h": "h",
+    "min": "min"
   }
 }

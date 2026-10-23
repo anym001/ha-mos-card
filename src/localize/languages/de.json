@@ -61,6 +61,8 @@
     "show_server_summary_hint": "Zeigt Auslastung, Arbeitsspeicher und Temperatur des Servers unter seinem Namen — und diesen Namen auch bei nur einem Server.",
     "show_history": "Lastverlauf anzeigen",
     "show_history_hint": "Zeigt die letzte Stunde von CPU-Last und Arbeitsspeicher neben den Ringen des Servers. Braucht die Server-Zusammenfassung und den Recorder von Home Assistant.",
+    "show_services": "Dienste anzeigen",
+    "show_services_hint": "SSH, Samba, NFS, Tailscale und NetBird als Chips unter der Server-Zusammenfassung, hervorgehoben solange aktiv.",
     "show_icon": "Symbol anzeigen",
     "show_state": "Status anzeigen",
     "show_link": "Link anzeigen",
@@ -84,11 +86,26 @@
     "containers": "Container",
     "free": "Frei",
     "load": "Last",
-    "used": "Belegt"
+    "used": "Belegt",
+    "battery": "Akku",
+    "runtime": "Laufzeit",
+    "total": "Gesamt",
+    "uptime": "Laufzeit",
+    "uptime_for": "Läuft seit {duration}",
+    "service": "Dienst",
+    "scrub": "Scrub",
+    "balance": "Balance",
+    "parity": "Paritätsprüfung",
+    "preclear": "Preclear"
   },
   "counts": {
     "running": "{running}/{total} laufen",
     "update": "{count} Update",
     "updates": "{count} Updates"
+  },
+  "units": {
+    "d": "T",
+    "h": "Std.",
+    "min": "Min."
   }
 }

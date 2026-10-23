@@ -85,6 +85,26 @@ export function countGroup(
   };
 }
 
+/** How long the server has been up, split into the units a heading shows. */
+export interface Uptime {
+  readonly days: number;
+  readonly hours: number;
+  readonly minutes: number;
+}
+
+/** The uptime since a boot timestamp, or undefined for one that is not a time or lies ahead. */
+export function uptimeSince(bootTime: string | undefined, now: number): Uptime | undefined {
+  const booted = bootTime ? Date.parse(bootTime) : NaN;
+
+  if (!Number.isFinite(booted) || booted > now) {
+    return undefined;
+  }
+
+  const minutes = Math.floor((now - booted) / 60_000);
+
+  return { days: Math.floor(minutes / 1440), hours: Math.floor((minutes % 1440) / 60), minutes: minutes % 60 };
+}
+
 /**
  * The URL schemes a row's link button may point at.
  *
