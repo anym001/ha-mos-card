@@ -354,9 +354,15 @@ export class MosOverviewCard extends LitElement {
                 : nothing
             }
           </span>
-          <span class="kind-line metrics">
-            ${cpu} ${memory ? renderChip(MEMORY, memory, renderFigure(this.hass, memory)) : nothing}
-          </span>
+          ${
+            // Nothing running means nothing measured: what a stopped guest
+            // reports is its last reading, the same rule the list card follows.
+            running
+              ? html`<span class="kind-line metrics">
+                  ${cpu} ${memory ? renderChip(MEMORY, memory, renderFigure(this.hass, memory)) : nothing}
+                </span>`
+              : nothing
+          }
         </div>
       </div>
     `;
