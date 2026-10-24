@@ -134,7 +134,9 @@
     "disks": "{count} Festplatten",
     "standby": "{count} im Standby",
     "max": "max.",
-    "problems": "{count} mit Fehler"
+    "problems": "{count} mit Fehler",
+    "free": "frei",
+    "free_of_total": "Frei von gesamt"
   },
   "overview_editor": {
     "title": "Titel",

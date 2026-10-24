@@ -400,8 +400,9 @@ export class MosOverviewCard extends LitElement {
             ${usage ? renderFigure(this.hass, usage) : nothing}
             ${
               free
-                ? html`<span class="pool-free"
-                    >${renderFigure(this.hass, free)}${
+                ? html`<span class="pool-free" title=${localize('overview.free_of_total')}
+                    >${renderFigure(this.hass, free)}
+                    ${localize('overview.free')}${
                       total ? html`<span class="of">/</span>${renderFigure(this.hass, total)}` : nothing
                     }</span
                   >`
@@ -440,29 +441,32 @@ export class MosOverviewCard extends LitElement {
         <span>${localize('overview.disks', '{count}', String(disks.total))}</span>
         ${
           disks.standby
-            ? html`<span class="separator">·</span
-                ><span>${localize('overview.standby', '{count}', String(disks.standby))}</span>`
+            ? html`<span class="part"
+                ><span class="separator">·</span>
+                ${localize('overview.standby', '{count}', String(disks.standby))}</span
+              >`
             : nothing
         }
         ${
           hottest
-            ? html`<span class="separator">·</span
-                ><span class="chip"
+            ? html`<span class="part"
+                ><span class="separator">·</span>
+                <span class="chip"
                   ><ha-icon class="chip-icon" icon="mdi:thermometer"></ha-icon>${localize('overview.max')}
                   ${renderFigure(this.hass, hottest)}</span
-                >`
+                ></span
+              >`
             : nothing
         }
         ${
           disks.problems
-            ? html`<span class="separator">·</span
-                ><span class="problem-text"
-                  ><ha-icon class="chip-icon" icon="mdi:alert"></ha-icon>${localize(
-                    'overview.problems',
-                    '{count}',
-                    String(disks.problems),
-                  )}</span
-                >`
+            ? html`<span class="part problem-text"
+                ><span class="separator">·</span> <ha-icon class="chip-icon" icon="mdi:alert"></ha-icon>${localize(
+                  'overview.problems',
+                  '{count}',
+                  String(disks.problems),
+                )}</span
+              >`
             : nothing
         }
       </div>
@@ -633,8 +637,8 @@ export class MosOverviewCard extends LitElement {
         }
 
         .kind.running .kind-icon {
-          color: var(--state-active-color, var(--success-color, #43a047));
-          background: color-mix(in srgb, var(--state-active-color, var(--success-color, #43a047)) 18%, transparent);
+          color: var(--success-color, var(--state-active-color, #43a047));
+          background: color-mix(in srgb, var(--success-color, var(--state-active-color, #43a047)) 18%, transparent);
         }
 
         .kind-text {
@@ -763,7 +767,7 @@ export class MosOverviewCard extends LitElement {
         }
 
         .ups-status {
-          color: var(--state-active-color, var(--success-color, #43a047));
+          color: var(--success-color, var(--state-active-color, #43a047));
         }
 
         .ups.alert .ups-status,
@@ -782,6 +786,12 @@ export class MosOverviewCard extends LitElement {
 
         .separator {
           opacity: 0.6;
+        }
+
+        /* A part carries the separator in front of it, so a line that wraps
+           breaks before a "·" and never leaves one on its own. */
+        .part {
+          white-space: nowrap;
         }
 
         @media (prefers-reduced-motion: reduce) {
