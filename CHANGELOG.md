@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.1](https://github.com/anym001/ha-mos-card/compare/v0.3.0...v0.3.1) (2026-10-24)
+
+
+### Features
+
+* **card:** draw load as rings, history sparklines and group counts ([97dae60](https://github.com/anym001/ha-mos-card/commit/97dae60f4fc43fd7df4ad27ce2ad4ed0e54564d9))
+* **card:** show uptime, services, pool totals, jobs and ups battery ([336f059](https://github.com/anym001/ha-mos-card/commit/336f0597fe4372720599565f606353ce60f291d9))
+* **overview:** add a server overview card to the bundle ([1eebe92](https://github.com/anym001/ha-mos-card/commit/1eebe926147f57a1f14dcc0ce3876450be74248f))
+
+
+### Bug Fixes
+
+* **card:** address the live test of the new rows and heading ([80e25fc](https://github.com/anym001/ha-mos-card/commit/80e25fcbf54985d636ae7d18d4875a944ca56a0e))
+* **card:** move the ring scale's steps to 50, 75 and 90 % ([a37be0d](https://github.com/anym001/ha-mos-card/commit/a37be0da5f230378b680f9185bbaae3ed01066ad))
+* **overview:** address the live test of the overview card ([73cfa06](https://github.com/anym001/ha-mos-card/commit/73cfa06db36d46cd246d7224cdd46b8a2f9556bc))
+* **overview:** leave out the measurements of a kind with nothing running ([5ef5e1f](https://github.com/anym001/ha-mos-card/commit/5ef5e1fc5283d58c62c0c62d508cf6cbf806fb02))
+
 ## [0.3.0](https://github.com/anym001/ha-mos-card/compare/v0.2.5...v0.3.0) (2026-10-21)
 
 
