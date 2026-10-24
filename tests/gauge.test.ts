@@ -5,11 +5,11 @@ import { GAUGE_SIZE, gaugeGeometry, gaugePercent, severityFor } from '../src/gau
 describe('severityFor', () => {
   it.each([
     [0, 'low'],
-    [25, 'low'],
-    [25.1, 'medium'],
-    [50, 'medium'],
-    [75, 'high'],
-    [75.1, 'critical'],
+    [50, 'low'],
+    [50.1, 'medium'],
+    [75, 'medium'],
+    [90, 'high'],
+    [90.1, 'critical'],
     [100, 'critical'],
   ] as const)('reads %s%% as %s', (percent, severity) => {
     expect(severityFor(percent)).toBe(severity);
@@ -19,7 +19,7 @@ describe('severityFor', () => {
 describe('severityFor, inverted', () => {
   it('reads a full battery as fine and an empty one as critical', () => {
     expect(severityFor(100, true)).toBe('low');
-    expect(severityFor(10, true)).toBe('critical');
+    expect(severityFor(5, true)).toBe('critical');
   });
 });
 

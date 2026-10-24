@@ -12,7 +12,7 @@ export const SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
 /** The upper bound of each step but the last, in percent. */
-const SEVERITY_STEPS: readonly number[] = [25, 50, 75];
+const SEVERITY_STEPS: readonly number[] = [50, 75, 90];
 
 export function severityFor(percent: number, inverse = false): Severity {
   if (inverse) {

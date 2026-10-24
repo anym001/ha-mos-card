@@ -192,7 +192,7 @@ the card itself rather than a custom element of their own: an element would be o
 register, with the same registry-timing and double-load concerns as the card's own (see
 `src/register.ts`), for something that has no state of its own.
 
-The ring's colour is a fixed scale — green, amber, orange, red at 25, 50 and 75 % — on Home
+The ring's colour is a fixed scale — green, amber, orange, red at 50, 75 and 90 % — on Home
 Assistant's palette variables (`--green-color` and so on) rather than the theme's accent. It says
 how loaded something is, which a theme has no business recolouring. Everything else, the track
 included, stays on theme variables.

@@ -136,7 +136,7 @@ Notes on individual options:
   is on — it is off by default, because a stack is measured through its services and costs one
   request per running service on every poll. Without it a stack row shows the container count alone.
 - `show_server_summary` draws CPU load and memory usage as rings that go from green through amber
-  and orange to red at 25, 50 and 75 %, with the CPU temperature beside them and the server's
+  and orange to red at 50, 75 and 90 %, with the CPU temperature beside them and the server's
   uptime beside its name. It also brings back the server heading for a single server, which the
   card otherwise omits. The heading needs at least one of the three values, so a server reporting
   none of them stays without one.
