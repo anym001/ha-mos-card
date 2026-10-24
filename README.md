@@ -213,6 +213,9 @@ type: custom:mos-overview-card
 navigation_path: /mos/[[kind]]
 ```
 
+| <img src="https://raw.githubusercontent.com/anym001/ha-mos-card/main/assets/overview-card-light.png" width="400" alt="The overview card on a light theme"> | <img src="https://raw.githubusercontent.com/anym001/ha-mos-card/main/assets/overview-card-dark.png" width="400" alt="The overview card on a dark theme"> |
+| :--------------------------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------: |
+
 | Name              | Type    | Description                                                            | Default     |
 | ----------------- | ------- | ---------------------------------------------------------------------- | ----------- |
 | `type`            | string  | **Required.** `custom:mos-overview-card`                               |             |
