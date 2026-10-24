@@ -127,6 +127,14 @@ export class MosOverviewCardEditor extends LitElement implements LovelaceCardEdi
     const value = ev.detail.value as Record<string, unknown>;
     const config = { ...this._config, ...value } as MosOverviewCardConfig;
 
+    // A switch left at its default stays out of the YAML: the form hands back
+    // every switch on the first change, not just the one that was flipped.
+    for (const option of OVERVIEW_TOGGLES) {
+      if (config[option] === OVERVIEW_DEFAULTS[option]) {
+        delete config[option];
+      }
+    }
+
     // Cleared text fields come back as empty strings; dropped so the YAML stays clean.
     for (const key of ['title', 'server', 'navigation_path'] as const) {
       if (!value[key]) {
